@@ -11,8 +11,8 @@ export HBASE_HOME=~/hbase
 
 export JAVA_HOME=/opt/jdk1.6.0_20/
 
-export PATH=~/hbase/bin:$PATH
+export PATH=$H~/hbase/bin:$PATH
 
-hbase zookeeper start 
+$HBASE_HOME/bin/hbase zookeeper start 
 
 
