@@ -33,11 +33,11 @@ export CLASSPATH=\
 
 export HBASE_CLASSPATH=$CLASSPATH
 
-export HBASE_HOME=~/hbase
+export HBASE_HOME=$HOME/hbase
 
 export JAVA_HOME=/opt/jdk1.6.0_20/
 
-export PATH=~/hbase/bin:$PATH
+export PATH=$HBASE_HOME/bin:$PATH
 
-hbase master start 
+$HBASE_HOME/bin/hbase master start 
 
