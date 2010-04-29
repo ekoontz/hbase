@@ -1,14 +1,4 @@
-/opt/jdk1.6.0_20/bin/java \
-  -Xmx1000m \
-  -XX:+HeapDumpOnOutOfMemoryError \
-  -XX:+UseConcMarkSweepGC \
-  -XX:+CMSIncrementalMode \
-  -Dhbase.log.dir=/home/ekoontz/stable/hbase-0.20.3/logs \
-  -Dhbase.log.file=hbase.log \
-  -Dhbase.home.dir=/home/ekoontz/stable/hbase-0.20.3 \
-  -Dhbase.id.str= -Dhbase.root.logger=INFO,console \
-  -Djava.library.path=/home/ekoontz/stable/hbase-0.20.3/lib/native/Linux-amd64-64 \
-  -classpath \
+export CLASSPATH=\
 /home/ekoontz/hbase/build/classes:\
 /home/ekoontz/hbase/core/target/classes:\
 /home/ekoontz/stable/hbase-0.20.3/conf:/opt/jdk1.6.0_20/lib/tools.jar:\
@@ -39,8 +29,15 @@
 /home/ekoontz/stable/hbase-0.20.3/lib/xmlenc-0.52.jar:\
 /home/ekoontz/stable/hbase-0.20.3/lib/zookeeper-3.2.2.jar:\
 /home/ekoontz/stable/hbase-0.20.3/lib/jsp-2.1/jsp-2.1.jar:\
-/home/ekoontz/stable/hbase-0.20.3/lib/jsp-2.1/jsp-api-2.1.jar \
- org.apache.hadoop.hbase.master.HMaster start
+/home/ekoontz/stable/hbase-0.20.3/lib/jsp-2.1/jsp-api-2.1.jar
 
+export HBASE_CLASSPATH=$CLASSPATH
 
+export HBASE_HOME=/home/ekoontz/hbase
+
+export JAVA_HOME=/opt/jdk1.6.0_20/
+
+export PATH=/home/ekoontz/hbase/bin:$PATH
+
+hbase master start 
 
