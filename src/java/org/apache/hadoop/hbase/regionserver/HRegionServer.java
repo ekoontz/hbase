@@ -2258,6 +2258,9 @@ public class HRegionServer implements HConstants, HRegionInterface,
    */
   protected HRegion getRegion(final byte [] regionName)
   throws NotServingRegionException {
+      
+    LOG.info("ekoontzdebug: calling getRegion('"+ regionName + "'");
+
     HRegion region = null;
     this.lock.readLock().lock();
     try {
