@@ -2259,15 +2259,19 @@ public class HRegionServer implements HConstants, HRegionInterface,
   protected HRegion getRegion(final byte [] regionName)
   throws NotServingRegionException {
       
-    LOG.info("ekoontzdebug: calling getRegion('"+ regionName + "'");
+    LOG.info("ekoontzdebug: HRegionServer::getRegion('"+ regionName + "')");
 
     HRegion region = null;
     this.lock.readLock().lock();
     try {
       region = onlineRegions.get(Integer.valueOf(Bytes.hashCode(regionName)));
       if (region == null) {
+
+	  LOG.info("ekoontzdebug: HregionServer:: Throwing a NSRE for region: '"+ regionName + "'");
+
         throw new NotServingRegionException(regionName);
       }
+      LOG.info("ekoontzdebug: HregionServer:: returning region: '"+ regionName + "'.");
       return region;
     } finally {
       this.lock.readLock().unlock();
