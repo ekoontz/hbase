@@ -172,6 +172,11 @@ public class HRegionServer implements HConstants, HRegionInterface,
   
   // Leases
   private Leases leases;
+
+  // HBASE-2486
+  // "whenever a regionserver throws a NotServingRegionException, 
+  //  it also marks that region id in an RS-wide Set."
+  private Set<byte[]> nsre_set;
   
   // Request counter
   private volatile AtomicInteger requestCount = new AtomicInteger();
@@ -2266,9 +2271,15 @@ public class HRegionServer implements HConstants, HRegionInterface,
     try {
       region = onlineRegions.get(Integer.valueOf(Bytes.hashCode(regionName)));
       if (region == null) {
-
-	  LOG.info("ekoontzdebug: HregionServer:: Throwing a NSRE for region: '"+ regionName + "'");
-
+        
+        LOG.info("ekoontzdebug: HregionServer:: Throwing a NSRE for region: '"+ regionName + "'");
+        
+        // HBASE-2486: 
+        // "whenever a regionserver throws a NotServingRegionException, 
+        //  it also marks that region id in an RS-wide Set."
+        LOG.debug("HRegionServer::getRegion() : adding region: '" + regionName + "' to this.nsre_set, and then throwing NotServingRegionException().");
+        this.nsre_set.add(regionName);
+        
         throw new NotServingRegionException(regionName);
       }
       LOG.info("ekoontzdebug: HregionServer:: returning region: '"+ regionName + "'.");
