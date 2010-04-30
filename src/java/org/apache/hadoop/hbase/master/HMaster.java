@@ -1281,10 +1281,10 @@ public class HMaster extends Thread implements HConstants, HMasterInterface,
   public static void main(String [] args) {
 
    if ((args == null) || (args.length == 0)) {
-       LOG.info("ekoontz: starting HMaster.java::main() with no args.");
+       LOG.info("ekoontzdebug: starting HMaster.java::main() with no args.");
    }
    else {
-       LOG.info("ekoontz: starting HMaster.java::main() with first arg: '" + args[0] + "'");
+       LOG.info("ekoontzdebug: starting HMaster.java::main() with first arg: '" + args[0] + "'");
    }
 
    doMain(args, HMaster.class);
