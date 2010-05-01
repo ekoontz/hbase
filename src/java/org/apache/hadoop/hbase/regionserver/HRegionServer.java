@@ -173,7 +173,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
   // Leases
   private Leases leases;
 
-  // HBASE-2486
+  // HBASE-2486:
   // "whenever a regionserver throws a NotServingRegionException, 
   //  it also marks that region id in an RS-wide Set."
   private Set<byte[]> nsre_set;
