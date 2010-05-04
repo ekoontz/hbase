@@ -155,12 +155,12 @@ vegetables = [
               'squash'
 ]
 
-1000.times {
+2000.times {
   surname = surnames.slice(rand(surnames.size))
   given_name = given_names.slice(rand(given_names.size))
   name = given_name + " " + surname
   fruit = fruits.slice(rand(fruits.size))
-  vegetable = fruits.slice(rand(vegetables.size))
+  vegetable = vegetables.slice(rand(vegetables.size))
   people.put(name,'preferences:fruit',fruit)
   people.put(name,'preferences:vegetable',vegetable)
   people.put(name,'location:zip',(rand(99999)).to_s)
