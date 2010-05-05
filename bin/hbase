@@ -213,6 +213,8 @@ if [ "x$JAVA_LIBRARY_PATH" != "x" ]; then
   HBASE_OPTS="$HBASE_OPTS -Djava.library.path=$JAVA_LIBRARY_PATH"
 fi
 
+#uncomment following to show all the fiddly java runtime switches..
+#set -x
+
 # run it
-set -x
 exec "$JAVA" $JAVA_HEAP_MAX $HBASE_OPTS -classpath "$CLASSPATH" $CLASS "$@"
