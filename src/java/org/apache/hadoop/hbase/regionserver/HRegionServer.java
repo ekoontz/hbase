@@ -154,6 +154,12 @@ public class HRegionServer implements HConstants, HRegionInterface,
   private final List<HMsg> outboundMsgs =
     Collections.synchronizedList(new ArrayList<HMsg>());
 
+  // HBASE-2486:
+  // "whenever a regionserver throws a NotServingRegionException, 
+  //  it also marks that region id in an RS-wide Set."
+  private final Set<HRegion> nsreSet = 
+    Collections.synchronizedSet(new HashSet<HRegion>());
+
   final int numRetries;
   protected final int threadWakeFrequency;
   private final int msgInterval;
@@ -172,11 +178,6 @@ public class HRegionServer implements HConstants, HRegionInterface,
   
   // Leases
   private Leases leases;
-
-  // HBASE-2486:
-  // "whenever a regionserver throws a NotServingRegionException, 
-  //  it also marks that region id in an RS-wide Set."
-  private Set<byte[]> nsre_set;
   
   // Request counter
   private volatile AtomicInteger requestCount = new AtomicInteger();
@@ -462,11 +463,23 @@ public class HRegionServer implements HConstants, HRegionInterface,
           LOG.warn("unable to report to master for " + (now - lastMsg) +
             " milliseconds - retrying");
         }
+
         // Send messages to the master IF this.msgInterval has elapsed OR if
         // we have something to tell (and we didn't just fail sending master).
+
         if ((now - lastMsg) >= msgInterval ||
             ((outboundArray == null || outboundArray.length == 0) && !this.outboundMsgs.isEmpty())) {
           try {
+
+            if ((outboundArray != null)
+                &&
+                (outboundArray.length > 0)) {
+              LOG.info("ekoontzdebug: HRegionServer::run(): outboundArray is non-empty!");
+            } 
+            else {
+              LOG.info("ekoontzdebug: HRegionServer::run(): outboundArray is null or empty.");
+            }
+
             doMetrics();
             MemoryUsage memory =
               ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
@@ -2278,7 +2291,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
         // "whenever a regionserver throws a NotServingRegionException, 
         //  it also marks that region id in an RS-wide Set."
         LOG.debug("HRegionServer::getRegion() : adding region: '" + regionName + "' to this.nsre_set, and then throwing NotServingRegionException().");
-        this.nsre_set.add(regionName);
+        this.nsreSet.add(region);
         
         throw new NotServingRegionException(regionName);
       }
