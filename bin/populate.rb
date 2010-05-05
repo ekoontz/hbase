@@ -155,13 +155,17 @@ vegetables = [
               'squash'
 ]
 
-2000.times {
-  surname = surnames.slice(rand(surnames.size))
-  given_name = given_names.slice(rand(given_names.size))
-  name = given_name + " " + surname
+8000.times {
+  # surname: as with Spanish names, both mother's and father's surnames.
+  surname = surnames.slice(rand(surnames.size)) + " " + 
+            surnames.slice(rand(surnames.size));
+  # given name: first name plus a middle name.
+  given_name = given_names.slice(rand(given_names.size)) + " " + 
+               given_names.slice(rand(given_names.size))
+  full_name = given_name + " " + surname
   fruit = fruits.slice(rand(fruits.size))
   vegetable = vegetables.slice(rand(vegetables.size))
-  people.put(name,'preferences:fruit',fruit)
-  people.put(name,'preferences:vegetable',vegetable)
-  people.put(name,'location:zip',(rand(99999)).to_s)
+  people.put(full_name,'preferences:fruit',fruit)
+  people.put(full_name,'preferences:vegetable',vegetable)
+  people.put(full_name,'location:zip',(rand(99999)).to_s)
 }

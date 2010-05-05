@@ -103,11 +103,20 @@ public class HMsg implements Writable {
      * Flush
      */
     MSG_REGION_FLUSH,
-    
+
     /**
      * Run Major Compaction
      */
     MSG_REGION_MAJOR_COMPACT,
+
+    /**
+     * HBASE-2486: 
+     * when a region sends a heartbeat, include a message
+     * for each of these regions, MSG_REPORT_NSRE or somesuch, 
+     *  and then clear the set.
+     */
+    MSG_REPORT_NSRE
+
   }
 
   private Type type = null;
