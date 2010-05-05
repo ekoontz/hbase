@@ -181,6 +181,7 @@ elif [ "$COMMAND" = "regionserver" ] ; then
   CLASS='org.apache.hadoop.hbase.regionserver.HRegionServer'
   if [ "$1" != "stop" ] ; then
     HBASE_OPTS="$HBASE_OPTS $HBASE_REGIONSERVER_OPTS"
+    HBASE_OPTS="$HBASE_OPTS -Xdebug -Xrunjdwp:transport=dt_socket,address=8001,server=y,suspend=n "
   fi
 elif [ "$COMMAND" = "rest" ] ; then
   CLASS='org.apache.hadoop.hbase.rest.Dispatcher'
