@@ -47,6 +47,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -158,7 +159,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
   // "whenever a regionserver throws a NotServingRegionException, 
   //  it also marks that region id in an RS-wide Set."
   private final Set<HRegion> nsreSet = 
-    Collections.synchronizedSet(new HashSet<HRegion>());
+    Collections.synchronizedSet(new ConcurrentSkipListSet<HRegion>());
 
   final int numRetries;
   protected final int threadWakeFrequency;
