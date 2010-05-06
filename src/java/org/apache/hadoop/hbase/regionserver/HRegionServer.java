@@ -159,7 +159,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
   // "whenever a regionserver throws a NotServingRegionException, 
   //  it also marks that region id in an RS-wide Set."
   private final ConcurrentSkipListSet<byte[]> nsreSet =
-    new ConcurrentSkipListSet<byte[]>();
+    new ConcurrentSkipListSet<byte[]>(Bytes.BYTES_COMPARATOR);
 
   final int numRetries;
   protected final int threadWakeFrequency;
