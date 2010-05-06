@@ -1,4 +1,4 @@
-#!/usr/bin/jruby
+#!./bin/hbase shell
 
 include Java
 
