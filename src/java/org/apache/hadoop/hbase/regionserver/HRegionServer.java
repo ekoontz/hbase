@@ -158,7 +158,8 @@ public class HRegionServer implements HConstants, HRegionInterface,
   // HBASE-2486:
   // "whenever a regionserver throws a NotServingRegionException, 
   //  it also marks that region id in an RS-wide Set."
-  private final ConcurrentSkipListSet<HRegionInfo> nsreSet = new ConcurrentSkipListSet<HRegionInfo>();
+  private final ConcurrentSkipListSet<byte[]> nsreSet =
+    new ConcurrentSkipListSet<byte[]>();
 
   final int numRetries;
   protected final int threadWakeFrequency;
@@ -1219,11 +1220,11 @@ public class HRegionServer implements HConstants, HRegionInterface,
 
     // HBASE 2486: 
     // "2) when a region sends a heartbeat, include a message for each of these regions, MSG_REPORT_NSRE or somesuch, and then clear the set"
-    HRegionInfo nsre_region;
+    byte[] nsre_region;
     // note that pollFirst() removes the first element from nsreSet as a side-effect of returning that element.
     // http://java.sun.com/javase/6/docs/api/java/util/NavigableSet.html#pollFirst()
     while ((nsre_region = nsreSet.pollFirst()) != null) {
-      getOutboundMsgs().add(new HMsg(HMsg.Type.MSG_REPORT_NSRE, nsre_region));
+      getOutboundMsgs().add(new HMsg(HMsg.Type.MSG_REPORT_NSRE, null, nsre_region));
     }
 
     // If the todo list has > 0 messages, iterate looking for open region
@@ -2292,7 +2293,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
         // "whenever a regionserver throws a NotServingRegionException, 
         //  it also marks that region id in an RS-wide Set."
         LOG.debug("HRegionServer::getRegion() : adding region: '" + regionName + "' to this.nsre_set (before throwing NotServingRegionException()).");
-        this.nsreSet.add(region.getRegionInfo());
+        this.nsreSet.add(regionName);
         
         throw new NotServingRegionException(regionName);
       }
