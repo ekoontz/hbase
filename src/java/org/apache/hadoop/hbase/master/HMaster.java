@@ -1279,7 +1279,7 @@ public class HMaster extends Thread implements HConstants, HMasterInterface,
    * @param args
    */
   public static void main(String [] args) {
-   doMain(args, HMaster.class);
+    doMain(args, HMaster.class);
   }
 
 }
