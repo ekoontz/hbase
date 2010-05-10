@@ -2283,7 +2283,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
   protected HRegion getRegion(final byte [] regionName)
   throws NotServingRegionException {
       
-    LOG.info("ekoontzdebug: HRegionServer::getRegion('"+ regionName + "')");
+    LOG.info("ekoontzdebug: HRegionServer::getRegion('"+ Bytes.toString(regionName) + "')");
 
     HRegion region = null;
     this.lock.readLock().lock();
@@ -2293,11 +2293,11 @@ public class HRegionServer implements HConstants, HRegionInterface,
         // HBASE-2486: 
         // "whenever a regionserver throws a NotServingRegionException, 
         //  it also marks that region id in an RS-wide Set."
-        LOG.debug("HRegionServer::getRegion() : adding region: '" + regionName + "' to this.nsre_set (before throwing NotServingRegionException()).");
+        LOG.debug("HRegionServer::getRegion() : adding region: '" + Bytes.toString(regionName) + "' to this.nsre_set (before throwing NotServingRegionException()).");
         this.nsreSet.add(regionName);
         throw new NotServingRegionException(regionName);
       }
-      LOG.info("ekoontzdebug: HregionServer:: returning region: '"+ regionName + "'.");
+      LOG.info("ekoontzdebug: HregionServer:: returning region: '"+ region.toString() + "'");
       return region;
     } finally {
       this.lock.readLock().unlock();
