@@ -535,7 +535,7 @@ class ServerManager implements HConstants {
         }
         else {
           // 3.a.
-          LOG.info("Consistent NoSuchRegionException message: master believes that : " + r.getRegionName() + " is hosted on '" + r.getServer().toString() + "' , while a different server: '" + nsreServerAddress.toString() + "'  threw a NoSuchRegionException when a client asked for that region.");
+          LOG.info("Consistent NoSuchRegionException message: master believes that : " + r.getRegionName() + " is hosted on '" + r.getServer().toString() + "' , while a different server: '" + nsreServerAddress.toString() + "'  threw a NoSuchRegionException when asked for that region by a client.");
         }
       }
 
