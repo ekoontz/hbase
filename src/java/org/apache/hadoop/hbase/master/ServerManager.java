@@ -517,7 +517,7 @@ class ServerManager implements HConstants {
 
       // compare r's server with the one given in the NSRE:
       // if they differ, good: that's 3)a) above.
-      LOG.info("ekoontzdebug: nsre exception came from server: " + nsreServerAddress);
+      LOG.info("ekoontzdebug: nsre exception came from server: " + nsreServerAddress.toString());
       LOG.info("ekoontzdebug: meta region's server is: " + r.getServer().toString());
 
       if (false) { // FIXME: handle 3.b.: how can we tell if a region is in transition?
@@ -525,7 +525,7 @@ class ServerManager implements HConstants {
       else {
         if (nsreServerAddress.toString() == r.getServer().toString()) {
           // 3.c.
-          LOG.warn("Inconsistent NoSuchRegionException message: master believes that : " + r.toString() + " is hosted on '" + nsreServerAddress.toString() + "' , but that server threw a NoSuchRegionException when a client asked for that region.");
+          LOG.warn("Inconsistent NoSuchRegionException message: master believes that region: " + r.getRegionName() + " is hosted on '" + nsreServerAddress.toString() + "' , but that server threw a NoSuchRegionException when a client asked for that region.");
 
           // resolve this inconsistency:
           // either mark region as unassigned, or exit the master
@@ -535,7 +535,7 @@ class ServerManager implements HConstants {
         }
         else {
           // 3.a.
-          LOG.info("Consistent NoSuchRegionException message: master believes that : " + r.toString() + " is hosted on '" + r.getServer().toString() + "' , while a different server: '" + nsreServerAddress.toString() + "'  threw a NoSuchRegionException when a client asked for that region.");
+          LOG.info("Consistent NoSuchRegionException message: master believes that : " + r.getRegionName() + " is hosted on '" + r.getServer().toString() + "' , while a different server: '" + nsreServerAddress.toString() + "'  threw a NoSuchRegionException when a client asked for that region.");
         }
       }
 
