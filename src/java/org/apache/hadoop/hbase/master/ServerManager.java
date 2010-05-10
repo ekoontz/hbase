@@ -460,7 +460,7 @@ class ServerManager implements HConstants {
 
 
         case MSG_REPORT_NSRE:
-          // HBASE 2486: 
+          // HBASE-2486: 
           // check nsreSet's region location.
           checkNsreRegion(incomingMsgs[i]);
           break;
@@ -497,7 +497,21 @@ class ServerManager implements HConstants {
   }
   
   private void checkNsreRegion(HMsg nsreMsg) {
-    LOG.info("Server Manager: got here.");
+    // HBASE-2486: 
+    //     3) when the master receives MSG_REPORT_NSRE, 
+    //        it does the following checks:
+    //     a) if the region is assigned elsewhere according to META, 
+    //        the NSRE was due to a stale client, ignore.
+    //     b) if the region is in transition, ignore.
+    //     c) otherwise, we have an inconsistency, and 
+    //        we should take some steps to resolve 
+    //        (e.g., mark the region unassigned, or 
+    //         exit the master if we are in "paranoid mode")
+    LOG.info("Server Manager: got here: message's region string is : " + Bytes.toString(nsreMsg.message));
+    
+    // decode the byte array 'message' to an region.
+    // ..
+
   }
 
   /*
