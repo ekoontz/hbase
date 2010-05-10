@@ -458,6 +458,13 @@ class ServerManager implements HConstants {
           processSplitRegion(region, incomingMsgs[++i], incomingMsgs[++i]);
           break;
 
+
+        case MSG_REPORT_NSRE:
+          // HBASE 2486: 
+          // check nsreSet's region location.
+          checkNsreRegion(incomingMsgs[i]);
+          break;
+
         default:
           LOG.warn("Impossible state during message processing. Instruction: " +
             incomingMsgs[i].getType());
@@ -489,6 +496,10 @@ class ServerManager implements HConstants {
     return returnMsgs.toArray(new HMsg[returnMsgs.size()]);
   }
   
+  private void checkNsreRegion(HMsg nsreMsg) {
+    LOG.info("Server Manager: got here.");
+  }
+
   /*
    * A region has split.
    *
