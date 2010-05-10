@@ -507,7 +507,7 @@ class ServerManager implements HConstants {
     //        we should take some steps to resolve 
     //        (e.g., mark the region unassigned, or 
     //         exit the master if we are in "paranoid mode")
-    LOG.info("Server Manager: got here: message's region string is : " + Bytes.toString(nsreMsg.message));
+    LOG.info("Server Manager: got here: message's region string is : " + Bytes.toString(nsreMsg.getMessage()));
     
     // decode the byte array 'message' to an region.
     // ..
