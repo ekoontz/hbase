@@ -1224,7 +1224,11 @@ public class HRegionServer implements HConstants, HRegionInterface,
     // note that pollFirst() removes the first element from nsreSet as a side-effect of returning that element.
     // http://java.sun.com/javase/6/docs/api/java/util/NavigableSet.html#pollFirst()
     while ((nsre_region = nsreSet.pollFirst()) != null) {
-      getOutboundMsgs().add(new HMsg(HMsg.Type.MSG_REPORT_NSRE, null, nsre_region));
+      // create an empty 'fakeRegion', since HMsg's second argument
+      // (an HRegionInfo) may not be null.
+      HRegionInfo fake_region = new HRegionInfo();
+      LOG.info("ekoontzdebug: sending HMsg(MSG_REPORT_NSRE,fake_region,'" + nsre_region + "') to master..");
+      getOutboundMsgs().add(new HMsg(HMsg.Type.MSG_REPORT_NSRE, fake_region, nsre_region));
     }
 
     // If the todo list has > 0 messages, iterate looking for open region
@@ -2286,15 +2290,11 @@ public class HRegionServer implements HConstants, HRegionInterface,
     try {
       region = onlineRegions.get(Integer.valueOf(Bytes.hashCode(regionName)));
       if (region == null) {
-        
-        LOG.info("ekoontzdebug: HregionServer:: Throwing a NSRE for region: '"+ regionName + "'");
-        
         // HBASE-2486: 
         // "whenever a regionserver throws a NotServingRegionException, 
         //  it also marks that region id in an RS-wide Set."
         LOG.debug("HRegionServer::getRegion() : adding region: '" + regionName + "' to this.nsre_set (before throwing NotServingRegionException()).");
         this.nsreSet.add(regionName);
-        
         throw new NotServingRegionException(regionName);
       }
       LOG.info("ekoontzdebug: HregionServer:: returning region: '"+ regionName + "'.");
