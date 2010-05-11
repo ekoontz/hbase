@@ -520,7 +520,9 @@ class ServerManager implements HConstants {
       LOG.info("ekoontzdebug: nsre exception came from server: " + nsreServerAddress.toString());
       LOG.info("ekoontzdebug: meta region's server is: " + r.getServer().toString());
 
-      if (false) { // FIXME: handle 3.b.: how can we tell if a region is in transition?
+      if (master.regionManager.regionIsInTransition(r.getRegionName().toString())) {
+        // 3.b. region is in transition between 2 states.
+        LOG.info("Consistent NoSuchRegionException message: region '" + r.getRegionName() + "' is in transition.");
       }
       else {
         if (nsreServerAddress.toString() == r.getServer().toString()) {
