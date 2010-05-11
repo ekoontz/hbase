@@ -507,17 +507,29 @@ class ServerManager implements HConstants {
     //        we should take some steps to resolve 
     //        (e.g., mark the region unassigned, or 
     //         exit the master if we are in "paranoid mode")
-    LOG.info("checkNSRERegion(): message's region string is : " + Bytes.toString(nsreMsg.getMessage()));
+
+    // the region that caused the 'no such region' exception is encoded in the message contents:
+    // decode to a string.
+    String nsreRegion = Bytes.toString(nsreMsg.getMessage());
+
+    LOG.info("checkNSRERegion(): message's region string is : " + nsreRegion);
 
     // 3.b. if the region is in transition, ignore.
-    if (master.regionManager.regionIsInTransition(Bytes.toString(nsreMsg.getMessage()))) {
+    if (master.regionManager.regionIsInTransition(nsreRegion)) {
       // 3.b. region is in transition between 2 states.
-      LOG.info("Consistent NoSuchRegionException message: region '" + Bytes.toString(nsreMsg.getMessage()) + "' is in transition.");
+      LOG.info("Consistent NoSuchRegionException message: region '" + nsreRegion + "' is in transition.");
     }
     else {
       // 3.a. and 3.c. : determine region's location according to .META.
       // FIXME: should not have to iterate through all regions: should instead 
       // be able to look up server given region.
+
+      // we want to do, in hbase shell terms:
+      // 1) if nsreRegion IS NOT a region of the .META. table:
+      //        hbase> get '.META.',nsreRegion,{COLUMN => 'info:server'}
+      // 2) if nsreRegion IS a region of the .META. table:
+      //        hbase> get '-ROOT-','.META.,,1',{COLUMN => 'info:server'} 
+
       List<MetaRegion> regions =
         master.regionManager.getListOfOnlineMetaRegions();
       int regionCount = 1;
