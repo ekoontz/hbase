@@ -533,6 +533,8 @@ class ServerManager implements HConstants {
       //    in the '-ROOT-' table.
       //    In hbase shell terms:
       //        hbase> get '-ROOT-','.META.,,1',{COLUMN => 'info:server'} 
+      Get myget = Get.new()
+
 
       List<MetaRegion> regions =
         master.regionManager.getListOfOnlineMetaRegions();
