@@ -1227,7 +1227,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
       // create an empty 'fakeRegion', since HMsg's second argument
       // (an HRegionInfo) may not be null.
       HRegionInfo fake_region = new HRegionInfo();
-      LOG.info("ekoontzdebug: sending HMsg(MSG_REPORT_NSRE,fake_region,'" + nsre_region + "') to master..");
+      LOG.info("ekoontzdebug: sending HMsg(MSG_REPORT_NSRE,fake_region,'" + Bytes.toString(nsre_region) + "') to master..");
       getOutboundMsgs().add(new HMsg(HMsg.Type.MSG_REPORT_NSRE, fake_region, nsre_region));
     }
 
