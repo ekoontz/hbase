@@ -525,9 +525,13 @@ class ServerManager implements HConstants {
       // be able to look up server given region.
 
       // we want to do, in hbase shell terms:
-      // 1) if nsreRegion IS NOT a region of the .META. table:
+      // 1) if nsreRegion IS NOT a region of the .META. table, look up its host server
+      //    in the '.META.' table.
+      //    In hbase shell terms:
       //        hbase> get '.META.',nsreRegion,{COLUMN => 'info:server'}
-      // 2) if nsreRegion IS a region of the .META. table:
+      // 2) if nsreRegion IS a region of the .META. table, look up its host server
+      //    in the '-ROOT-' table.
+      //    In hbase shell terms:
       //        hbase> get '-ROOT-','.META.,,1',{COLUMN => 'info:server'} 
 
       List<MetaRegion> regions =
