@@ -517,7 +517,7 @@ class ServerManager implements HConstants {
     // 3.b. if the region is in transition, ignore.
     if (master.regionManager.regionIsInTransition(nsreRegion)) {
       // 3.b. region is in transition between 2 states.
-      LOG.info("Consistent NoSuchRegionException message: region '" + nsreRegion + "' is in transition.");
+      LOG.info("checkNSRERegion(): NoSuchRegionException message : master is consistent: region '" + nsreRegion + "' is in transition.");
     }
     else {
       // 3.a. and 3.c. : determine region's location according to .META.
@@ -525,18 +525,21 @@ class ServerManager implements HConstants {
       // be able to look up server given region.
 
       // we want to do, in hbase shell terms:
-      // 1) if nsreRegion IS NOT a region of the .META. table, look up its host server
-      //    in the '.META.' table.
-      //    In hbase shell terms:
-      //        hbase> get '.META.',nsreRegion,{COLUMN => 'info:server'}
-      // 2) if nsreRegion IS a region of the .META. table, look up its host server
+      // 1) if nsreRegion IS a region of the .META. table, look up its host server
       //    in the '-ROOT-' table.
       //    In hbase shell terms:
       //        hbase> get '-ROOT-','.META.,,1',{COLUMN => 'info:server'} 
-      // get RegionInfo for this region.
+      if (false) {
+        // lookup this '.META.' table's location in -ROOT-.
 
-      HRegionInfo nsreRegionInfo = new HRegionInfo();
-      MetaRegion metaRegion = master.regionManager.getFirstMetaRegionForRegion(nsreRegionInfo);
+        // we're done: return.
+      }
+
+      // 2) if nsreRegion IS NOT a region of the .META. table, look up its host server
+      //    in the '.META.' table.
+      //    In hbase shell terms:
+      //        hbase> get '.META.',nsreRegion,{COLUMN => 'info:server'}
+
 
       List<MetaRegion> regions =
         master.regionManager.getListOfOnlineMetaRegions();
@@ -547,13 +550,15 @@ class ServerManager implements HConstants {
                  " with each region: " + Bytes.toString(r.getRegionName()));
 
         if (Bytes.toString(r.getRegionName()).equals(Bytes.toString(nsreMsg.getMessage()))) {
+          // We found the region of .META. that's concerned with the region that caused the NSRE.
+
           // compare r's server with the one given in the NSRE:
           // if they differ, good: that's 3.a.
           LOG.info("ekoontzdebug: nsre exception came from server: " + nsreServerAddress.toString());
           LOG.info("ekoontzdebug: meta region's server is:         " + r.getServer().toString());
           if (nsreServerAddress.toString().equals(r.getServer().toString())) {
             // 3.c.: inconsistency
-            LOG.warn("Inconsistent NoSuchRegionException message: master believes that region: " + Bytes.toString(r.getRegionName()) + " is hosted on '" + nsreServerAddress.toString() + "' , but that server threw a NoSuchRegionException when a client asked for that region.");
+            LOG.warn("NoSuchRegionException message: master is NOT consistent - it believes that region: " + Bytes.toString(r.getRegionName()) + " is hosted on '" + nsreServerAddress.toString() + "' , but that server threw a NoSuchRegionException when a client asked for that region.");
             // resolve this inconsistency:
             // either mark region as unassigned, or exit the master
             // in "paranoid mode"
@@ -561,14 +566,15 @@ class ServerManager implements HConstants {
           }
           else {
             // 3.a.
-            LOG.info("Consistent NoSuchRegionException message: master believes that : " + Bytes.toString(r.getRegionName()) + " is hosted on '" + r.getServer().toString() + "' , while a different server: '" + nsreServerAddress.toString() + "'  threw a NoSuchRegionException when asked for that region by a client.");
+            LOG.info("NoSuchRegionException message : master is consistent - it believes that region : " + Bytes.toString(r.getRegionName()) + " is hosted on '" + r.getServer().toString() + "' , while a different server: '" + nsreServerAddress.toString() + "'  threw a NoSuchRegionException when asked for that region by a client.");
           }
+          // We found the relevant region of .META. online, so we can break out of the loop now.
+          break;
         }
         else {
-          LOG.info("ekoontzdebug: not equal : '" + Bytes.toString(nsreMsg.getMessage()) + "'" +
-                   " and: '" + Bytes.toString(r.getRegionName()) + "'");
-
-          //..
+          LOG.info("ekoontzdebug: this region : '" + Bytes.toString(nsreMsg.getMessage()) + "'" +
+                   " is not what we are looking for. ('" + Bytes.toString(r.getRegionName()) + "').");
+          LOG.info("ekoontzdebug:  ..continuing to next online region...");
         }
         regionCount++;
       }
