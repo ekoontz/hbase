@@ -507,44 +507,38 @@ class ServerManager implements HConstants {
     //        we should take some steps to resolve 
     //        (e.g., mark the region unassigned, or 
     //         exit the master if we are in "paranoid mode")
-    LOG.info("Server Manager: got here: message's region string is : " + Bytes.toString(nsreMsg.getMessage()));
-    // 1. determine region's location according to .META.
-    List<MetaRegion> regions =
-      master.regionManager.getListOfOnlineMetaRegions();
-    int regionCount = 0;
-    for (MetaRegion r: regions) {
-      LOG.info("ekoontzdebug: scanning meta region: " + r.toString() + " (count : " + regionCount + ")");
+    LOG.info("checkNSRERegion(): message's region string is : " + Bytes.toString(nsreMsg.getMessage()));
 
-      // compare r's server with the one given in the NSRE:
-      // if they differ, good: that's 3)a) above.
-      LOG.info("ekoontzdebug: nsre exception came from server: " + nsreServerAddress.toString());
-      LOG.info("ekoontzdebug: meta region's server is: " + r.getServer().toString());
-
-      if (master.regionManager.regionIsInTransition(r.getRegionName().toString()) == true) {
-        // 3.b. region is in transition between 2 states.
-        LOG.info("Consistent NoSuchRegionException message: region '" + r.getRegionName() + "' is in transition.");
-      }
-      else {
+    // 3.b. if the region is in transition, ignore.
+    if (master.regionManager.regionIsInTransition(Bytes.toString(nsreMsg.getMessage()))) {
+      // 3.b. region is in transition between 2 states.
+      LOG.info("Consistent NoSuchRegionException message: region '" + Bytes.toString(nsreMsg.getMessage()) + "' is in transition.");
+    }
+    else {
+    // 3.a. and 3.c.: determine region's location according to .META.
+      List<MetaRegion> regions =
+        master.regionManager.getListOfOnlineMetaRegions();
+      int regionCount = 0;
+      for (MetaRegion r: regions) {
+        LOG.info("ekoontzdebug: scanning meta region: " + r.toString() + " (count : " + regionCount + ")");
+        // compare r's server with the one given in the NSRE:
+        // if they differ, good: that's 3)a) above.
+        LOG.info("ekoontzdebug: nsre exception came from server: " + nsreServerAddress.toString());
+        LOG.info("ekoontzdebug: meta region's server is: " + r.getServer().toString());
         if (nsreServerAddress.toString() == r.getServer().toString()) {
           // 3.c.
-          LOG.warn("Inconsistent NoSuchRegionException message: master believes that region: " + r.getRegionName() + " is hosted on '" + nsreServerAddress.toString() + "' , but that server threw a NoSuchRegionException when a client asked for that region.");
-
+          LOG.warn("Inconsistent NoSuchRegionException message: master believes that region: " + Bytes.toString(r.getRegionName()) + " is hosted on '" + nsreServerAddress.toString() + "' , but that server threw a NoSuchRegionException when a client asked for that region.");
           // resolve this inconsistency:
           // either mark region as unassigned, or exit the master
           // in "paranoid mode"
-
           // ...
         }
         else {
           // 3.a.
-          LOG.info("Consistent NoSuchRegionException message: master believes that : " + r.getRegionName() + " is hosted on '" + r.getServer().toString() + "' , while a different server: '" + nsreServerAddress.toString() + "'  threw a NoSuchRegionException when asked for that region by a client.");
+          LOG.info("Consistent NoSuchRegionException message: master believes that : " + Bytes.toString(r.getRegionName()) + " is hosted on '" + r.getServer().toString() + "' , while a different server: '" + nsreServerAddress.toString() + "'  threw a NoSuchRegionException when asked for that region by a client.");
         }
       }
-
-      regionCount++;
     }
-    
-
   }
 
   /*
