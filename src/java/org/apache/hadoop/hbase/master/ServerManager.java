@@ -48,8 +48,7 @@ import org.apache.hadoop.hbase.Leases;
 import org.apache.hadoop.hbase.HMsg.Type;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.MetaScanner;
-import org.apache.hadoop.hbase.client.MetaScanner.MetaScannerVisitor;
+import org.apache.hadoop.hbase.master.MetaScanner;
 import org.apache.hadoop.hbase.ipc.HRegionInterface;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.zookeeper.WatchedEvent;
@@ -551,31 +550,35 @@ class ServerManager implements HConstants {
     }
 
     if (regionServerBelief == null) {
-      LOG.info("STARTING META SCAN BLOCK..");
       // region is not -ROOT-, and was not found in the list of online .META. regions,
       // We must do the equivalent of a :
       // hbase shell> get '.META.',$nsreRegion,{COLUMN => 'info:server'} 
       // to find the server where the region (according to .META.) is located.
-
-      MetaScannerVisitor visitor = new MetaScannerVisitor() {
-          public boolean processRow(Result rowResult) throws IOException {
-            LOG.info("visiting meta row...");
-            return true;
-          }
-        };
       try {
-        LOG.info("STARTING META SCAN..");
-        MetaScanner.metaScan(master.getConfiguration(),visitor,nsreMsg.getMessage());
-        LOG.info("FINISHED META SCAN.");
+        MetaRegion mr = this.master.regionManager.getMetaRegionForRow(nsreMsg.getMessage());
+        // do a 'Get' with the specified row 
+        Get g = new Get(nsreMsg.getMessage());
+        g.addColumn(CATALOG_FAMILY,SERVER_QUALIFIER);
+        try {
+          HRegionInterface server =
+            master.connection.getHRegionConnection(mr.getServer());
+          Result r = server.get(mr.getRegionName(), g);
+
+          LOG.info("RESULT: " + r.getValue(CATALOG_FAMILY,SERVER_QUALIFIER));
+
+        }
+        catch (IOException e) {
+          LOG.warn("failed to find server for region: " + nsreRegion);
+        }
       }
-      catch (IOException e) {
-        LOG.error("METASCAN THREW EXCEPTION.");
+      catch(NotAllMetaRegionsOnlineException e) {
+        LOG.warn("failed to find server for region: " + nsreRegion);
       }
-      LOG.info("FINISHED META SCAN BLOCK.");
+
     }
 
     // compare regionServerBelief with the server given in the no-such-region-exception message:
-    // if they differ, good: that's 3.a.
+    // if they differ, good: that's the non-erroneous situation 3.a.
     LOG.info("NSRE exception came from region server       : " + nsreServerAddress.toString());
     LOG.info("according to regionManager, region server is : " + regionServerBelief);
     if (nsreServerAddress.toString().equals(regionServerBelief)) {
