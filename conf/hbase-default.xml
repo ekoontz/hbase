@@ -400,7 +400,7 @@
 	 Two values are supported now: 'paranoid' (shut master down) 
          or 'lax' (mark region in question as unassigned).
       -->
-    <name>hbase.inconsistencyhandling</name>
+    <name>hbase.master.sanitychecking</name>
     <value>lax</value>
   </property>
 
