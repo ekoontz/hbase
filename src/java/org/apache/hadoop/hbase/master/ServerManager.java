@@ -536,7 +536,6 @@ class ServerManager implements HConstants {
       // if not a .META. table, we must do :
       // FIXME: is there a random-access method to look up online .META. regions by name?
       // doing sequential access for now (iterating over online .META. regions).
-
       List<MetaRegion> regions = master.regionManager.getListOfOnlineMetaRegions();
       int regionCount = 1;
 
@@ -553,9 +552,14 @@ class ServerManager implements HConstants {
     }
 
     if (regionServerBelief == null) {
-      // region is a user-level table: must do the equivalent of a 
-      // hbase shell> get '.META.',nsreRegion,{COLUMN => 'info:server'} 
-      // to find the server in question.
+      // region is not -ROOT-, and was not found in the list of online .META. regions.
+      // We must do the equivalent of a 
+
+      // hbase shell> get '-ROOT-',$nsreRegion,{COLUMN => 'info:server'} 
+      //       (if region is in .META.), or:
+      // hbase shell> get '.META.',$nsreRegion,{COLUMN => 'info:server'} 
+      //       (if region is not in .META.)
+      // to find the server where the region (according to .META.) is located.
     }
 
     // compare regionServerBelief with the server given in the no-such-region-exception message:
