@@ -563,7 +563,7 @@ class ServerManager implements HConstants {
             master.connection.getHRegionConnection(mr.getServer());
           Result r = server.get(mr.getRegionName(), g);
           regionServerBelief = Bytes.toString(r.getValue(CATALOG_FAMILY,SERVER_QUALIFIER));
-          LOG.info("checkNSRERegion() : According to region manager, .META., region: " + nsreRegion + " is hosted on region server: " + regionServerBelief);
+          LOG.info("checkNSRERegion() : According to region manager's .META. information, region: " + nsreRegion + " is hosted on region server: " + regionServerBelief);
 
         }
         catch (IOException e) {
