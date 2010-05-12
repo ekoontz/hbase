@@ -112,7 +112,7 @@ public class HMsg implements Writable {
     /**
      * HBASE-2486: 
      * when a region sends a heartbeat, include a message
-     * for each of these regions, MSG_REPORT_NSRE or somesuch, 
+     * for each no-such-region-exception regions, MSG_REPORT_NSRE or somesuch, 
      *  and then clear the set.
      */
     MSG_REPORT_NSRE
