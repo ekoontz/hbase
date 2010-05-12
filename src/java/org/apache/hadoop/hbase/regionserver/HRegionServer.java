@@ -160,7 +160,6 @@ public class HRegionServer implements HConstants, HRegionInterface,
   //  it also marks that region id in an RS-wide Set."
   private final ConcurrentSkipListSet<byte[]> nsreSet =
     new ConcurrentSkipListSet<byte[]>(Bytes.BYTES_COMPARATOR);
-
   final int numRetries;
   protected final int threadWakeFrequency;
   private final int msgInterval;
@@ -464,14 +463,11 @@ public class HRegionServer implements HConstants, HRegionInterface,
           LOG.warn("unable to report to master for " + (now - lastMsg) +
             " milliseconds - retrying");
         }
-
         // Send messages to the master IF this.msgInterval has elapsed OR if
         // we have something to tell (and we didn't just fail sending master).
-
         if ((now - lastMsg) >= msgInterval ||
             ((outboundArray == null || outboundArray.length == 0) && !this.outboundMsgs.isEmpty())) {
           try {
-
             doMetrics();
             MemoryUsage memory =
               ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
@@ -1217,7 +1213,6 @@ public class HRegionServer implements HConstants, HRegionInterface,
    * the end of the main HRegionServer run loop.
    */
   private void housekeeping() {
-
     // HBASE 2486: 
     // "2) when a region sends a heartbeat, include a message for each of these regions, MSG_REPORT_NSRE or somesuch, and then clear the set"
     byte[] nsre_region;
@@ -2282,9 +2277,6 @@ public class HRegionServer implements HConstants, HRegionInterface,
    */
   protected HRegion getRegion(final byte [] regionName)
   throws NotServingRegionException {
-      
-    LOG.info("ekoontzdebug: HRegionServer::getRegion('"+ Bytes.toString(regionName) + "')");
-
     HRegion region = null;
     this.lock.readLock().lock();
     try {
@@ -2297,7 +2289,6 @@ public class HRegionServer implements HConstants, HRegionInterface,
         this.nsreSet.add(regionName);
         throw new NotServingRegionException(regionName);
       }
-      LOG.info("ekoontzdebug: HregionServer:: returning region: '"+ region.toString() + "'");
       return region;
     } finally {
       this.lock.readLock().unlock();
