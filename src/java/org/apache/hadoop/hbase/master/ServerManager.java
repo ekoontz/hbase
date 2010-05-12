@@ -552,10 +552,7 @@ class ServerManager implements HConstants {
     }
 
     if (regionServerBelief == null) {
-      // region is not -ROOT-, and was not found in the list of online .META. regions,
-      // We must do the equivalent of a :
-      // hbase shell> get '.META.',$nsreRegion,{COLUMN => 'info:server'} 
-      // to find the server where the region (according to .META.) is located.
+      // region is not -ROOT-, and was not found in the list of online .META. regions.
       try {
         MetaRegion mr = master.regionManager.getMetaRegionForRow(nsreMsg.getMessage());
         // do a 'Get' with the specified row 
