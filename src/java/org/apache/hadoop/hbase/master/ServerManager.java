@@ -48,8 +48,8 @@ import org.apache.hadoop.hbase.Leases;
 import org.apache.hadoop.hbase.HMsg.Type;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.master.MetaScanner;
 import org.apache.hadoop.hbase.ipc.HRegionInterface;
+import org.apache.hadoop.hbase.master.MetaScanner;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -528,7 +528,7 @@ class ServerManager implements HConstants {
     // 3.a. and 3.c. : determine region's location according to .META.
     String regionServerBelief = null;
     
-    if (nsreRegion.equals("-ROOT-,,0")) { // assumption: there is only one ROOT region : '-ROOT-,,0'
+    if (nsreRegion.equals("-ROOT-,,0")) { // assumption: there is only one -ROOT- region, and it's called '-ROOT-,,0'
       HServerAddress rootServerAddress = master.getRootRegionLocation();
       regionServerBelief = rootServerAddress.toString();
     }
