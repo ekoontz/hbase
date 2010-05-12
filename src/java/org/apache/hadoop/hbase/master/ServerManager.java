@@ -535,9 +535,6 @@ class ServerManager implements HConstants {
       // if a .META. table, we can use master.regionManager.getListOfOnlineMetaRegions() 
       // to see where it is hosted.
 
-      // if not a .META. table, we must do :
-      // FIXME: is there a random-access method to look up online .META. regions by name?
-      // doing sequential access for now (iterating over online .META. regions).
       List<MetaRegion> regions = master.regionManager.getListOfOnlineMetaRegions();
       int regionCount = 1;
 
@@ -554,28 +551,27 @@ class ServerManager implements HConstants {
     }
 
     if (regionServerBelief == null) {
-      // region is not -ROOT-, and was not found in the list of online .META. regions.
-      // We must do the equivalent of a 
-
-      // hbase shell> get '-ROOT-',$nsreRegion,{COLUMN => 'info:server'} 
-      //       (if region is in .META.), or:
+      LOG.info("STARTING META SCAN BLOCK..");
+      // region is not -ROOT-, and was not found in the list of online .META. regions,
+      // We must do the equivalent of a :
       // hbase shell> get '.META.',$nsreRegion,{COLUMN => 'info:server'} 
-      //       (if region is not in .META.)
       // to find the server where the region (according to .META.) is located.
-      Get g = new Get(nsreMsg.getMessage());
 
       MetaScannerVisitor visitor = new MetaScannerVisitor() {
           public boolean processRow(Result rowResult) throws IOException {
+            LOG.info("visiting meta row...");
             return true;
           }
         };
       try {
+        LOG.info("STARTING META SCAN..");
         MetaScanner.metaScan(master.getConfiguration(),visitor,nsreMsg.getMessage());
+        LOG.info("FINISHED META SCAN.");
       }
       catch (IOException e) {
-        LOG.error("GOT HERE.");
+        LOG.error("METASCAN THREW EXCEPTION.");
       }
-
+      LOG.info("FINISHED META SCAN BLOCK.");
     }
 
     // compare regionServerBelief with the server given in the no-such-region-exception message:
@@ -584,9 +580,11 @@ class ServerManager implements HConstants {
     LOG.info("according to regionManager, region server is : " + regionServerBelief);
     if (nsreServerAddress.toString().equals(regionServerBelief)) {
       // 3.c.: inconsistency
-      LOG.warn("NoSuchRegionException message: master is NOT consistent - it believes that region: " + 
-               nsreRegion + " is hosted on '" + nsreServerAddress.toString() + 
-               "' , but that server threw a NoSuchRegionException when a client asked for that region.");
+      LOG.error("NoSuchRegionException message: master is NOT consistent - it believes that :");
+      LOG.error("  region: " + nsreRegion);
+      LOG.error(" is hosted on :");
+      LOG.error("  server: " + regionServerBelief);
+      LOG.error("but that server threw a NoSuchRegionException when a client asked for that region.");
       // resolve this inconsistency:
       // either mark region as unassigned, or exit the master
       // in "paranoid mode"
@@ -594,10 +592,14 @@ class ServerManager implements HConstants {
     }
     else {
       // 3.a.
-      LOG.info("NoSuchRegionException message : master is consistent - it believes that region : " + 
-               nsreRegion + " is hosted on '" + regionServerBelief + 
-               "' , while a different server: '" + nsreServerAddress.toString() + 
-               "'  threw a NoSuchRegionException when asked for that region by a client.");
+      // 3.c.: inconsistency
+      LOG.info("NoSuchRegionException message: master is consistent - it believes that :");
+      LOG.info("  region: " + nsreRegion);
+      LOG.info(" is hosted on :");
+      LOG.info("  server: " + regionServerBelief);
+      LOG.info(" while a different server:");
+      LOG.info("  server: " + nsreServerAddress.toString());
+      LOG.info(" threw a NoSuchRegionException when asked for that region by a client.");
     }
     return;
   }
