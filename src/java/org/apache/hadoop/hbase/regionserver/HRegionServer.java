@@ -1214,7 +1214,8 @@ public class HRegionServer implements HConstants, HRegionInterface,
    */
   private void housekeeping() {
     // HBASE 2486: 
-    // "2) when a region sends a heartbeat, include a message for each of these regions, MSG_REPORT_NSRE or somesuch, and then clear the set"
+    // "2) when a region sends a heartbeat, include a message for each of these regions, 
+    //     MSG_REPORT_NSRE or somesuch, and then clear the set"
     byte[] nsre_region;
     // note that pollFirst() removes the first element from nsreSet as a side-effect of returning that element.
     // http://java.sun.com/javase/6/docs/api/java/util/NavigableSet.html#pollFirst()
@@ -1222,7 +1223,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
       // create an empty 'fakeRegion', since HMsg's second argument
       // (an HRegionInfo) must not be null.
       HRegionInfo fake_region = new HRegionInfo();
-      LOG.info("ekoontzdebug: sending HMsg(MSG_REPORT_NSRE,fake_region,'" + Bytes.toString(nsre_region) + "') to master..");
+      LOG.debug("sending HMsg(MSG_REPORT_NSRE,fake_region,'" + Bytes.toString(nsre_region) + "') to master..");
       getOutboundMsgs().add(new HMsg(HMsg.Type.MSG_REPORT_NSRE, fake_region, nsre_region));
     }
 
@@ -2285,7 +2286,8 @@ public class HRegionServer implements HConstants, HRegionInterface,
         // HBASE-2486: 
         // "whenever a regionserver throws a NotServingRegionException, 
         //  it also marks that region id in an RS-wide Set."
-        LOG.debug("HRegionServer::getRegion() : adding region: '" + Bytes.toString(regionName) + "' to this.nsre_set (before throwing NotServingRegionException()).");
+        LOG.debug("HRegionServer::getRegion() : adding region: '" + Bytes.toString(regionName) +
+                  "' to this.nsre_set (before throwing NotServingRegionException()).");
         this.nsreSet.add(regionName);
         throw new NotServingRegionException(regionName);
       }

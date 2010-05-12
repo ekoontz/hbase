@@ -513,12 +513,12 @@ class ServerManager implements HConstants {
     // decode to a string.
     String nsreRegion = Bytes.toString(nsreMsg.getMessage());
 
-    LOG.info("checkNSRERegion(): message's region string is : " + nsreRegion);
+    LOG.debug("checkNSRERegion(): message's region string is : " + nsreRegion);
 
     // 3.b. if the region is in transition, ignore.
     if (master.regionManager.regionIsInTransition(nsreRegion)) {
       // 3.b. region is in transition between 2 states.
-      LOG.info("checkNSRERegion(): NoSuchRegionException message : master is consistent: region '" + nsreRegion + "' is in transition.");
+      LOG.debug("checkNSRERegion(): NoSuchRegionException message : master is consistent: region '" + nsreRegion + "' is in transition.");
       return;
     }
 
@@ -538,7 +538,7 @@ class ServerManager implements HConstants {
       int regionCount = 1;
 
       for (MetaRegion r: regions) {
-        LOG.info("metaregion " + regionCount + " : " + r.toString());
+        LOG.debug("metaregion " + regionCount + " : " + r.toString());
         regionCount++;
 
         if (nsreRegion.equals(Bytes.toString(r.getRegionName()))) {
@@ -560,7 +560,7 @@ class ServerManager implements HConstants {
             master.connection.getHRegionConnection(mr.getServer());
           Result r = server.get(mr.getRegionName(), g);
           regionServerBelief = Bytes.toString(r.getValue(CATALOG_FAMILY,SERVER_QUALIFIER));
-          LOG.info("checkNSRERegion() : According to region manager's .META. information, region: " + nsreRegion + " is hosted on region server: " + regionServerBelief);
+          LOG.debug("checkNSRERegion() : According to region manager's .META. information, region: " + nsreRegion + " is hosted on region server: " + regionServerBelief);
 
         }
         catch (IOException e) {
@@ -575,8 +575,8 @@ class ServerManager implements HConstants {
 
     // compare regionServerBelief with the server given in the no-such-region-exception message:
     // if they differ, good: that's the non-erroneous situation 3.a.
-    LOG.info("NSRE exception came from region server       : " + nsreServerAddress.toString());
-    LOG.info("according to regionManager, region server is : " + regionServerBelief);
+    LOG.debug("NSRE exception came from region server       : " + nsreServerAddress.toString());
+    LOG.debug("according to regionManager, region server is : " + regionServerBelief);
     if (nsreServerAddress.toString().equals(regionServerBelief)) {
       // 3.c.: inconsistency
       LOG.error("NoSuchRegionException message: master is NOT consistent - it believes that :");
@@ -608,13 +608,13 @@ class ServerManager implements HConstants {
     }
     else {
       // 3.a. : consistent.
-      LOG.info("NoSuchRegionException message: master is consistent - it believes that :");
-      LOG.info("  region: " + nsreRegion);
-      LOG.info(" is hosted on :");
-      LOG.info("  server: " + regionServerBelief);
-      LOG.info(" while a different server:");
-      LOG.info("  server: " + nsreServerAddress.toString());
-      LOG.info(" threw a NoSuchRegionException when asked for that region by a client.");
+      LOG.debug("NoSuchRegionException message: master is consistent - it believes that :");
+      LOG.debug("  region: " + nsreRegion);
+      LOG.debug(" is hosted on :");
+      LOG.debug("  server: " + regionServerBelief);
+      LOG.debug(" while a different server:");
+      LOG.debug("  server: " + nsreServerAddress.toString());
+      LOG.debug(" threw a NoSuchRegionException when asked for that region by a client.");
     }
     return;
   }
