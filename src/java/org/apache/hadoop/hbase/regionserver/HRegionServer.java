@@ -1223,7 +1223,9 @@ public class HRegionServer implements HConstants, HRegionInterface,
       // create an empty 'fakeRegion', since HMsg's second argument
       // (an HRegionInfo) must not be null.
       HRegionInfo fake_region = new HRegionInfo();
-      LOG.debug("sending HMsg(MSG_REPORT_NSRE,fake_region,'" + Bytes.toString(nsre_region) + "') to master..");
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("sending HMsg(MSG_REPORT_NSRE,fake_region,'" + Bytes.toString(nsre_region) + "') to master..");
+      }
       getOutboundMsgs().add(new HMsg(HMsg.Type.MSG_REPORT_NSRE, fake_region, nsre_region));
     }
 
@@ -2286,8 +2288,10 @@ public class HRegionServer implements HConstants, HRegionInterface,
         // HBASE-2486: 
         // "whenever a regionserver throws a NotServingRegionException, 
         //  it also marks that region id in an RS-wide Set."
-        LOG.debug("HRegionServer::getRegion() : adding region: '" + Bytes.toString(regionName) +
-                  "' to this.nsre_set (before throwing NotServingRegionException()).");
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("HRegionServer::getRegion() : adding region: '" + Bytes.toString(regionName) +
+                    "' to this.nsre_set (before throwing NotServingRegionException()).");
+        }
         this.nsreSet.add(regionName);
         throw new NotServingRegionException(regionName);
       }
