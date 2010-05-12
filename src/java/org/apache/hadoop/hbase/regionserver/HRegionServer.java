@@ -1220,7 +1220,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
     // http://java.sun.com/javase/6/docs/api/java/util/NavigableSet.html#pollFirst()
     while ((nsre_region = nsreSet.pollFirst()) != null) {
       // create an empty 'fakeRegion', since HMsg's second argument
-      // (an HRegionInfo) may not be null.
+      // (an HRegionInfo) must not be null.
       HRegionInfo fake_region = new HRegionInfo();
       LOG.info("ekoontzdebug: sending HMsg(MSG_REPORT_NSRE,fake_region,'" + Bytes.toString(nsre_region) + "') to master..");
       getOutboundMsgs().add(new HMsg(HMsg.Type.MSG_REPORT_NSRE, fake_region, nsre_region));
