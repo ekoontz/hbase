@@ -397,10 +397,11 @@
     <!-- how to deal with situations such as
 	 inconsistent beliefs between master and a regionserver concerning a region's location
 	 (HBASE-2486) 
-	 Two values are supported now: paranoid or lax.
+	 Two values are supported now: 'paranoid' (shut master down) 
+         or 'lax' (mark region in question as unassigned).
       -->
     <name>hbase.inconsistencyhandling</name>
-    <value>paranoid</value>
+    <value>lax</value>
   </property>
 
   <property>
