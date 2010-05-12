@@ -48,6 +48,8 @@ import org.apache.hadoop.hbase.Leases;
 import org.apache.hadoop.hbase.HMsg.Type;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.MetaScanner;
+import org.apache.hadoop.hbase.client.MetaScanner.MetaScannerVisitor;
 import org.apache.hadoop.hbase.ipc.HRegionInterface;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.zookeeper.WatchedEvent;
@@ -560,6 +562,20 @@ class ServerManager implements HConstants {
       // hbase shell> get '.META.',$nsreRegion,{COLUMN => 'info:server'} 
       //       (if region is not in .META.)
       // to find the server where the region (according to .META.) is located.
+      Get g = new Get(nsreMsg.getMessage());
+
+      MetaScannerVisitor visitor = new MetaScannerVisitor() {
+          public boolean processRow(Result rowResult) throws IOException {
+            return true;
+          }
+        };
+      try {
+        MetaScanner.metaScan(master.getConfiguration(),visitor,nsreMsg.getMessage());
+      }
+      catch (IOException e) {
+        LOG.error("GOT HERE.");
+      }
+
     }
 
     // compare regionServerBelief with the server given in the no-such-region-exception message:
