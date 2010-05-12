@@ -554,7 +554,7 @@ class ServerManager implements HConstants {
       // hbase shell> get '.META.',$nsreRegion,{COLUMN => 'info:server'} 
       // to find the server where the region (according to .META.) is located.
       try {
-        MetaRegion mr = this.master.regionManager.getMetaRegionForRow(nsreMsg.getMessage());
+        MetaRegion mr = master.regionManager.getMetaRegionForRow(nsreMsg.getMessage());
         // do a 'Get' with the specified row 
         Get g = new Get(nsreMsg.getMessage());
         g.addColumn(CATALOG_FAMILY,SERVER_QUALIFIER);
@@ -591,10 +591,23 @@ class ServerManager implements HConstants {
       // either mark region as unassigned, or exit the master
       // in "paranoid mode"
       // ...
+      boolean paranoid_mode = false;
+      if (paranoid_mode == true) {
+        // exit the master.
+      }
+      else {
+        // mark region as unassigned.
+        try {
+          MetaRegion mr = master.regionManager.getMetaRegionForRow(nsreMsg.getMessage());
+          master.regionManager.setUnassigned(mr.getRegionInfo(),true);
+        }
+        catch(NotAllMetaRegionsOnlineException e) {
+          LOG.warn("could not mark region: " + nsreRegion + " as unassigned.");
+        }
+      }
     }
     else {
-      // 3.a.
-      // 3.c.: inconsistency
+      // 3.a. : consistent.
       LOG.info("NoSuchRegionException message: master is consistent - it believes that :");
       LOG.info("  region: " + nsreRegion);
       LOG.info(" is hosted on :");
