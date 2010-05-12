@@ -513,6 +513,9 @@ class ServerManager implements HConstants {
     // decode to a string.
     String nsreRegion = Bytes.toString(nsreMsg.getMessage());
 
+    HBaseConfiguration c2 = master.getConfiguration();
+    LOG.info("hbase inconsistency handling: " + c2.get("hbase.inconsistencyhandling","paranoid"));
+
     LOG.info("checkNSRERegion(): message's region string is : " + nsreRegion);
 
     // 3.b. if the region is in transition, ignore.
@@ -587,16 +590,14 @@ class ServerManager implements HConstants {
       LOG.error(" is hosted on :");
       LOG.error("  server: " + regionServerBelief);
       LOG.error("but that server threw a NoSuchRegionException when a client asked for that region.");
-      // resolve this inconsistency:
+
+      // Handle this inconsistency:
       // either mark region as unassigned, or exit the master
-      // in "paranoid mode"
-      // ...
-      boolean paranoid_mode = false;
-      if (paranoid_mode == true) {
-        // exit the master.
-      }
-      else {
-        // mark region as unassigned.
+      // in "paranoid mode".
+      HBaseConfiguration c = master.getConfiguration();
+
+      if (c.get("hbase.inconsistencyhandling","paranoid").equals("lax")) {
+        // non-paranoid ("lax") inconsistency handling: mark region as unassigned and continue.
         try {
           MetaRegion mr = master.regionManager.getMetaRegionForRow(nsreMsg.getMessage());
           master.regionManager.setUnassigned(mr.getRegionInfo(),true);
@@ -604,6 +605,12 @@ class ServerManager implements HConstants {
         catch(NotAllMetaRegionsOnlineException e) {
           LOG.warn("could not mark region: " + nsreRegion + " as unassigned.");
         }
+
+      }
+      else { 
+        // default: "paranoid" mode: shutdown master to prevent any possible cascading problems due
+        // to inconsistencies between itself (master) and region servers.
+        master.shutdown();
       }
     }
     else {

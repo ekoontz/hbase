@@ -43,4 +43,9 @@
     <value>192.168.122.1</value>
   </property>
 
+  <property>
+    <name>hbase.inconsistencyhandling</name>
+    <value>lax</value>
+  </property>
+
 </configuration>

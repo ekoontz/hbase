@@ -392,6 +392,17 @@
     supported now: murmur (MurmurHash) and jenkins (JenkinsHash).
     </description>
   </property>
+
+  <property>
+    <!-- how to deal with situations such as
+	 inconsistent beliefs between master and a regionserver concerning a region's location
+	 (HBASE-2486) 
+	 Two values are supported now: paranoid or lax.
+      -->
+    <name>hbase.inconsistencyhandling</name>
+    <value>paranoid</value>
+  </property>
+
   <property>
     <name>zookeeper.session.timeout</name>
     <value>60000</value>
