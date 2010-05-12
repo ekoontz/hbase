@@ -513,9 +513,6 @@ class ServerManager implements HConstants {
     // decode to a string.
     String nsreRegion = Bytes.toString(nsreMsg.getMessage());
 
-    HBaseConfiguration c2 = master.getConfiguration();
-    LOG.info("hbase inconsistency handling: " + c2.get("hbase.inconsistencyhandling","paranoid"));
-
     LOG.info("checkNSRERegion(): message's region string is : " + nsreRegion);
 
     // 3.b. if the region is in transition, ignore.
@@ -602,7 +599,6 @@ class ServerManager implements HConstants {
         catch(NotAllMetaRegionsOnlineException e) {
           LOG.warn("could not mark region: " + nsreRegion + " as unassigned.");
         }
-
       }
       else { 
         // default: "paranoid" mode: shutdown master to prevent any possible cascading problems due
