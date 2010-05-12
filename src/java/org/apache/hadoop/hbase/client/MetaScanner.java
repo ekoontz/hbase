@@ -12,7 +12,7 @@ import org.apache.hadoop.hbase.util.Bytes;
  * and uses a Retryable scanner. Provided visitors will be called
  * for each row.
  */
-public class MetaScanner implements HConstants {
+class MetaScanner implements HConstants {
 
   /**
    * Scans the meta table and calls a visitor on each RowResult and uses a empty
