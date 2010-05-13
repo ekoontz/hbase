@@ -504,39 +504,6 @@
     <fail if="tests.failed">Tests failed!</fail>
   </target>
 
-  <target name="test-ekoontz" depends="compile-core-test"
-         description="Build Eugene's test jar and run tests">
-    <delete dir="${test.log.dir}"/>
-    <mkdir dir="${test.log.dir}"/>
-    <junit
-      printsummary="yes" showoutput="${test.output}" 
-      haltonfailure="no" fork="yes" maxmemory="512m"
-      errorProperty="tests.failed" failureProperty="tests.failed"
-      timeout="${test.timeout}">
-
-      <sysproperty key="test.build.data" value="${build.test}/data"/>
-      <sysproperty key="build.test" value="${build.test}"/>
-      <sysproperty key="src.testdata" value="${src.testdata}"/>
-      <sysproperty key="contrib.name" value="${name}"/>
-
-      <sysproperty key="user.dir" value="${build.test}/data"/>
-      <sysproperty key="fs.default.name" value="${fs.default.name}"/>
-      <sysproperty key="hadoop.test.localoutputfile" value="${hadoop.test.localoutputfile}"/>
-      <sysproperty key="test.log.dir" value="${hadoop.log.dir}"/>
-      <classpath refid="test.classpath"/>
-      <formatter type="${test.junit.output.format}" />
-      <batchtest todir="${build.test}" unless="testcase">
-        <fileset dir="${src.test}"
-                 includes="**/TestNSRE.java" excludes="**/${test.exclude}.java" />
-      </batchtest>
-      <batchtest todir="${build.test}" if="testcase">
-        <fileset dir="${src.test}" includes="**/${testcase}.java"/>
-      </batchtest>
-    </junit>
-    <fail if="tests.failed">Tests failed!</fail>
-  </target>
-
-
   <target name="test-contrib" depends="compile, compile-core-test"
       description="Run contrib unit tests">
     <subant target="test">
