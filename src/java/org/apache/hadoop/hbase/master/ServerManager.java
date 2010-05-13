@@ -49,7 +49,6 @@ import org.apache.hadoop.hbase.HMsg.Type;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.ipc.HRegionInterface;
-import org.apache.hadoop.hbase.master.MetaScanner;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
