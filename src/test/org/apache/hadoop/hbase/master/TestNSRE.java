@@ -20,6 +20,31 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Writables;
 import org.apache.hadoop.util.StringUtils;
 
+/****
+ *
+ * HBASE-2486 : verify that:
+ * 
+ * 1) asking a region server S for a region R that it does not have, causes R to send
+ *     a NSRE message m to the master M.
+ *
+ * 2) M receives m.
+ *
+ * 3) asking a region server S for a region R that it *does* have, does not cause R to
+ *    send a NSRE message.
+ * 
+ * 4) When M receives m, it shuts down iff :
+ * a) inconsistency : S *does* have R according to M's .META. records.
+ * b) configuration param : 'hbase.inconsistencyhandling' is set to 'paranoid'
+ *
+ * 5) When M receives m, it marks R as unassigned iff :
+ * a) inconsistency : S *does* have R according to M's .META. records.
+ * b) configuration param : 'hbase.inconsistencyhandling' is set to 'lax'
+ *
+ * 6) When M receives m, it ignores m and continues if any of the following are true:
+ * a) R is in transition
+ * b) S *does not* have R according to M's .META. records.
+ **/
+
 public class TestNSRE extends HBaseClusterTestCase {
   public void testNSRE()
    throws Exception {
