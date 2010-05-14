@@ -14,5 +14,9 @@
 	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/log4j-1.2.15.jar"/>
 	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/commons-cli-2.0-SNAPSHOT.jar"/>
 	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/jasper-compiler-5.5.12.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/jsp-2.1/jsp-2.1.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/jsp-2.1/jsp-api-2.1.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/hadoop-0.20.1-hdfs127-core.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/hbase-0.20.3.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
