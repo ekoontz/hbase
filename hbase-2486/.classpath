@@ -5,5 +5,8 @@
 	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/hbase-0.20.3-test.jar"/>
 	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/hadoop-0.20.2-core.jar"/>
 	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/junit-3.8.1.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/zookeeper-3.2.2.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/hadoop-0.20.1-test.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/commons-logging-api-1.0.4.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
