@@ -32,7 +32,7 @@ import org.apache.hadoop.util.StringUtils;
  * 3) asking a region server S for a region R that it *does* have, does not cause R to
  *    send a NSRE message.
  * 
- * 4) When M receives m, it shuts down iff :
+ * 4) When M receives m, M shuts itself down iff :
  * a) inconsistency : S *does* have R according to M's .META. records.
  * b) configuration param : 'hbase.inconsistencyhandling' is set to 'paranoid'
  *
