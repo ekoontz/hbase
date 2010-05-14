@@ -48,9 +48,8 @@ import org.apache.hadoop.util.StringUtils;
 public class TestNSRE extends HBaseClusterTestCase {
   public void testNSRE()
    throws Exception {
-     HTable meta = new HTable(HConstants.META_TABLE_NAME);
-     HMaster master = this.cluster.getMaster();
 
-     assertEquals(42,42);
+    System.out.println("STARTING TEST (OUT)..");
+    assertEquals(42,43);
    }
 }
