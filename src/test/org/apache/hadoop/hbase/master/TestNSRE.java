@@ -48,8 +48,10 @@ import org.apache.hadoop.util.StringUtils;
 public class TestNSRE extends HBaseClusterTestCase {
   public void testNSRE()
    throws Exception {
-
-    System.out.println("STARTING TEST (OUT)..");
-    assertEquals(42,43);
+    HTable meta = new HTable(HConstants.META_TABLE_NAME);
+    HMaster master = this.cluster.getMaster();
+    HServerAddress address = master.getMasterAddress();
+    System.out.println("ekoontzdebug: " + address.toString());
+    assertEquals(42,42);
    }
 }
