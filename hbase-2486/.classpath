@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/hbase-0.20.3-test.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/hadoop-0.20.2-core.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/junit-3.8.1.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
