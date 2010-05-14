@@ -8,5 +8,11 @@
 	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/zookeeper-3.2.2.jar"/>
 	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/hadoop-0.20.1-test.jar"/>
 	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/commons-logging-api-1.0.4.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/jetty-util-6.1.14.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/jetty-6.1.14.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/servlet-api-2.5-6.1.14.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/log4j-1.2.15.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/commons-cli-2.0-SNAPSHOT.jar"/>
+	<classpathentry kind="lib" path="/home/ekoontz/hbase/build/lib/jasper-compiler-5.5.12.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
