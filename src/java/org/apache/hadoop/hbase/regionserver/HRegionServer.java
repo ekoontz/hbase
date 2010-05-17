@@ -45,6 +45,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -159,6 +160,11 @@ public class HRegionServer implements HConstants, HRegionInterface,
   private final LinkedBlockingQueue<HMsg> outboundMsgs =
     new LinkedBlockingQueue<HMsg>();
 
+  // HBASE-2486:
+  // "whenever a regionserver throws a NotServingRegionException, 
+  //  it also marks that region id in an RS-wide Set."
+  private final ConcurrentSkipListSet<byte[]> nsreSet =
+    new ConcurrentSkipListSet<byte[]>(Bytes.BYTES_COMPARATOR);
   final int numRetries;
   protected final int threadWakeFrequency;
   private final int msgInterval;
@@ -513,7 +519,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
               }
               switch(msgs[i].getType()) {
               case MSG_CALL_SERVER_STARTUP:
-                // We the MSG_CALL_SERVER_STARTUP on startup but we can also
+                // We get the MSG_CALL_SERVER_STARTUP on startup but we can also
                 // get it when the master is panicking because for instance
                 // the HDFS has been yanked out from under it.  Be wary of
                 // this message.
@@ -1152,7 +1158,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
   }
 
   /*
-   * Start maintanence Threads, Server, Worker and lease checker threads.
+   * Start maintenance Threads, Server, Worker and lease checker threads.
    * Install an UncaughtExceptionHandler that calls abort of RegionServer if we
    * get an unhandled exception.  We cannot set the handler on all threads.
    * Server's internal Listener thread is off limits.  For Server, if an OOME,
@@ -1243,6 +1249,22 @@ public class HRegionServer implements HConstants, HRegionInterface,
    * Run some housekeeping tasks.
    */
   private void housekeeping() {
+    // HBASE 2486: 
+    // "2) when a region sends a heartbeat, include a message for each of these regions, 
+    //     MSG_REPORT_NSRE or somesuch, and then clear the set"
+    byte[] nsre_region;
+    // note that pollFirst() removes the first element from nsreSet as a side-effect of returning that element.
+    // http://java.sun.com/javase/6/docs/api/java/util/NavigableSet.html#pollFirst()
+    while ((nsre_region = nsreSet.pollFirst()) != null) {
+      // create an empty 'fakeRegion', since HMsg's second argument
+      // (an HRegionInfo) must not be null.
+      HRegionInfo fake_region = new HRegionInfo();
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("sending HMsg(MSG_REPORT_NSRE,fake_region,'" + Bytes.toString(nsre_region) + "') to master..");
+      }
+      getOutboundMsgs().add(new HMsg(HMsg.Type.MSG_REPORT_NSRE, fake_region, nsre_region));
+    }
+
     // If the todo list has > 0 messages, iterate looking for open region
     // messages. Send the master a message that we're working on its
     // processing so it doesn't assign the region elsewhere.
@@ -2325,6 +2347,14 @@ public class HRegionServer implements HConstants, HRegionInterface,
     try {
       region = onlineRegions.get(Integer.valueOf(Bytes.hashCode(regionName)));
       if (region == null) {
+        // HBASE-2486: 
+        // "whenever a regionserver throws a NotServingRegionException, 
+        //  it also marks that region id in an RS-wide Set."
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("HRegionServer::getRegion() : adding region: '" + Bytes.toString(regionName) +
+                    "' to this.nsre_set (before throwing NotServingRegionException()).");
+        }
+        this.nsreSet.add(regionName);
         throw new NotServingRegionException(regionName);
       }
       return region;

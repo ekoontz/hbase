@@ -407,6 +407,18 @@
     supported now: murmur (MurmurHash) and jenkins (JenkinsHash).
     </description>
   </property>
+
+  <property>
+    <!-- how to deal with situations such as
+	 inconsistent beliefs between master and a regionserver concerning a region's location
+	 (HBASE-2486) 
+	 Two values are supported now: 'paranoid' (shut master down) 
+         or 'lax' (mark region in question as unassigned).
+      -->
+    <name>hbase.master.sanitychecking</name>
+    <value>lax</value>
+  </property>
+
   <property>
     <name>zookeeper.session.timeout</name>
     <value>60000</value>

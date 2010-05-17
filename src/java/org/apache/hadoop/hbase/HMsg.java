@@ -124,6 +124,15 @@ public class HMsg implements Writable {
      * pathological states.
      */
     TESTING_MSG_BLOCK_RS,
+
+   /**
+     * HBASE-2486: 
+     * when a region sends a heartbeat, include a message
+     * for each no-such-region-exception regions, MSG_REPORT_NSRE or somesuch, 
+     *  and then clear the set.
+     */
+    MSG_REPORT_NSRE
+
   }
 
   private Type type = null;

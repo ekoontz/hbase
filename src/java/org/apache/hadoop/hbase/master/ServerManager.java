@@ -20,6 +20,7 @@
 package org.apache.hadoop.hbase.master;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -465,6 +466,12 @@ class ServerManager implements HConstants {
             incomingMsgs[i].getDaughterB());
           break;
 
+
+        case MSG_REPORT_NSRE:
+          // HBASE-2486: check nsreSet's region location.
+          checkNSRERegion(incomingMsgs[i],serverInfo.getServerAddress());
+          break;
+
         default:
           LOG.warn("Impossible state during message processing. Instruction: " +
             incomingMsgs[i].getType());
@@ -494,6 +501,140 @@ class ServerManager implements HConstants {
       this.master.regionManager.applyActions(serverInfo, returnMsgs);
     }
     return returnMsgs.toArray(new HMsg[returnMsgs.size()]);
+  }
+  
+  private void checkNSRERegion(HMsg nsreMsg, HServerAddress nsreServerAddress) {
+    // HBASE-2486: 
+    //     3) when the master receives MSG_REPORT_NSRE, 
+    //        it does the following checks:
+    //     a) if the region is assigned elsewhere according to META, 
+    //        the NSRE was due to a stale client, ignore.
+    //     b) if the region is in transition, ignore.
+    //     c) otherwise, we have an inconsistency, and 
+    //        we should take some steps to resolve 
+    //        (e.g., mark the region unassigned, or 
+    //         exit the master if we are in "paranoid mode")
+
+    // the region that caused the 'no such region' exception is encoded in the message contents:
+    // decode to a string.
+    String nsreRegion = Bytes.toString(nsreMsg.getMessage());
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("checkNSRERegion(): message's region string is : " + nsreRegion);
+    }
+
+    if (master.regionManager.regionIsInTransition(nsreRegion)) {
+      // 3.b. region is in transition between 2 states: assume that is what caused the NSRE; 
+      // no further action needed, so return.
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("checkNSRERegion(): NoSuchRegionException message : master is consistent: region '" + nsreRegion + "' is in transition.");
+      }
+      return;
+    }
+
+    // 3.a. and 3.c. : determine region's location according to .META.
+    String regionServerBelief = null;
+    
+    if (nsreRegion.equals("-ROOT-,,0")) { // assumption: there is only one -ROOT- region, and it's called '-ROOT-,,0'
+      HServerAddress rootServerAddress = master.getRootRegionLocation();
+      regionServerBelief = rootServerAddress.toString();
+    }
+    else {
+      // nsreRegion is either a .META. table region, or non-.META.-table region.
+      // if a .META. table, we can use master.regionManager.getListOfOnlineMetaRegions() 
+      // to see where it is hosted.
+
+      List<MetaRegion> regions = master.regionManager.getListOfOnlineMetaRegions();
+      int regionCount = 1;
+
+      for (MetaRegion r: regions) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("metaregion " + regionCount + " : " + r.toString());
+        }
+        regionCount++;
+
+        if (nsreRegion.equals(Bytes.toString(r.getRegionName()))) {
+          regionServerBelief = r.getServer().toString();
+          break;
+        }
+      }
+    }
+
+    if (regionServerBelief == null) {
+      // region is not -ROOT-, and was not found in the list of online .META. regions.
+      try {
+        MetaRegion mr = master.regionManager.getMetaRegionForRow(nsreMsg.getMessage());
+        // do a 'Get' with the specified row 
+        Get g = new Get(nsreMsg.getMessage());
+        g.addColumn(CATALOG_FAMILY,SERVER_QUALIFIER);
+        try {
+          HRegionInterface server =
+            master.connection.getHRegionConnection(mr.getServer());
+          Result r = server.get(mr.getRegionName(), g);
+          regionServerBelief = Bytes.toString(r.getValue(CATALOG_FAMILY,SERVER_QUALIFIER));
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("checkNSRERegion() : According to region manager's .META. information, region: " + nsreRegion + " is hosted on region server: " + regionServerBelief);
+          }
+
+        }
+        catch (IOException e) {
+          LOG.warn("failed to find server for region: " + nsreRegion);
+        }
+      }
+      catch(NotAllMetaRegionsOnlineException e) {
+        LOG.warn("failed to find server for region: " + nsreRegion);
+      }
+
+    }
+
+    // compare regionServerBelief with the server given in the no-such-region-exception message:
+    // if they differ, good: that's the non-erroneous situation 3.a.
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("NSRE exception came from region server       : " + nsreServerAddress.toString());
+      LOG.debug("according to regionManager, region server is : " + regionServerBelief);
+    }
+    if (nsreServerAddress.toString().equals(regionServerBelief)) {
+      // 3.c.: inconsistency
+      LOG.error("NoSuchRegionException message: master is NOT consistent - it believes that :");
+      LOG.error("  region: " + nsreRegion);
+      LOG.error(" is hosted on :");
+      LOG.error("  server: " + regionServerBelief);
+      LOG.error("but that server threw a NoSuchRegionException when a client asked for that region.");
+
+      // Handle this inconsistency:
+      // either mark region as unassigned, or exit the master
+      // in "paranoid mode".
+      HBaseConfiguration c = master.getConfiguration();
+
+      if (c.get("hbase.inconsistencyhandling","paranoid").equals("lax")) {
+        // non-paranoid ("lax") inconsistency handling: mark region as unassigned and continue.
+        try {
+          MetaRegion mr = master.regionManager.getMetaRegionForRow(nsreMsg.getMessage());
+          master.regionManager.setUnassigned(mr.getRegionInfo(),true);
+        }
+        catch(NotAllMetaRegionsOnlineException e) {
+          LOG.warn("could not mark region: " + nsreRegion + " as unassigned.");
+        }
+      }
+      else { 
+        // default: "paranoid" mode: shutdown master to prevent any possible cascading problems due
+        // to inconsistencies between itself (master) and region servers.
+        master.shutdown();
+      }
+    }
+    else {
+      // 3.a. : consistent.
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("NoSuchRegionException message: master is consistent - it believes that :");
+        LOG.debug("  region: " + nsreRegion);
+        LOG.debug(" is hosted on :");
+        LOG.debug("  server: " + regionServerBelief);
+        LOG.debug(" while a different server:");
+        LOG.debug("  server: " + nsreServerAddress.toString());
+        LOG.debug(" threw a NoSuchRegionException when asked for that region by a client.");
+      }
+    }
+    return;
   }
 
   /*

@@ -74,3 +74,4 @@ export HBASE_OPTS="-XX:+HeapDumpOnOutOfMemoryError -XX:+UseConcMarkSweepGC -XX:+
 
 # Tell HBase whether it should manage it's own instance of Zookeeper or not.
 # export HBASE_MANAGES_ZK=true
+export HBASE_MANAGES_ZK=false
