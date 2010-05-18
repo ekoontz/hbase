@@ -544,16 +544,8 @@ public class ServerManager implements HConstants {
       // nsreRegion is either a .META. table region, or non-.META.-table region.
       // if a .META. table, we can use master.regionManager.getListOfOnlineMetaRegions() 
       // to see where it is hosted.
-
       List<MetaRegion> regions = master.getRegionManager().getListOfOnlineMetaRegions();
-      int regionCount = 0;
-
       for (MetaRegion r: regions) {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("metaregion " + regionCount + " : " + r.toString());
-        }
-        regionCount++;
-
         if (nsreRegion.equals(Bytes.toString(r.getRegionName()))) {
           regionServerBelief = r.getServer().toString();
           break;
@@ -573,10 +565,6 @@ public class ServerManager implements HConstants {
             master.getServerConnection().getHRegionConnection(mr.getServer());
           Result r = server.get(mr.getRegionName(), g);
           regionServerBelief = Bytes.toString(r.getValue(CATALOG_FAMILY,SERVER_QUALIFIER));
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("checkNSRERegion() : According to region manager's .META. information, region: " + nsreRegion + " is hosted on region server: " + regionServerBelief);
-          }
-
         }
         catch (IOException e) {
           LOG.warn("failed to find server for region: " + nsreRegion);
@@ -589,11 +577,7 @@ public class ServerManager implements HConstants {
     }
 
     // Compare regionServerBelief with the server given in the no-such-region-exception message:
-    // if they differ, good: that's the non-erroneous situation 3.a.
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("NSRE exception came from region server       : " + nsreServerAddress.toString() + 
-                ", but according to regionManager, region server is : " + regionServerBelief);
-    }
+    // if they differ, good: that's the consistent situation.
     if (nsreServerAddress.toString().equals(regionServerBelief)) {
       // Inconsistency found. This is an erroneous situation that must be handled according to 
       // hbase.master.sanitychecking configuration value.
