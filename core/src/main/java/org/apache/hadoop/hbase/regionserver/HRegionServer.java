@@ -103,6 +103,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -156,6 +157,12 @@ public class HRegionServer implements HConstants, HRegionInterface,
   protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
   private final LinkedBlockingQueue<HMsg> outboundMsgs =
     new LinkedBlockingQueue<HMsg>();
+
+  // Whenever a regionserver throws a NotServingRegionException, 
+  //  it also marks that region id in an RS-wide Set.
+  // (See HBASE-2486).
+  private final ConcurrentSkipListSet<byte[]> nsreSet =
+    new ConcurrentSkipListSet<byte[]>(Bytes.BYTES_COMPARATOR);
 
   final int numRetries;
   protected final int threadWakeFrequency;
@@ -1068,7 +1075,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
   }
 
   /*
-   * Start maintanence Threads, Server, Worker and lease checker threads.
+   * Start maintenance Threads, Server, Worker and lease checker threads.
    * Install an UncaughtExceptionHandler that calls abort of RegionServer if we
    * get an unhandled exception.  We cannot set the handler on all threads.
    * Server's internal Listener thread is off limits.  For Server, if an OOME,
@@ -1159,6 +1166,24 @@ public class HRegionServer implements HConstants, HRegionInterface,
    * Run some housekeeping tasks.
    */
   private void housekeeping() {
+    // When a region sends a heartbeat, include a MSG_REPORT_NSRE message for each region in 
+    // in this.nsreSet, and then clear the set.
+    // (See HBASE 2486).
+
+    byte[] nsre_region;
+    // Note that pollFirst() removes the first element from nsreSet 
+    // as a side-effect of returning that element:
+    // http://java.sun.com/javase/6/docs/api/java/util/NavigableSet.html#pollFirst()
+    while ((nsre_region = nsreSet.pollFirst()) != null) {
+      // create an empty 'fake_region', since HMsg's second argument
+      // (an HRegionInfo) must not be null.
+      HRegionInfo fake_region = new HRegionInfo();
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("sending HMsg(MSG_REPORT_NSRE,fake_region,'" + Bytes.toString(nsre_region) + "') to master..");
+      }
+      getOutboundMsgs().add(new HMsg(HMsg.Type.MSG_REPORT_NSRE, fake_region, nsre_region));
+    }
+
     // If the todo list has > 0 messages, iterate looking for open region
     // messages. Send the master a message that we're working on its
     // processing so it doesn't assign the region elsewhere.
@@ -2206,6 +2231,14 @@ public class HRegionServer implements HConstants, HRegionInterface,
     try {
       region = onlineRegions.get(Integer.valueOf(Bytes.hashCode(regionName)));
       if (region == null) {
+        // If region is not served by this region server, save in this.nsreSet, which will
+        // be sent as a MSG_REPORT_NSRE to the master at the next call of this.housekeeping(), 
+        // so that master can do consistency checking. (See HBASE-2486).
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("HRegionServer::getRegion() : adding region: '" + Bytes.toString(regionName) +
+                    "' to this.nsre_set (before throwing NotServingRegionException()).");
+        }
+
         throw new NotServingRegionException(regionName);
       }
       return region;

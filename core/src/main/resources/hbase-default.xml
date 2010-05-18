@@ -428,6 +428,18 @@
     </description>
   </property>
   <property>
+    <name>hbase.master.sanitychecking</name>
+    <value>paranoid</value>
+    <description>How to deal with the situation in which the master believes that
+      a given region R is located on a given regionserver S, but S
+      indicates, by returning a "no such region R" message, that it does not have 
+      that region.
+	 Two values are supported now: 'paranoid' (shut master down) 
+         or 'lax' (mark region in question as unassigned).
+      Default : 'paranoid'.
+    </description>
+  </property>
+  <property>
     <name>zookeeper.session.timeout</name>
     <value>60000</value>
     <description>ZooKeeper session timeout.
