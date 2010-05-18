@@ -585,10 +585,23 @@ public class ServerManager implements HConstants {
                 nsreRegion + " is hosted on server: " + regionServerBelief + 
                 ", but that server threw a NoSuchRegionException when a client asked for that region.");
 
-      Configuration c = master.getConfiguration();
+      // Default to 'lax' if no value for hbase.master.sanitychecking found in configuration.
+      String hbase_master_sanity_checking = master.getConfiguration().get("hbase.master.sanitychecking","lax");
 
-      if (c.get("hbase.master.sanitychecking","paranoid").equals("lax")) {
-        // non-paranoid ("lax") inconsistency handling: mark region as unassigned and continue.
+      if (hbase_master_sanity_checking.equals("paranoid")) {
+        // "paranoid" mode: shutdown master to prevent any possible cascading problems due
+        // to inconsistencies between itself (master) and region servers.
+        master.shutdown();
+      }
+      else {
+        if (!(hbase_master_sanity_checking.equals("lax"))) {
+          // Neither "paranoid" nor "lax" : perhaps user misspelled desired value. 
+          LOG.warn("hbase.master.sanitychecking configuration value: '" + hbase_master_sanity_checking + 
+                   "' found : treating as equivalent to default 'lax' value.");
+
+        }
+        // Non-paranoid ("lax") inconsistency handling: mark region as unassigned and continue
+        // normal operations.
         try {
           MetaRegion mr = master.getRegionManager().getMetaRegionForRow(nsreMsg.getMessage());
           master.getRegionManager().setUnassigned(mr.getRegionInfo(),true);
@@ -596,11 +609,6 @@ public class ServerManager implements HConstants {
         catch(NotAllMetaRegionsOnlineException e) {
           LOG.warn("could not mark region: " + nsreRegion + " as unassigned.");
         }
-      }
-      else {
-        // default: "paranoid" mode: shutdown master to prevent any possible cascading problems due
-        // to inconsistencies between itself (master) and region servers.
-        master.shutdown();
       }
     }
     return;
