@@ -2231,8 +2231,9 @@ public class HRegionServer implements HConstants, HRegionInterface,
     try {
       region = onlineRegions.get(Integer.valueOf(Bytes.hashCode(regionName)));
       if (region == null) {
-        // If region is not served by this region server, save in this.nsreSet, which will
-        // be sent as a MSG_REPORT_NSRE to the master at the next call of this.housekeeping(), 
+        // If region is not served by this region server, save in this.nsreSet.
+        // Each member of this.nreSet will be sent as a MSG_REPORT_NSRE to the master
+        // at the next call of this.housekeeping(),
         // so that master can do consistency checking. (See HBASE-2486).
         if (LOG.isDebugEnabled()) {
           LOG.debug("HRegionServer::getRegion() : adding region: '" + Bytes.toString(regionName) +
