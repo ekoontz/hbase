@@ -17,24 +17,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hbase.ipc;
+package org.apache.hadoop.hbase.master;
 
-import org.apache.hadoop.hbase.regionserver.wal.HLog;
-
-import java.io.IOException;
+import org.apache.hadoop.conf.Configurable;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 
 /**
- * Interface that defines replication
+ * Interface for the log cleaning function inside the master. Only 1 is called
+ * so if the desired effect is the mix of many cleaners, do call them yourself
+ * in order to control the flow.
+ * HBase ships with OldLogsCleaner as the default implementation
  */
-public interface ReplicationRegionInterface extends HRegionInterface {
+public interface LogCleanerDelegate extends Configurable {
 
   /**
-   * Replicates the given entries. The guarantee is that the given entries
-   * will be durable on the slave cluster if this method returns without
-   * and exception.
-   * @param entries entries to replicate
-   * @throws IOException
+   * Should the master delete the log or keep it?
+   * @param filePath full path to log.
+   * @return true if the log is deletable, false if not
    */
-  public void replicateLogEntries(HLog.Entry[] entries) throws IOException;
-
+  public boolean isLogDeletable(Path filePath);
 }
+

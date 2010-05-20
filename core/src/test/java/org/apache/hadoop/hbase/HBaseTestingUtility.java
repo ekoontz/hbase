@@ -151,13 +151,14 @@ public class HBaseTestingUtility {
    * @see #shutdownMiniZKCluster()
    */
   public void startMiniZKCluster() throws Exception {
-    isRunningCluster();
-    this.clusterTestBuildDir = setupClusterTestBuildDir();
-    startMiniZKCluster(this.clusterTestBuildDir);
+    startMiniZKCluster(setupClusterTestBuildDir());
 
   }
 
   private void startMiniZKCluster(final File dir) throws Exception {
+    if (this.zkCluster != null) {
+      throw new IOException("Cluster already running at " + dir);
+    }
     this.zkCluster = new MiniZooKeeperCluster();
     int clientPort = this.zkCluster.startup(dir);
     this.conf.set("hbase.zookeeper.property.clientPort",
@@ -332,7 +333,8 @@ public class HBaseTestingUtility {
           HColumnDescriptor.DEFAULT_IN_MEMORY,
           HColumnDescriptor.DEFAULT_BLOCKCACHE,
           Integer.MAX_VALUE, HColumnDescriptor.DEFAULT_TTL,
-          false, HColumnDescriptor.DEFAULT_REPLICATION_SCOPE);
+          HColumnDescriptor.DEFAULT_BLOOMFILTER,
+          HColumnDescriptor.DEFAULT_REPLICATION_SCOPE);
       desc.addFamily(hcd);
     }
     (new HBaseAdmin(getConfiguration())).createTable(desc);
@@ -358,7 +360,8 @@ public class HBaseTestingUtility {
           HColumnDescriptor.DEFAULT_IN_MEMORY,
           HColumnDescriptor.DEFAULT_BLOCKCACHE,
           Integer.MAX_VALUE, HColumnDescriptor.DEFAULT_TTL,
-          false, HColumnDescriptor.DEFAULT_REPLICATION_SCOPE);
+          HColumnDescriptor.DEFAULT_BLOOMFILTER,
+          HColumnDescriptor.DEFAULT_REPLICATION_SCOPE);
       desc.addFamily(hcd);
       i++;
     }

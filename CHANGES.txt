@@ -22,6 +22,7 @@ Release 0.21.0 - Unreleased
                (Todd Lipcon via Stack)
    HBASE-2541  Remove transactional contrib (Clint Morgan via Stack)
    HBASE-2542  Fold stargate contrib into core
+   HBASE-2565  Remove contrib module from hbase
 
   BUG FIXES
    HBASE-1791  Timeout in IndexRecordWriter (Bradford Stephens via Andrew
@@ -332,6 +333,17 @@ Release 0.21.0 - Unreleased
    HBASE-2457  RS gets stuck compacting region ad infinitum
    HBASE-2562  bin/hbase doesn't work in-situ in maven
                (Todd Lipcon via Stack)
+   HBASE-2449  Local HBase does not stop properly
+   HBASE-2539  Cannot start ZK before the rest in tests anymore
+   HBASE-2561  Scanning .META. while split in progress yields
+               IllegalArgumentException (Todd Lipcon via Stack)
+   HBASE-2572  hbase/bin/set_meta_block_caching.rb:72: can't convert
+               Java::JavaLang::String into String (TypeError) - little
+               issue with script
+   HBASE-2483  Some tests do not use ephemeral ports
+   HBASE-2573  client.HConnectionManager$TableServers logs non-printable
+               binary bytes (Benoît Sigoure via Stack)
+
 
   IMPROVEMENTS
    HBASE-1760  Cleanup TODOs in HTable
@@ -601,7 +613,11 @@ Release 0.21.0 - Unreleased
    HBASE-2520  Cleanup arrays vs Lists of scanners (Todd Lipcon via Stack)
    HBASE-2551  Forward port fixes that are in branch but not in trunk (part
                of the merge of old 0.20 into TRUNK task)
-
+   HBASE-2466  Improving filter API to allow for modification of keyvalue list 
+   	           by filter (Juhani Connolly via Ryan)
+   HBASE-2566  Remove 'lib' dir; it only has libthrift and that is being
+               pulled from http://people.apache.org/~rawson/repo/....
+   HBASE-2534  Recursive deletes and misc improvements to ZKW
 
   NEW FEATURES
    HBASE-1961  HBase EC2 scripts
@@ -634,6 +650,10 @@ Release 0.21.0 - Unreleased
    HBASE-2438  Addition of a Column Pagination Filter (Paul Kist via Stack)
    HBASE-2473  Add to admin create table start and end key params and
                desired number of regions
+   HBASE-2529  Make OldLogsCleaner easier to extend
+   HBASE-2527  Add the ability to easily extend some HLog actions
+   HBASE-2559  Set hbase.hregion.majorcompaction to 0 to disable
+   HBASE-1200  Add bloomfilters (Nicolas Spiegelberg via Stack)
 
   OPTIMIZATIONS
    HBASE-410   [testing] Speed up the test suite

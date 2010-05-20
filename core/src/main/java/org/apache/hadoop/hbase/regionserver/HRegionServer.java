@@ -238,10 +238,6 @@ public class HRegionServer implements HConstants, HRegionInterface,
   // The main region server thread.
   private Thread regionServerThread;
 
-  // Run HDFS shutdown on exit if this is set. We clear this out when
-  // doing a restart() to prevent closing of HDFS.
-  public final AtomicBoolean shutdownHDFS = new AtomicBoolean(true);
-
   private final String machineName;
 
   /**
@@ -300,7 +296,6 @@ public class HRegionServer implements HConstants, HRegionInterface,
   private void reinitialize() throws IOException {
     this.abortRequested = false;
     this.stopRequested.set(false);
-    this.shutdownHDFS.set(true);
 
     // Server to handle client requests
     this.server = HBaseRPC.getServer(this, address.getBindAddress(),
@@ -368,7 +363,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
       type + ", path: " + event.getPath());
 
     // Ignore events if we're shutting down.
-    if (stopRequested.get()) {
+    if (this.stopRequested.get()) {
       LOG.debug("Ignoring ZooKeeper event while shutting down");
       return;
     }
@@ -401,7 +396,6 @@ public class HRegionServer implements HConstants, HRegionInterface,
 
   private void restart() {
     LOG.info("Restarting Region Server");
-    shutdownHDFS.set(false);
     abort();
     Threads.shutdown(regionServerThread);
     boolean done = false;
@@ -677,8 +671,8 @@ public class HRegionServer implements HConstants, HRegionInterface,
     }
 
     if (!killed) {
-      join();
       this.zooKeeperWrapper.close();
+      join();
     }
     LOG.info(Thread.currentThread().getName() + " exiting");
   }
@@ -757,12 +751,6 @@ public class HRegionServer implements HConstants, HRegionInterface,
       this.conf.set("fs.defaultFS", this.conf.get("hbase.rootdir"));
       this.conf.setBoolean("fs.automatic.close", false);
       this.fs = FileSystem.get(this.conf);
-
-      // Register shutdown hook for HRegionServer, runs an orderly shutdown
-      // when a kill signal is recieved.  Shuts down hdfs too if its supposed.
-      Runtime.getRuntime().addShutdownHook(new ShutdownThread(this,
-        Thread.currentThread(), this.shutdownHDFS));
-
       this.rootDir = new Path(this.conf.get(HConstants.HBASE_DIR));
       this.hlog = setupHLog();
       // Init in here rather than in constructor after thread name has been set
@@ -776,12 +764,6 @@ public class HRegionServer implements HConstants, HRegionInterface,
         "Region server startup failed");
     }
   }
-
-  public void setShutdownHDFS(final boolean b) {
-    this.shutdownHDFS.set(b);
-  }
-
-  public boolean getShutdownHDFS() {return this.shutdownHDFS.get();}
 
   /*
    * @param r Region to get RegionLoad for.
@@ -902,47 +884,6 @@ public class HRegionServer implements HConstants, HRegionInterface,
       }
     }
     return this.fsOk;
-  }
-
-  /*
-   * Thread to shutdown the region server in an orderly manner.  This thread
-   * is registered as a shutdown hook in the HRegionServer constructor and is
-   * only called when the HRegionServer receives a kill signal.
-   */
-  private static class ShutdownThread extends Thread {
-    private final HRegionServer instance;
-    private final Thread mainThread;
-    private final AtomicBoolean shutdownHDFS;
-
-    /**
-     * @param instance
-     * @param mainThread
-     * @param shutdownHDFS
-     */
-    public ShutdownThread(final HRegionServer instance, final Thread mainThread,
-        final AtomicBoolean shutdownHDFS) {
-      this.instance = instance;
-      this.mainThread = mainThread;
-      this.shutdownHDFS = shutdownHDFS;
-    }
-
-    @Override
-    public void run() {
-      LOG.info("Starting shutdown thread");
-
-      // tell the region server to stop
-      this.instance.stop();
-
-      // Wait for main thread to exit.
-      Threads.shutdown(this.mainThread);
-      try {
-        if (this.shutdownHDFS.get()) FileSystem.closeAll();
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-
-      LOG.info("Shutdown thread complete");
-    }
   }
 
   /*

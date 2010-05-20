@@ -17,39 +17,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hbase.filter;
+package org.apache.hadoop.hbase.regionserver.wal;
 
-import org.apache.hadoop.hbase.KeyValue;
-
-import java.io.DataOutput;
-import java.io.IOException;
-import java.io.DataInput;
-import java.util.List;
+import org.apache.hadoop.fs.Path;
 
 /**
- * A filter that will only return the first KV from each row.
- * <p>
- * This filter can be used to more efficiently perform row count operations.
+ * Interface that defines all actions that can be listened to coming
+ * from the HLog. The calls are done in sync with what happens over in the
+ * HLog so make sure your implementation is fast.
  */
-public class FirstKeyOnlyFilter extends FilterBase {
-  private boolean foundKV = false;
+public interface LogActionsListener {
 
-  public FirstKeyOnlyFilter() {
-  }
+  /**
+   * Notify the listener that a new file is available
+   * @param newFile the path to the new hlog
+   */
+  public void logRolled(Path newFile);
 
-  public void reset() {
-    foundKV = false;
-  }
-
-  public ReturnCode filterKeyValue(KeyValue v) {
-    if(foundKV) return ReturnCode.NEXT_ROW;
-    foundKV = true;
-    return ReturnCode.INCLUDE;
-  }
-
-  public void write(DataOutput out) throws IOException {
-  }
-
-  public void readFields(DataInput in) throws IOException {
-  }
+  /**
+   * Notify that the following log moved
+   * @param oldPath the old path
+   * @param newPath the new path
+   */
+  public void logArchived(Path oldPath, Path newPath);
 }
