@@ -343,7 +343,11 @@ Release 0.21.0 - Unreleased
    HBASE-2483  Some tests do not use ephemeral ports
    HBASE-2573  client.HConnectionManager$TableServers logs non-printable
                binary bytes (Benoît Sigoure via Stack)
-
+   HBASE-2576  TestHRegion.testDelete_mixed() failing on hudson
+   HBASE-2581  Bloom commit broke some tests... fix
+   HBASE-2582  TestTableSchemaModel not passing after commit of blooms
+   HBASE-2583  Make webapps work in distributed mode again and make webapps
+               deploy at / instead of at /webapps/master/master.jsp
 
   IMPROVEMENTS
    HBASE-1760  Cleanup TODOs in HTable
@@ -618,6 +622,7 @@ Release 0.21.0 - Unreleased
    HBASE-2566  Remove 'lib' dir; it only has libthrift and that is being
                pulled from http://people.apache.org/~rawson/repo/....
    HBASE-2534  Recursive deletes and misc improvements to ZKW
+   HBASE-2577  Remove 'core' maven module; move core up a level
 
   NEW FEATURES
    HBASE-1961  HBase EC2 scripts
