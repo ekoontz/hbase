@@ -60,7 +60,7 @@ set -x
 /home/ekoontz/.m2/repository/stax/stax-api/1.0.1/stax-api-1.0.1.jar:\
 /home/ekoontz/.m2/repository/tomcat/jasper-runtime/5.5.23/jasper-runtime-5.5.23.jar:\
 /home/ekoontz/.m2/repository/xmlenc/xmlenc/0.52/xmlenc-0.52.jar:\
-/home/ekoontz/hbase/bin/../core/target/classes:/home/ekoontz/hbase/bin/../core/target/test-classes:\
+/home/ekoontz/hbase/bin/../target/classes:/home/ekoontz/hbase/bin/../target/test-classes:\
 /home/ekoontz/hbase/bin/../lib/libthrift-0.2.0.jar \
  org.apache.hadoop.hbase.regionserver.HRegionServer start
 
