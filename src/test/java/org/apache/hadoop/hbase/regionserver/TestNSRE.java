@@ -56,13 +56,6 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-
-/**
- * Basic stand-alone testing of HRegion.
- *
- * A lot of the meta information for an HRegion now lives inside other
- * HRegions or in the HBaseMaster, so only basic testing is possible.
- */
 public class TestNSRE extends HBaseTestCase {
   static final Log LOG = LogFactory.getLog(TestHRegion.class);
 
