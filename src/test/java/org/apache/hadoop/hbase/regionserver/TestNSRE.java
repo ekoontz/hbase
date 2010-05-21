@@ -195,26 +195,6 @@ public class TestNSRE extends HBaseTestCase {
     }
   }
 
-  private void verifyData(HRegion newReg, int startRow, int numRows, byte [] qf,
-      byte [] ... families)
-  throws IOException {
-    for(int i=startRow; i<startRow + numRows; i++) {
-      byte [] row = Bytes.toBytes("" + i);
-      Get get = new Get(row);
-      for(byte [] family : families) {
-        get.addColumn(family, qf);
-      }
-      Result result = newReg.get(get, null);
-      KeyValue [] raw = result.sorted();
-      assertEquals(families.length, result.size());
-      for(int j=0; j<families.length; j++) {
-        assertEquals(0, Bytes.compareTo(row, raw[j].getRow()));
-        assertEquals(0, Bytes.compareTo(families[j], raw[j].getFamily()));
-        assertEquals(0, Bytes.compareTo(qf, raw[j].getQualifier()));
-      }
-    }
-  }
-
   private void assertGet(final HRegion r, final byte [] family, final byte [] k)
   throws IOException {
     // Now I have k, get values out and assert they are as expected.
