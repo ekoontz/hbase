@@ -29,11 +29,14 @@ import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.util.Bytes;
 
 public class TestNSREHandling extends HBaseClusterTestCase {
-   public void testGetFirstMetaRegionForRegionAfterMetaSplit()
+   public void handleNSRE()
    throws Exception {
      HTable meta = new HTable(HConstants.META_TABLE_NAME);
      HMaster master = this.cluster.getMaster();
      HServerAddress address = master.getMasterAddress();
+
+     RegionManager region_manager = master.getRegionManager();
+
      HTableDescriptor tableDesc = new HTableDescriptor(Bytes.toBytes("_MY_TABLE_"));
      HTableDescriptor metaTableDesc = meta.getTableDescriptor();
      // master.regionManager.onlineMetaRegions already contains first .META. region at key Bytes.toBytes("")
@@ -61,19 +64,28 @@ public class TestNSREHandling extends HBaseClusterTestCase {
      byte[] endKeyX = Bytes.toBytes("j");
      HRegionInfo regionInfoX = new HRegionInfo(tableDesc, startKeyX, endKeyX);
 
+     MetaRegion test_mr_0 = region_manager.getFirstMetaRegionForRegion(regionInfo0);
+     MetaRegion test_mr_1 = region_manager.getFirstMetaRegionForRegion(regionInfo1);
+     MetaRegion test_mr_x = region_manager.getFirstMetaRegionForRegion(regionInfoX);
 
-     master.getRegionManager().offlineMetaRegionWithStartKey(startKey0);
-     master.getRegionManager().putMetaRegionOnline(meta0);
-     master.getRegionManager().putMetaRegionOnline(meta1);
-     master.getRegionManager().putMetaRegionOnline(meta2);
+     System.out.println("before manipulating online status..");
 
-//    for (byte[] b : master.regionManager.getOnlineMetaRegions().keySet()) {
-//      System.out.println("FROM TEST KEY " + b +"  " +new String(b));
-//    }
+     region_manager.offlineMetaRegionWithStartKey(startKey0);
+     region_manager.putMetaRegionOnline(meta0);
+     region_manager.putMetaRegionOnline(meta1);
+     region_manager.putMetaRegionOnline(meta2);
+
+     test_mr_x = region_manager.getFirstMetaRegionForRegion(regionInfoX);
+
+     byte[] a = metaRegionInfo1.getStartKey();
+     byte[] b  = test_mr_x.getStartKey();
+
+
+     test_mr_x = region_manager.getFirstMetaRegionForRegion(regionInfoX);
 
      assertEquals(metaRegionInfo1.getStartKey(),
-       master.getRegionManager().getFirstMetaRegionForRegion(regionInfoX).getStartKey());
+       region_manager.getFirstMetaRegionForRegion(regionInfoX).getStartKey());
      assertEquals(metaRegionInfo1.getRegionName(),
-      master.getRegionManager().getFirstMetaRegionForRegion(regionInfoX).getRegionName());
+      region_manager.getFirstMetaRegionForRegion(regionInfoX).getRegionName());
    }
 }
