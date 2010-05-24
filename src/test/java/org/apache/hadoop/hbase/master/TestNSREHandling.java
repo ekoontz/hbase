@@ -28,6 +28,8 @@ import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.util.Bytes;
 
+import java.util.Map;
+
 public class TestNSREHandling extends HBaseClusterTestCase {
    public void testHandleNSREInTransition()
    throws Exception {
@@ -37,13 +39,15 @@ public class TestNSREHandling extends HBaseClusterTestCase {
      HServerAddress address = master.getMasterAddress();
      HTableDescriptor tableDesc = new HTableDescriptor(Bytes.toBytes("_MY_TABLE_"));
 
-     // master.regionManager.onlineMetaRegions already contains first .META. region at key Bytes.toBytes("")
      byte[] startKey0 = Bytes.toBytes("f");
      byte[] endKey0 = Bytes.toBytes("h");
      HRegionInfo regionInfo0 = new HRegionInfo(tableDesc, startKey0, endKey0);
 
      // get region info for _MY_TABLE_.
      // 1. Put a region r (regionInfo0) into transition.
+     RegionManager regionManager = master.getRegionManager();
+     
+     Map<byte [], MetaRegion> OnlineMetaRegions = regionManager.getOnlineMetaRegions();
 
      // 2. Put a HMsg with a NSRE(r) in master message queue.
 
