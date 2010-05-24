@@ -1,5 +1,5 @@
-/*
- * Copyright 2009 The Apache Software Foundation
+/**
+ * Copyright 2010 The Apache Software Foundation
  *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,56 +17,191 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.hadoop.hbase.master;
 
-import org.apache.hadoop.hbase.HBaseClusterTestCase;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.net.BindException;
+import java.util.Collection;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HConstants;
+import org.apache.hadoop.hbase.HMsg;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.HServerAddress;
-import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.HServerInfo;
+import org.apache.hadoop.hbase.MiniHBaseCluster;
+import org.apache.hadoop.hbase.MiniHBaseCluster.MiniHBaseClusterRegionServer;
+import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.regionserver.HRegion;
+import org.apache.hadoop.hbase.regionserver.HRegionServer;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.util.Threads;
+import org.apache.hadoop.hbase.util.Writables;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-import java.util.Map;
+/**
+ * Test transitions of state across the master.  Sets up the cluster once and
+ * then runs a couple of tests.
+ */
+public class TestNSREHandling {
+  private static final Log LOG = LogFactory.getLog(TestMasterTransitions.class);
+  private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
+  private static final String TABLENAME = "master_transitions";
+  private static final byte [][] FAMILIES = new byte [][] {Bytes.toBytes("a"),
+    Bytes.toBytes("b"), Bytes.toBytes("c")};
 
-public class TestNSREHandling extends HBaseClusterTestCase {
-   public void testHandleNSREInTransition()
-   throws Exception {
+  /**
+   * Start up a mini cluster and put a small table of many empty regions into it.
+   * @throws Exception
+   */
+  @BeforeClass public static void beforeAllTests() throws Exception {
+    TEST_UTIL.getConfiguration().setBoolean("dfs.support.append", true);
+    // Start a cluster of two regionservers.
+    TEST_UTIL.startMiniCluster(2);
+    // Create a table of three families.  This will assign a region.
+    TEST_UTIL.createTable(Bytes.toBytes(TABLENAME), FAMILIES);
+    HTable t = new HTable(TEST_UTIL.getConfiguration(), TABLENAME);
+    int countOfRegions = TEST_UTIL.createMultiRegions(t, getTestFamily());
+    waitUntilAllRegionsAssigned(countOfRegions);
+    addToEachStartKey(countOfRegions);
+  }
 
-     HTable meta = new HTable(HConstants.META_TABLE_NAME);
-     HMaster master = this.cluster.getMaster();
-     HServerAddress address = master.getMasterAddress();
-     HTableDescriptor tableDesc = new HTableDescriptor(Bytes.toBytes("_MY_TABLE_"));
+  @AfterClass public static void afterAllTests() throws IOException {
+    TEST_UTIL.shutdownMiniCluster();
+  }
 
-     byte[] startKey0 = Bytes.toBytes("f");
-     byte[] endKey0 = Bytes.toBytes("h");
-     HRegionInfo regionInfo0 = new HRegionInfo(tableDesc, startKey0, endKey0);
+  @Before public void setup() throws IOException {
+    if (TEST_UTIL.getHBaseCluster().getLiveRegionServerThreads().size() < 2) {
+      // Need at least two servers.
+      LOG.info("Started new server=" +
+        TEST_UTIL.getHBaseCluster().startRegionServer());
+      
+    }
+  }
 
-     // get region info for _MY_TABLE_.
-     // 1. Put a region r (regionInfo0) into transition.
-     RegionManager regionManager = master.getRegionManager();
-     
-     Map<byte [], MetaRegion> OnlineMetaRegions = regionManager.getOnlineMetaRegions();
+  /**
+   * HBASE-2486: set up some scenarios to cause a region server to emit a NSRE,
+   * and then assert that master has correctly responded in each scenario.
+   */
 
-     // 2. Put a HMsg with a NSRE(r) in master message queue.
+  @Test (timeout=300000) public void causeRSToEmitNSRE()
+  throws Exception {
+    LOG.info("Running causeRSToEmitNSRE()");
+    MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
+    assertTrue(43 == 42);
+  }
 
-     // 3. See if server handles NSRE(r) correctly.
+  /*
+   * Wait until all rows in .META. have a non-empty info:server.  This means
+   * all regions have been deployed, master has been informed and updated
+   * .META. with the regions deployed server.
+   * @param countOfRegions How many regions in .META.
+   * @throws IOException
+   */
+  private static void waitUntilAllRegionsAssigned(final int countOfRegions)
+  throws IOException {
+    HTable meta = new HTable(TEST_UTIL.getConfiguration(),
+      HConstants.META_TABLE_NAME);
+    while (true) {
+      int rows = 0;
+      Scan scan = new Scan();
+      scan.addColumn(HConstants.CATALOG_FAMILY, HConstants.SERVER_QUALIFIER);
+      ResultScanner s = meta.getScanner(scan);
+      for (Result r = null; (r = s.next()) != null;) {
+        byte [] b =
+          r.getValue(HConstants.CATALOG_FAMILY, HConstants.SERVER_QUALIFIER);
+        if (b == null || b.length <= 0) break;
+        rows++;
+      }
+      s.close();
+      // If I get to here and all rows have a Server, then all have been assigned.
+      if (rows == countOfRegions) break;
+      LOG.info("Found=" + rows);
+      Threads.sleep(1000); 
+    }
+  }
 
+  /*
+   * Add to each of the regions in .META. a value.  Key is the startrow of the
+   * region (except its 'aaa' for first region).  Actual value is the row name.
+   * @param expected
+   * @return
+   * @throws IOException
+   */
+  private static int addToEachStartKey(final int expected) throws IOException {
+    HTable t = new HTable(TEST_UTIL.getConfiguration(), TABLENAME);
+    HTable meta = new HTable(TEST_UTIL.getConfiguration(),
+        HConstants.META_TABLE_NAME);
+    int rows = 0;
+    Scan scan = new Scan();
+    scan.addColumn(HConstants.CATALOG_FAMILY, HConstants.REGIONINFO_QUALIFIER);
+    ResultScanner s = meta.getScanner(scan);
+    for (Result r = null; (r = s.next()) != null;) {
+      byte [] b =
+        r.getValue(HConstants.CATALOG_FAMILY, HConstants.REGIONINFO_QUALIFIER);
+      if (b == null || b.length <= 0) break;
+      HRegionInfo hri = Writables.getHRegionInfo(b);
+      // If start key, add 'aaa'.
+      byte [] row = getStartKey(hri);
+      Put p = new Put(row);
+      p.add(getTestFamily(), getTestQualifier(), row);
+      t.put(p);
+      rows++;
+    }
+    s.close();
+    Assert.assertEquals(expected, rows);
+    return rows;
+  }
 
-     assertEquals(42,42);
-   }
+  /*
+   * @return Count of rows in TABLENAME
+   * @throws IOException
+   */
+  private static int count() throws IOException {
+    HTable t = new HTable(TEST_UTIL.getConfiguration(), TABLENAME);
+    int rows = 0;
+    Scan scan = new Scan();
+    ResultScanner s = t.getScanner(scan);
+    for (Result r = null; (r = s.next()) != null;) {
+      rows++;
+    }
+    s.close();
+    LOG.info("Counted=" + rows);
+    return rows;
+  }
 
-   public void testHandleNSREOnDifferentRS()
-     throws Exception {
-       assertEquals(42,42);
-   }
+  /*
+   * @param hri
+   * @return Start key for hri (If start key is '', then return 'aaa'.
+   */
+  private static byte [] getStartKey(final HRegionInfo hri) {
+    return Bytes.equals(HConstants.EMPTY_START_ROW, hri.getStartKey())?
+        Bytes.toBytes("aaa"): hri.getStartKey();
+  }
 
-   public void testHandleNSREOnSameRS()
-     throws Exception {
-       assertEquals(42,42);
-   }
+  private static byte [] getTestFamily() {
+    return FAMILIES[0];
+  }
 
-
-
+  private static byte [] getTestQualifier() {
+    return getTestFamily();
+  }
 }
