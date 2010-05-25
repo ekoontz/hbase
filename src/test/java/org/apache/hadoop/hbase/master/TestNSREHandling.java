@@ -190,7 +190,8 @@ public class TestNSREHandling {
     MiniHBaseClusterRegionServer c_metaHRS =
       (MiniHBaseClusterRegionServer)metaHRS;
     HBase2486Listener listener = new HBase2486Listener(c_otherHRS);
-    HBase2486Listener listener2 = new HBase2486Listener(c_metaHRS);
+    master.getRegionServerOperationQueue().
+      registerRegionServerOperationListener(listener);
 
     // Given two regionservers {metaHRS,otherHRS}, how to cause otherHRS to throw an NSRE:
 
@@ -208,15 +209,27 @@ public class TestNSREHandling {
     p.add(getTestFamily(),getTestQualifier(),row);
     table.put(p);
 
+
+    LOG.info("CLOSING REGION TO CAUSE NSRE..");
+
     // Close region 'hri' on server 'otherHRS'.
     cluster.addMessageToSendRegionServer(c_otherHRS,
                                          new HMsg(HMsg.Type.MSG_REGION_CLOSE,hri,
                                                   Bytes.toBytes("Forcing close of hri.")));
 
+    LOG.info("SENT MESSAGE..");
+
+    Thread.sleep(10000);
+
     // Try to access the region again, on the same region server: should cause a NSRE.
     Put p2 = new Put(row);
     p2.add(getTestFamily(),getTestQualifier(),row);
     table.put(p2);
+
+    LOG.info("SLEEPING ..");
+
+    Thread.sleep(50000);
+
 
     LOG.info("EXITING TEST.");
 
