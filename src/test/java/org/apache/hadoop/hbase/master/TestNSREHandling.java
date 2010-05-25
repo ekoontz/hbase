@@ -133,29 +133,37 @@ public class TestNSREHandling {
     final String regionName = hri.getRegionNameAsString();
 
     // 2. restart otherServer.
-    LOG.info("killing: " + otherServer);
-    otherServer.kill();
+    // 2.a. stop
 
-    // Try and start new regionserver.  It might clash with the old
+    LOG.info("restarting: " + otherServer);
+
+    cluster.abortRegionServer(otherServerIndex);
+    cluster.waitOnRegionServer(otherServerIndex);
+
+    // 2.b. start
+    // Try to start new regionserver.  It might clash with the old
     // regionserver port so keep trying to get past the BindException.
     HRegionServer hrs = null;
-      while (true) {
-        try {
-          hrs = cluster.startRegionServer().getRegionServer();
-          break;
-        } catch (IOException e) {
-          if (e.getCause() != null && e.getCause() instanceof InvocationTargetException) {
-            InvocationTargetException ee = (InvocationTargetException)e.getCause();
-            if (ee.getCause() != null && ee.getCause() instanceof BindException) {
-              LOG.info("BindException; retrying: " + e.toString());
-            }
+    while (true) {
+      try {
+        hrs = cluster.startRegionServer().getRegionServer();
+        break;
+      } catch (IOException e) {
+        if (e.getCause() != null && e.getCause() instanceof InvocationTargetException) {
+          InvocationTargetException ee = (InvocationTargetException)e.getCause();
+          if (ee.getCause() != null && ee.getCause() instanceof BindException) {
+            LOG.info("BindException; retrying: " + e.toString());
           }
         }
       }
-      LOG.info("STARTED=" + hrs);
-
+    }
+    LOG.info("STARTED REGIONSERVER:" + hrs);
+    
     // 3. create client to connect to otherServer, and get region hri (either by HRegionInfo or regionName; whichever
     // is easier.)
+    
+
+    LOG.info("EXITING TEST.");
 
   }
 
