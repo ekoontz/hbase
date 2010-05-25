@@ -97,6 +97,70 @@ public class TestNSREHandling {
     }
   }
 
+
+  /**
+   * Listener for regionserver events testing HBASE-2486:
+   * Anti-entropy for No Such Region Exceptions.
+   */
+  static class HBase2486Listener implements RegionServerOperationListener {
+    private final HRegionServer victim;
+    private boolean abortSent = false;
+    // We closed regions on new server.
+    private volatile boolean closed = false;
+    // Copy of regions on new server
+    private final Collection<HRegion> copyOfOnlineRegions;
+    // This is the region that was in transition on the server we aborted. Test
+    // passes if this region comes back online successfully.
+    private HRegionInfo regionToFind;
+
+    HBase2486Listener(final HRegionServer victim) {
+      this.victim = victim;
+      // Copy regions currently open on this server so I can notice when
+      // there is a close.
+      this.copyOfOnlineRegions =
+        this.victim.getCopyOfOnlineRegionsSortedBySize().values();
+    }
+ 
+    @Override
+    public boolean process(HServerInfo serverInfo, HMsg incomingMsg) {
+      if (!victim.getServerInfo().equals(serverInfo) ||
+          this.abortSent || !this.closed) {
+        return true;
+      }
+      if (!incomingMsg.isType(HMsg.Type.MSG_REPORT_PROCESS_OPEN)) return true;
+      // Save the region that is in transition so can test later it came back.
+      this.regionToFind = incomingMsg.getRegionInfo();
+      LOG.info("ABORTING " + this.victim + " because got a " +
+        HMsg.Type.MSG_REPORT_PROCESS_OPEN + " on this server for " +
+        incomingMsg.getRegionInfo().getRegionNameAsString());
+      this.victim.abort();
+      this.abortSent = true;
+      return true;
+    }
+
+    @Override
+    public boolean process(RegionServerOperation op) throws IOException {
+      return true;
+    }
+
+    @Override
+    public void processed(RegionServerOperation op) {
+      if (this.closed || !(op instanceof ProcessRegionClose)) return;
+      ProcessRegionClose close = (ProcessRegionClose)op;
+      for (HRegion r: this.copyOfOnlineRegions) {
+        if (r.getRegionInfo().equals(close.regionInfo)) {
+          // We've closed one of the regions that was on the victim server.
+          // Now can start testing for when all regions are back online again
+          LOG.info("Found close of " +
+            r.getRegionInfo().getRegionNameAsString() +
+            "; setting close happened flag");
+          this.closed = true;
+          break;
+        }
+      }
+    }
+  }
+
   /**
    * HBASE-2486: set up some scenarios to cause a region server to emit a NSRE,
    * and then assert that master has correctly responded in each scenario.
@@ -107,6 +171,7 @@ public class TestNSREHandling {
     LOG.info("Running causeRSToEmitNSRE()");
     MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
     final HMaster master = cluster.getMaster();
+
     int metaIndex = cluster.getServerWithMeta();
     // Figure the index of the server that is not server the .META.
     int otherServerIndex = -1;
@@ -116,14 +181,22 @@ public class TestNSREHandling {
       break;
     }
 
-    final HRegionServer otherServer = cluster.getRegionServer(otherServerIndex);
+    final HRegionServer otherHRS = cluster.getRegionServer(otherServerIndex);
     final HRegionServer metaHRS = cluster.getRegionServer(metaIndex);
 
-    // Given two regionservers {metaHRS,otherServer}, how to cause otherServer to throw an NSRE:
+    // add listener.
+    MiniHBaseClusterRegionServer c_otherHRS =
+      (MiniHBaseClusterRegionServer)otherHRS;
+    MiniHBaseClusterRegionServer c_metaHRS =
+      (MiniHBaseClusterRegionServer)metaHRS;
+    HBase2486Listener listener = new HBase2486Listener(c_otherHRS);
+    HBase2486Listener listener2 = new HBase2486Listener(c_metaHRS);
+
+    // Given two regionservers {metaHRS,otherHRS}, how to cause otherHRS to throw an NSRE:
 
 
-    // 1. Get a region on otherServer.
-    final HRegionInfo hri = otherServer.getOnlineRegions().iterator().next().getRegionInfo();
+    // 1. Get a region on otherHRS.
+    final HRegionInfo hri = otherHRS.getOnlineRegions().iterator().next().getRegionInfo();
     final String regionName = hri.getRegionNameAsString();
 
     // open a client connection to this regionName.
@@ -135,54 +208,25 @@ public class TestNSREHandling {
     p.add(getTestFamily(),getTestQualifier(),row);
     table.put(p);
 
-    // 2. restart otherServer.
-    // 2.a. stop.
+    // Close region 'hri' on server otherHRS 
+    // wait for region server to shutdown this region.
+    Thread.sleep(1000);
 
-    LOG.info("restarting: " + otherServerIndex);
+    cluster.addMessageToSendRegionServer(c_otherHRS,
+                                         new HMsg(HMsg.Type.MSG_REGION_CLOSE,hri,
+                                                  Bytes.toBytes("Forcing close of hri.")));
+    Thread.sleep(1000);
 
-    cluster.abortRegionServer(otherServerIndex);
-    cluster.waitOnRegionServer(otherServerIndex);
+    cluster.addMessageToSendRegionServer(c_otherHRS,
+                                         new HMsg(HMsg.Type.MSG_REGION_OPEN,hri,
+                                                  Bytes.toBytes("Forcing open of hri.")));
 
-    // 2.b. start
-    // Try to start new regionserver.  It might clash with the old
-    // regionserver port so keep trying to get past the BindException.
-    HRegionServer hrs = null;
-    while (true) {
-      try {
-        hrs = cluster.startRegionServer().getRegionServer();
-        break;
-      } catch (IOException e) {
-        if (e.getCause() != null && e.getCause() instanceof InvocationTargetException) {
-          InvocationTargetException ee = (InvocationTargetException)e.getCause();
-          if (ee.getCause() != null && ee.getCause() instanceof BindException) {
-            LOG.info("BindException; retrying: " + e.toString());
-          }
-        }
-      }
-    }
-    LOG.info("STARTED REGIONSERVER:" + hrs);
+    Thread.sleep(1000);
 
-    // try to add the row again.
-    p.add(getTestFamily(),getTestQualifier(),row);
-    table.put(p);
+    Put p2 = new Put(row);
+    p2.add(getTestFamily(),getTestQualifier(),row);
+    table.put(p2);
 
-    /*
-    // The following steps cause an NSRE because the hbase shell client will connect 
-    // with the same regionserver in step 3 as it did in step 1.
-    // In step 3, however, the region in question will no 
-    // longer be located at this region server because of the intervening restart in step 2. 
-    // This will cause the region server to throw a NSRE exception.
-
-    // 1. Get a region on otherServer.
-    final HRegionInfo hri = otherServer.getOnlineRegions().iterator().next().getRegionInfo();
-    final String regionName = hri.getRegionNameAsString();
-
-    // 2. Now do a Get() on metaHRS for a region (hri) that is on otherServer:
-    // since the region is not on metaHRS, it will cause a NoSuchRegionException to
-    // be thrown by metaHRS.
-    Put put = new Put(hri.getRegionName());
-    metaHRS.put(put);
-    */
     LOG.info("EXITING TEST.");
 
   }
