@@ -64,7 +64,7 @@ import org.junit.Test;
 public class TestNSREHandling {
   private static final Log LOG = LogFactory.getLog(TestMasterTransitions.class);
   private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
-  private static final String TABLENAME = "master_transitions";
+  private static final String TABLENAME = "nsre_test_table";
   private static final byte [][] FAMILIES = new byte [][] {Bytes.toBytes("a"),
     Bytes.toBytes("b"), Bytes.toBytes("c")};
 
@@ -106,7 +106,37 @@ public class TestNSREHandling {
   throws Exception {
     LOG.info("Running causeRSToEmitNSRE()");
     MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
-    assertTrue(43 == 42);
+    final HMaster master = cluster.getMaster();
+    int metaIndex = cluster.getServerWithMeta();
+    // Figure the index of the server that is not server the .META.
+    int otherServerIndex = -1;
+    for (int i = 0; i < cluster.getRegionServerThreads().size(); i++) {
+      if (i == metaIndex) continue;
+      otherServerIndex = i;
+      break;
+    }
+
+    // Given two regionservers {metaHRS,otherServer}, how to cause otherServer to throw an NSRE:
+
+    final HRegionServer otherServer = cluster.getRegionServer(otherServerIndex);
+    final HRegionServer metaHRS = cluster.getRegionServer(metaIndex);
+
+    // The following steps cause an NSRE because the hbase shell client will connect 
+    // with the same regionserver in step 3 as it did in step 1.
+    // In step 3, however, the region in question will no 
+    // longer be located at this region server because of the intervening restart in step 2. 
+    // This will cause the region server to throw a NSRE exception.
+
+    // 1. Get a region on otherServer.
+    final HRegionInfo hri = otherServer.getOnlineRegions().iterator().next().getRegionInfo();
+
+    final String regionName = hri.getRegionNameAsString();
+
+    // 2. restart otherServer.
+
+    // 3. create client to connect to otherServer, and get region hri (either by HRegionInfo or regionName; whichever
+    // is easier.)
+
   }
 
   /*
