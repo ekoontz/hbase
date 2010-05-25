@@ -68,6 +68,8 @@ public class TestNSREHandling {
   private static final byte [][] FAMILIES = new byte [][] {Bytes.toBytes("a"),
     Bytes.toBytes("b"), Bytes.toBytes("c")};
 
+  static boolean region_closed = false;
+
   /**
    * Start up a mini cluster and put a small table of many empty regions into it.
    * @throws Exception
@@ -123,41 +125,26 @@ public class TestNSREHandling {
  
     @Override
     public boolean process(HServerInfo serverInfo, HMsg incomingMsg) {
-      if (!victim.getServerInfo().equals(serverInfo) ||
-          this.abortSent || !this.closed) {
-        return true;
-      }
-      if (!incomingMsg.isType(HMsg.Type.MSG_REPORT_PROCESS_OPEN)) return true;
-      // Save the region that is in transition so can test later it came back.
-      this.regionToFind = incomingMsg.getRegionInfo();
-      LOG.info("ABORTING " + this.victim + " because got a " +
-        HMsg.Type.MSG_REPORT_PROCESS_OPEN + " on this server for " +
-        incomingMsg.getRegionInfo().getRegionNameAsString());
-      this.victim.abort();
-      this.abortSent = true;
+      LOG.info("GOT HERE: PROCESS(1): " + incomingMsg.toString());
       return true;
     }
 
     @Override
     public boolean process(RegionServerOperation op) throws IOException {
+      LOG.info("GOT HERE: PROCESS(2): " + op.toString());
       return true;
     }
 
     @Override
     public void processed(RegionServerOperation op) {
-      if (this.closed || !(op instanceof ProcessRegionClose)) return;
-      ProcessRegionClose close = (ProcessRegionClose)op;
-      for (HRegion r: this.copyOfOnlineRegions) {
-        if (r.getRegionInfo().equals(close.regionInfo)) {
-          // We've closed one of the regions that was on the victim server.
-          // Now can start testing for when all regions are back online again
-          LOG.info("Found close of " +
-            r.getRegionInfo().getRegionNameAsString() +
-            "; setting close happened flag");
-          this.closed = true;
-          break;
-        }
-      }
+      LOG.info("GOT HERE: PROCESSED.");
+      region_closed = true;
+      // Try to access the region again, on the same region server: should cause a NSRE.
+      /*      Put p2 = new Put(row);
+      p2.add(getTestFamily(),getTestQualifier(),row);
+      table.put(p2);
+      */
+      return;
     }
   }
 
@@ -187,28 +174,21 @@ public class TestNSREHandling {
     // add listener.
     MiniHBaseClusterRegionServer c_otherHRS =
       (MiniHBaseClusterRegionServer)otherHRS;
-    MiniHBaseClusterRegionServer c_metaHRS =
-      (MiniHBaseClusterRegionServer)metaHRS;
     HBase2486Listener listener = new HBase2486Listener(c_otherHRS);
     master.getRegionServerOperationQueue().
       registerRegionServerOperationListener(listener);
-
-    // Given two regionservers {metaHRS,otherHRS}, how to cause otherHRS to throw an NSRE:
-
 
     // 1. Get a region on 'otherHRS'
     final HRegionInfo hri = otherHRS.getOnlineRegions().iterator().next().getRegionInfo();
     final String regionName = hri.getRegionNameAsString();
 
-    // open a client connection to this regionName.
+    // open a client connection to this region.
     HTable table = new HTable(TEST_UTIL.getConfiguration(),
-                              Bytes.toBytes("nsre_test_table"));
-
+                            Bytes.toBytes("nsre_test_table"));
     byte [] row = getStartKey(hri);
     Put p = new Put(row);
     p.add(getTestFamily(),getTestQualifier(),row);
     table.put(p);
-
 
     LOG.info("CLOSING REGION TO CAUSE NSRE..");
 
@@ -219,17 +199,18 @@ public class TestNSREHandling {
 
     LOG.info("SENT MESSAGE..");
 
-    Thread.sleep(10000);
+    while(true) {
+      LOG.info("waiting for region to be closed..");
+      Thread.sleep(1000);
+      if (region_closed == true) {
+        break;
+      }
+    }
 
     // Try to access the region again, on the same region server: should cause a NSRE.
     Put p2 = new Put(row);
     p2.add(getTestFamily(),getTestQualifier(),row);
     table.put(p2);
-
-    LOG.info("SLEEPING ..");
-
-    Thread.sleep(50000);
-
 
     LOG.info("EXITING TEST.");
 
