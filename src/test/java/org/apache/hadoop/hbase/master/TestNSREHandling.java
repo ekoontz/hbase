@@ -116,26 +116,29 @@ public class TestNSREHandling {
       break;
     }
 
-    // Given two regionservers {metaHRS,otherServer}, how to cause otherServer to throw an NSRE:
-
     final HRegionServer otherServer = cluster.getRegionServer(otherServerIndex);
     final HRegionServer metaHRS = cluster.getRegionServer(metaIndex);
 
-    // The following steps cause an NSRE because the hbase shell client will connect 
-    // with the same regionserver in step 3 as it did in step 1.
-    // In step 3, however, the region in question will no 
-    // longer be located at this region server because of the intervening restart in step 2. 
-    // This will cause the region server to throw a NSRE exception.
+    // Given two regionservers {metaHRS,otherServer}, how to cause otherServer to throw an NSRE:
+
 
     // 1. Get a region on otherServer.
     final HRegionInfo hri = otherServer.getOnlineRegions().iterator().next().getRegionInfo();
-
     final String regionName = hri.getRegionNameAsString();
 
-    // 2. restart otherServer.
-    // 2.a. stop
+    // open a client connection to this regionName.
+    HTable table = new HTable(TEST_UTIL.getConfiguration(),
+                              Bytes.toBytes("nsre_test_table"));
 
-    LOG.info("restarting: " + otherServer);
+    byte [] row = getStartKey(hri);
+    Put p = new Put(row);
+    p.add(getTestFamily(),getTestQualifier(),row);
+    table.put(p);
+
+    // 2. restart otherServer.
+    // 2.a. stop.
+
+    LOG.info("restarting: " + otherServerIndex);
 
     cluster.abortRegionServer(otherServerIndex);
     cluster.waitOnRegionServer(otherServerIndex);
@@ -158,11 +161,28 @@ public class TestNSREHandling {
       }
     }
     LOG.info("STARTED REGIONSERVER:" + hrs);
-    
-    // 3. create client to connect to otherServer, and get region hri (either by HRegionInfo or regionName; whichever
-    // is easier.)
-    
 
+    // try to add the row again.
+    p.add(getTestFamily(),getTestQualifier(),row);
+    table.put(p);
+
+    /*
+    // The following steps cause an NSRE because the hbase shell client will connect 
+    // with the same regionserver in step 3 as it did in step 1.
+    // In step 3, however, the region in question will no 
+    // longer be located at this region server because of the intervening restart in step 2. 
+    // This will cause the region server to throw a NSRE exception.
+
+    // 1. Get a region on otherServer.
+    final HRegionInfo hri = otherServer.getOnlineRegions().iterator().next().getRegionInfo();
+    final String regionName = hri.getRegionNameAsString();
+
+    // 2. Now do a Get() on metaHRS for a region (hri) that is on otherServer:
+    // since the region is not on metaHRS, it will cause a NoSuchRegionException to
+    // be thrown by metaHRS.
+    Put put = new Put(hri.getRegionName());
+    metaHRS.put(put);
+    */
     LOG.info("EXITING TEST.");
 
   }
