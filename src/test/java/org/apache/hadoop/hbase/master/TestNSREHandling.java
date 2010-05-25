@@ -195,7 +195,7 @@ public class TestNSREHandling {
     // Given two regionservers {metaHRS,otherHRS}, how to cause otherHRS to throw an NSRE:
 
 
-    // 1. Get a region on otherHRS.
+    // 1. Get a region on 'otherHRS'
     final HRegionInfo hri = otherHRS.getOnlineRegions().iterator().next().getRegionInfo();
     final String regionName = hri.getRegionNameAsString();
 
@@ -208,21 +208,12 @@ public class TestNSREHandling {
     p.add(getTestFamily(),getTestQualifier(),row);
     table.put(p);
 
-    // Close region 'hri' on server otherHRS 
-    // wait for region server to shutdown this region.
-    Thread.sleep(1000);
-
+    // Close region 'hri' on server 'otherHRS'.
     cluster.addMessageToSendRegionServer(c_otherHRS,
                                          new HMsg(HMsg.Type.MSG_REGION_CLOSE,hri,
                                                   Bytes.toBytes("Forcing close of hri.")));
-    Thread.sleep(1000);
 
-    cluster.addMessageToSendRegionServer(c_otherHRS,
-                                         new HMsg(HMsg.Type.MSG_REGION_OPEN,hri,
-                                                  Bytes.toBytes("Forcing open of hri.")));
-
-    Thread.sleep(1000);
-
+    // Try to access the region again, on the same region server: should cause a NSRE.
     Put p2 = new Put(row);
     p2.add(getTestFamily(),getTestQualifier(),row);
     table.put(p2);
