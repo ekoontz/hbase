@@ -276,8 +276,6 @@ Release 0.21.0 - Unreleased
                from hbase-default.xml
    HBASE-2439  HBase can get stuck if updates to META are blocked
                (Kannan Muthukkaruppan via Stack)
-<<<<<<< HEAD
-=======
    HBASE-2451  .META. by-passes cache; BLOCKCACHE=>'false'
    HBASE-2453  Revisit compaction policies after HBASE-2248 commit
                (Jonathan Gray via Stack)
@@ -361,7 +359,6 @@ Release 0.21.0 - Unreleased
                (Benoît Sigoure via Stack)
    HBASE-2586  Move hbase webapps to a hbase-webapps dir (Todd Lipcon via
                Andrew Purtell)
->>>>>>> apache/trunk
 
   IMPROVEMENTS
    HBASE-1760  Cleanup TODOs in HTable
