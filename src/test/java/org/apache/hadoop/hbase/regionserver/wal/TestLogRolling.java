@@ -80,6 +80,8 @@ public class TestLogRolling extends HBaseClusterTestCase {
       this.tableName = null;
       this.value = null;
 
+      Integer foo = 42;
+
       String className = this.getClass().getName();
       StringBuilder v = new StringBuilder(className);
       while (v.length() < 1000) {
