@@ -95,7 +95,6 @@ public class TestNSREHandling {
       // Need at least two servers.
       LOG.info("Started new server=" +
         TEST_UTIL.getHBaseCluster().startRegionServer());
-      
     }
   }
 
@@ -105,45 +104,32 @@ public class TestNSREHandling {
    * Anti-entropy for No Such Region Exceptions.
    */
   static class HBase2486Listener implements RegionServerOperationListener {
-    private final HRegionServer victim;
-    private boolean abortSent = false;
-    // We closed regions on new server.
-    private volatile boolean closed = false;
-    // Copy of regions on new server
-    private final Collection<HRegion> copyOfOnlineRegions;
-    // This is the region that was in transition on the server we aborted. Test
-    // passes if this region comes back online successfully.
-    private HRegionInfo regionToFind;
+    private final HRegionServer region_host;
 
-    HBase2486Listener(final HRegionServer victim) {
-      this.victim = victim;
-      // Copy regions currently open on this server so I can notice when
-      // there is a close.
-      this.copyOfOnlineRegions =
-        this.victim.getCopyOfOnlineRegionsSortedBySize().values();
+    HBase2486Listener(final HRegionServer region_host) {
+      this.region_host = region_host;
+      return;
     }
  
     @Override
     public boolean process(HServerInfo serverInfo, HMsg incomingMsg) {
-      LOG.info("GOT HERE: PROCESS(1): " + incomingMsg.toString());
+      LOG.info("HBASE-2486: PROCESS(1): " + serverInfo.toString());
+      LOG.info("HBASE-2486: PROCESS(1): " + incomingMsg.toString());
       return true;
     }
 
     @Override
     public boolean process(RegionServerOperation op) throws IOException {
-      LOG.info("GOT HERE: PROCESS(2): " + op.toString());
+      LOG.info("HBASE-2486: PROCESS(2): " + op.toString());
       return true;
     }
 
     @Override
     public void processed(RegionServerOperation op) {
-      LOG.info("GOT HERE: PROCESSED.");
+      LOG.info("HBASE-2486: PROCESSED: " + op.toString());
+      // while() loop below in test will break out of the test
+      // after this is true.
       region_closed = true;
-      // Try to access the region again, on the same region server: should cause a NSRE.
-      /*      Put p2 = new Put(row);
-      p2.add(getTestFamily(),getTestQualifier(),row);
-      table.put(p2);
-      */
       return;
     }
   }
@@ -190,27 +176,35 @@ public class TestNSREHandling {
     p.add(getTestFamily(),getTestQualifier(),row);
     table.put(p);
 
-    LOG.info("CLOSING REGION TO CAUSE NSRE..");
+    LOG.info("HBASE-2486: telling region server to close region.");
 
     // Close region 'hri' on server 'otherHRS'.
     cluster.addMessageToSendRegionServer(c_otherHRS,
                                          new HMsg(HMsg.Type.MSG_REGION_CLOSE,hri,
                                                   Bytes.toBytes("Forcing close of hri.")));
 
-    LOG.info("SENT MESSAGE..");
+    LOG.info("HBASE-2486: sent region");
 
     while(true) {
-      LOG.info("waiting for region to be closed..");
+      LOG.info("HBASE-2486: waiting for region to be closed..");
       Thread.sleep(1000);
       if (region_closed == true) {
         break;
       }
     }
+    LOG.info("HBASE-2486: region closed.");
 
+    LOG.info("HBASE-2486: causing NSRE..");
     // Try to access the region again, on the same region server: should cause a NSRE.
     Put p2 = new Put(row);
     p2.add(getTestFamily(),getTestQualifier(),row);
     table.put(p2);
+    LOG.info("HBASE-2486: caused NSRE..");
+
+    // Assert that the regionserver's NSRE message was received by the server.
+    LOG.info("HBASE-2486: Wait for Master to receive NSRE message..");
+    Thread.sleep(10000);
+    LOG.info("HBASE-2486: Done waiting.");
 
     LOG.info("EXITING TEST.");
 
