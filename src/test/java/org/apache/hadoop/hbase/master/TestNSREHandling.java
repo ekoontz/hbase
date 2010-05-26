@@ -179,12 +179,18 @@ public class TestNSREHandling {
     LOG.info("HBASE-2486: telling region server to close region.");
 
     // Close region 'hri' on server 'otherHRS'.
+    // FIXME: do QUIESE, not MSG_REGION_CLOSE
+    // Quiese will do a close but will also prevent re-assignment to the
+    // this region server (which would avoid the NSRE that we want to 
+    // trigger for our testing purposes.
+
     cluster.addMessageToSendRegionServer(c_otherHRS,
                                          new HMsg(HMsg.Type.MSG_REGION_CLOSE,hri,
                                                   Bytes.toBytes("Forcing close of hri.")));
 
-    LOG.info("HBASE-2486: sent region");
+    LOG.info("HBASE-2486: sent region; waiting for region server to close region..");
 
+    // FIXME : use monitor or conditional variable or similar.
     while(true) {
       LOG.info("HBASE-2486: waiting for region to be closed..");
       Thread.sleep(1000);
@@ -194,15 +200,19 @@ public class TestNSREHandling {
     }
     LOG.info("HBASE-2486: region closed.");
 
-    LOG.info("HBASE-2486: causing NSRE..");
+    LOG.info("HBASE-2486: attempting to cause region server to emit NSRE message..");
     // Try to access the region again, on the same region server: should cause a NSRE.
     Put p2 = new Put(row);
     p2.add(getTestFamily(),getTestQualifier(),row);
     table.put(p2);
-    LOG.info("HBASE-2486: caused NSRE..");
+
 
     // Assert that the regionserver's NSRE message was received by the server.
     LOG.info("HBASE-2486: Wait for Master to receive NSRE message..");
+
+    // How to check masters' receipt of NSRE message??
+    // Is there a listener for masters?
+
     Thread.sleep(10000);
     LOG.info("HBASE-2486: Done waiting.");
 
