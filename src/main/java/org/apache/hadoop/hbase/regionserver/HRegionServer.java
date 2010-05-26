@@ -2177,7 +2177,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
         // at the next call of this.housekeeping(),
         // so that master can do consistency checking. (See HBASE-2486).
         if (LOG.isDebugEnabled()) {
-          LOG.debug("HRegionServer::getRegion() : adding region: '" + Bytes.toString(regionName) +
+          LOG.debug("HRegionServer::getRegion() :" + serverInfo.getServerAddress().toString() + " adding region: '" + Bytes.toString(regionName) +
                     "' to this.nsre_set (before throwing NotServingRegionException()).");
         }
 
