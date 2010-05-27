@@ -32,13 +32,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.apache.hadoop.hbase.HConstants;
-import org.apache.hadoop.hbase.HMsg;
-import org.apache.hadoop.hbase.HRegionInfo;
-import org.apache.hadoop.hbase.HServerAddress;
-import org.apache.hadoop.hbase.HServerInfo;
-import org.apache.hadoop.hbase.MiniHBaseCluster;
+import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.MiniHBaseCluster.MiniHBaseClusterRegionServer;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTable;
@@ -61,6 +55,21 @@ import org.junit.Test;
  * Test transitions of state across the master.  Sets up the cluster once and
  * then runs a couple of tests.
  */
+
+class nsreHTable extends HTable {
+
+    public nsreHTable(final String tableName)
+     throws IOException {
+        super(tableName);
+     }
+
+    public nsreHTable(Configuration conf,final byte[] tableName)
+            throws IOException {
+        super(conf,tableName);
+    }
+    
+}
+
 public class TestNSREHandling {
   private static final Log LOG = LogFactory.getLog(TestMasterTransitions.class);
   private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
@@ -167,61 +176,17 @@ public class TestNSREHandling {
     final HRegionServer regionserverA = cluster.getRegionServer(regionserverA_index);
     final HRegionServer regionserverB = cluster.getRegionServer(regionserverB_index);
 
-    // add listener.
-    MiniHBaseClusterRegionServer c_regionserverA =
-      (MiniHBaseClusterRegionServer)regionserverA;
-    HBase2486Listener listener = new HBase2486Listener(c_regionserverA);
-    master.getRegionServerOperationQueue().
-      registerRegionServerOperationListener(listener);
-
     // 1. Get a region on 'regionserverA'
     final HRegionInfo hri = regionserverA.getOnlineRegions().iterator().next().getRegionInfo();
     final String regionName = hri.getRegionNameAsString();
 
     // open a client connection to this region.
-    HTable table = new HTable(TEST_UTIL.getConfiguration(),
+    nsreHTable table = new nsreHTable(TEST_UTIL.getConfiguration(),
                             Bytes.toBytes("nsre_test_table"));
     byte [] row = getStartKey(hri);
     Put p = new Put(row);
     p.add(getTestFamily(),getTestQualifier(),row);
     table.put(p);
-
-    LOG.info("HBASE-2486: telling region server to close region.");
-
-    // Close region 'hri' on server 'regionserverA'.
-    // FIXME: do QUIESE, not MSG_REGION_CLOSE
-    // Quiese will do a close but will also prevent re-assignment to the
-    // this region server (which would avoid the NSRE that we want to 
-    // trigger for our testing purposes.
-
-    cluster.addMessageToSendRegionServer(c_regionserverA,
-                                         new HMsg(HMsg.Type.MSG_REGION_CLOSE,hri,
-                                                  Bytes.toBytes("Forcing close of hri.")));
-
-    LOG.info("HBASE-2486: sent region; waiting for region server to close region..");
-
-    // FIXME : use monitor or conditional variable or similar.
-    while(true) {
-      LOG.info("HBASE-2486: waiting for region to be closed..");
-      Thread.sleep(1000);
-      if (region_closed == true) {
-        break;
-      }
-    }
-    LOG.info("HBASE-2486: region closed.");
-
-    LOG.info("HBASE-2486: attempting to cause region server to emit NSRE message..");
-    // Try to access the region again, on the same region server: should cause a NSRE.
-    Put p2 = new Put(row);
-    p2.add(getTestFamily(),getTestQualifier(),row);
-    table.put(p2);
-
-
-    // Assert that the regionserver's NSRE message was received by the server.
-    LOG.info("HBASE-2486: Wait for Master to receive NSRE message..");
-
-    // How to check masters' receipt of NSRE message??
-    // Is there a listener for masters?
 
     Thread.sleep(10000);
     LOG.info("HBASE-2486: Done waiting.");
