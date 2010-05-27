@@ -139,33 +139,43 @@ public class TestNSREHandling {
    * and then assert that master has correctly responded in each scenario.
    */
 
+  /* test for:
+   * 3.a. (legitimate NSRE) : manipulate table object (used by client) : change apparent location of region A from correct regionserver R1 to
+   *    incorrect regionserver R2.
+   * 3.b. (transition) : ??
+   * 3.c. (inconsistent NSRE): manipulate .META. table to change apparent location of region A from correct regionserver R1
+   *       to incorrect regionserver R2.
+   */
+
+
+
   @Test (timeout=300000) public void causeRSToEmitNSRE()
   throws Exception {
     LOG.info("Running causeRSToEmitNSRE()");
     MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
     final HMaster master = cluster.getMaster();
 
-    int metaIndex = cluster.getServerWithMeta();
+    int regionserverB_index = cluster.getServerWithMeta();
     // Figure the index of the server that is not server the .META.
-    int otherServerIndex = -1;
+    int regionserverA_index = -1;
     for (int i = 0; i < cluster.getRegionServerThreads().size(); i++) {
-      if (i == metaIndex) continue;
-      otherServerIndex = i;
+      if (i == regionserverB_index) continue;
+      regionserverA_index = i;
       break;
     }
 
-    final HRegionServer otherHRS = cluster.getRegionServer(otherServerIndex);
-    final HRegionServer metaHRS = cluster.getRegionServer(metaIndex);
+    final HRegionServer regionserverA = cluster.getRegionServer(regionserverA_index);
+    final HRegionServer regionserverB = cluster.getRegionServer(regionserverB_index);
 
     // add listener.
-    MiniHBaseClusterRegionServer c_otherHRS =
-      (MiniHBaseClusterRegionServer)otherHRS;
-    HBase2486Listener listener = new HBase2486Listener(c_otherHRS);
+    MiniHBaseClusterRegionServer c_regionserverA =
+      (MiniHBaseClusterRegionServer)regionserverA;
+    HBase2486Listener listener = new HBase2486Listener(c_regionserverA);
     master.getRegionServerOperationQueue().
       registerRegionServerOperationListener(listener);
 
-    // 1. Get a region on 'otherHRS'
-    final HRegionInfo hri = otherHRS.getOnlineRegions().iterator().next().getRegionInfo();
+    // 1. Get a region on 'regionserverA'
+    final HRegionInfo hri = regionserverA.getOnlineRegions().iterator().next().getRegionInfo();
     final String regionName = hri.getRegionNameAsString();
 
     // open a client connection to this region.
@@ -178,13 +188,13 @@ public class TestNSREHandling {
 
     LOG.info("HBASE-2486: telling region server to close region.");
 
-    // Close region 'hri' on server 'otherHRS'.
+    // Close region 'hri' on server 'regionserverA'.
     // FIXME: do QUIESE, not MSG_REGION_CLOSE
     // Quiese will do a close but will also prevent re-assignment to the
     // this region server (which would avoid the NSRE that we want to 
     // trigger for our testing purposes.
 
-    cluster.addMessageToSendRegionServer(c_otherHRS,
+    cluster.addMessageToSendRegionServer(c_regionserverA,
                                          new HMsg(HMsg.Type.MSG_REGION_CLOSE,hri,
                                                   Bytes.toBytes("Forcing close of hri.")));
 
