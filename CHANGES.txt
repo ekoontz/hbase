@@ -348,6 +348,18 @@ Release 0.21.0 - Unreleased
    HBASE-2582  TestTableSchemaModel not passing after commit of blooms
    HBASE-2583  Make webapps work in distributed mode again and make webapps
                deploy at / instead of at /webapps/master/master.jsp
+   HBASE-2590  Failed parse of branch element in saveVersion.sh
+   HBASE-2591  HBASE-2587 hardcoded the port that dfscluster runs on
+   HBASE-2519  StoreFileScanner.seek swallows IOEs (Todd Lipcon via Stack)
+   HBASE-2516  Ugly IOE when region is being closed; rather, should NSRE
+               (Daniel Ploeg via Stack)
+   HBASE-2589  TestHRegion.testWritesWhileScanning flaky on trunk
+               (Todd Lipcon via Stack)
+   HBASE-2590  Failed parse of branch element in saveVersion.sh
+               (Benoît Sigoure via Stack)
+   HBASE-2586  Move hbase webapps to a hbase-webapps dir (Todd Lipcon via
+               Andrew Purtell)
+   HBASE-2610  ValueFilter copy pasted javadoc from QualifierFilter
 
   IMPROVEMENTS
    HBASE-1760  Cleanup TODOs in HTable
@@ -623,6 +635,14 @@ Release 0.21.0 - Unreleased
                pulled from http://people.apache.org/~rawson/repo/....
    HBASE-2534  Recursive deletes and misc improvements to ZKW
    HBASE-2577  Remove 'core' maven module; move core up a level
+   HBASE-2587  Coral where tests write data when running and make sure clean
+               target removes all written
+   HBASE-2580  Make the hlog file names unique
+   HBASE-2594  Narrow pattern used finding unit tests to run -- make it same
+               was we had in 0.20
+   HBASE-2538  Work on repository order in pom (adding fbmirror to top,
+               ibiblio on bottom)
+   HBASE-2613  Remove the code around MSG_CALL_SERVER_STARTUP
 
   NEW FEATURES
    HBASE-1961  HBase EC2 scripts

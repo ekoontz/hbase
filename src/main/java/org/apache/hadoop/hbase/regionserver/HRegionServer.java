@@ -495,35 +495,6 @@ public class HRegionServer implements HConstants, HRegionInterface,
               LOG.info(msgs[i].toString());
               this.connection.unsetRootRegionLocation();
               switch(msgs[i].getType()) {
-              case MSG_CALL_SERVER_STARTUP:
-                // We the MSG_CALL_SERVER_STARTUP on startup but we can also
-                // get it when the master is panicking because for instance
-                // the HDFS has been yanked out from under it.  Be wary of
-                // this message.
-                if (checkFileSystem()) {
-                  closeAllRegions();
-                  try {
-                    hlog.closeAndDelete();
-                  } catch (Exception e) {
-                    LOG.error("error closing and deleting HLog", e);
-                  }
-                  try {
-                    serverInfo.setStartCode(System.currentTimeMillis());
-                    hlog = setupHLog();
-                  } catch (IOException e) {
-                    this.abortRequested = true;
-                    this.stopRequested.set(true);
-                    e = RemoteExceptionHandler.checkIOException(e);
-                    LOG.fatal("error restarting server", e);
-                    break;
-                  }
-                  reportForDuty();
-                  restart = true;
-                } else {
-                  LOG.fatal("file system available check failed. " +
-                  "Shutting down server.");
-                }
-                break;
 
               case MSG_REGIONSERVER_STOP:
                 stopRequested.set(true);
@@ -928,8 +899,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
     return isOnline;
   }
 
-  private HLog setupHLog() throws RegionServerRunningException,
-    IOException {
+  private HLog setupHLog() throws IOException {
     Path oldLogDir = new Path(rootDir, HREGION_OLDLOGDIR_NAME);
     Path logdir = new Path(rootDir, HLog.getHLogDirectoryName(this.serverInfo));
     if (LOG.isDebugEnabled()) {
@@ -946,7 +916,8 @@ public class HRegionServer implements HConstants, HRegionInterface,
 
   // instantiate
   protected HLog instantiateHLog(Path logdir, Path oldLogDir) throws IOException {
-    HLog newlog = new HLog(fs, logdir, oldLogDir, conf, hlogRoller);
+    HLog newlog = new HLog(fs, logdir, oldLogDir, conf, hlogRoller, null,
+        serverInfo.getServerAddress().toString());
     return newlog;
   }
 
