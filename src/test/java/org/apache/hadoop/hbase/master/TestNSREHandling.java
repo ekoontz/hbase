@@ -23,7 +23,9 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -147,10 +149,20 @@ class NSREConnection implements HConnection {
         return 0;
     }
 
+    // the intention here is to ask the *wrong* regionserver
+    // for a given region, which should cause the regionserver
+    // to emit a NSRE.
     public void processBatchOfPuts(List<Put> list,
                                    final byte[] tableName, ExecutorService pool)
             throws IOException {
-        return;
+
+        for ( Put put : list ) {
+                byte [] row = put.getRow();
+                HRegionLocation loc = locateRegion(tableName, row);
+                HServerAddress address = loc.getServerAddress();
+                byte [] regionName = loc.getRegionInfo().getRegionName();
+                return;
+        }
     }
 
 }
@@ -158,10 +170,14 @@ class NSREConnection implements HConnection {
 class NSRETable extends HTable {
 
     private final HConnection bad_connection;
+    private List<Put> bad_writeBuffer;
+    private byte[] bad_tableName;
+    private ExecutorService bad_pool;
 
-    public void flushCommitsX() throws IOException {
+
+    public void flushCommits() throws IOException {
       // override method that tries to commit to wrong region server.
-        int foo = 43;
+      bad_connection.processBatchOfPuts(bad_writeBuffer,bad_tableName, bad_pool);
     }
 
     public NSRETable(Configuration conf,final byte[] tableName)
