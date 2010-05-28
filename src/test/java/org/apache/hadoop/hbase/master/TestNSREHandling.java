@@ -20,26 +20,23 @@
 package org.apache.hadoop.hbase.master;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.net.BindException;
-import java.util.Collection;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.*;
-import org.apache.hadoop.hbase.MiniHBaseCluster.MiniHBaseClusterRegionServer;
 import org.apache.hadoop.hbase.client.*;
-import org.apache.hadoop.hbase.regionserver.HRegion;
+import org.apache.hadoop.hbase.ipc.HMasterInterface;
+import org.apache.hadoop.hbase.ipc.HRegionInterface;
 import org.apache.hadoop.hbase.regionserver.HRegionServer;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Threads;
 import org.apache.hadoop.hbase.util.Writables;
+import org.apache.hadoop.hbase.zookeeper.ZooKeeperWrapper;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -51,10 +48,118 @@ import org.junit.Test;
  * then runs a couple of tests.
  */
 
+class NSREConnection implements HConnection {
+
+    public ZooKeeperWrapper getZooKeeperWrapper()
+            throws IOException {
+          return null;
+    }
+
+    public HMasterInterface getMaster()
+            throws MasterNotRunningException {
+        return null;
+    }
+
+    public boolean isMasterRunning() {
+        return true;
+    }
+
+    public boolean tableExists(final byte [] tableName)
+    throws MasterNotRunningException {
+        return true;
+    }
+
+    public boolean isTableEnabled(byte[] tableName)
+                throws IOException {
+        return true;
+    }
+
+    public boolean isTableDisabled(byte[] tableName)
+            throws IOException {
+        return true;
+    }
+
+    public boolean isTableAvailable(byte[] tableName)
+            throws IOException {
+        return true;
+    }
+
+    public HTableDescriptor[] listTables()
+            throws IOException {
+        return null;
+    }
+
+    public HTableDescriptor getHTableDescriptor(byte[] tableName)
+        throws IOException {
+        return null;
+    }
+
+    public HRegionLocation locateRegion(final byte [] tableName,
+        final byte [] row)
+        throws IOException {
+        return null;
+    }
+
+    public void clearRegionCache() {
+        return;
+    }
+
+    public HRegionLocation relocateRegion(final byte [] tableName,
+        final byte [] row)
+        throws IOException {
+        return null;
+    }
+
+    public HRegionInterface getHRegionConnection(HServerAddress regionServer)
+    throws IOException {
+        return null;
+    }
+
+    public HRegionInterface getHRegionConnection(
+        HServerAddress regionServer, boolean getMaster)
+        throws IOException {
+        return null;
+    }
+
+    public HRegionLocation getRegionLocation(byte [] tableName, byte [] row,
+      boolean reload)
+        throws IOException {
+        return null;
+    }
+
+    public <T> T getRegionServerWithRetries(ServerCallable<T> callable)
+        throws IOException, RuntimeException {
+        return null;
+    }
+
+    public <T> T getRegionServerWithoutRetries(ServerCallable<T> callable)
+    throws IOException, RuntimeException {
+        return null;
+    }
+
+    public int processBatchOfRows(ArrayList<Put> list, byte[] tableName)
+    throws IOException {
+        return 0;
+    }
+
+    public int processBatchOfDeletes(List<Delete> list, byte[] tableName)
+    throws IOException {
+        return 0;
+    }
+
+    public void processBatchOfPuts(List<Put> list,
+                                   final byte[] tableName, ExecutorService pool)
+            throws IOException {
+        return;
+    }
+
+}
 
 class NSRETable extends HTable {
 
-    public void flushCommits() throws IOException {
+    private final HConnection bad_connection;
+
+    public void flushCommitsX() throws IOException {
       // override method that tries to commit to wrong region server.
         int foo = 43;
     }
@@ -62,8 +167,7 @@ class NSRETable extends HTable {
     public NSRETable(Configuration conf,final byte[] tableName)
             throws IOException {
         super(conf,tableName);
-        int foo = 42;
-
+        bad_connection = new NSREConnection();
     }
     
 }
