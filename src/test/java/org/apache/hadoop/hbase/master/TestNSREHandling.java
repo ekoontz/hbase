@@ -177,7 +177,9 @@ class NSRETable extends HTable {
 
     public void flushCommits() throws IOException {
       // override method that tries to commit to wrong region server.
-      bad_connection.processBatchOfPuts(bad_writeBuffer,bad_tableName, bad_pool);
+      super.flushCommits();
+    //  bad_connection.processBatchOfPuts(bad_writeBuffer,bad_tableName, bad_pool);
+
     }
 
     public NSRETable(Configuration conf,final byte[] tableName)
