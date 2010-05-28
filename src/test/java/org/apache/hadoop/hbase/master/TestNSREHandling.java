@@ -34,12 +34,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.MiniHBaseCluster.MiniHBaseClusterRegionServer;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.regionserver.HRegionServer;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -56,16 +51,19 @@ import org.junit.Test;
  * then runs a couple of tests.
  */
 
-class nsreHTable extends HTable {
 
-    public nsreHTable(final String tableName)
-     throws IOException {
-        super(tableName);
-     }
+class NSRETable extends HTable {
 
-    public nsreHTable(Configuration conf,final byte[] tableName)
+    public void flushCommits() throws IOException {
+      // override method that tries to commit to wrong region server.
+        int foo = 43;
+    }
+
+    public NSRETable(Configuration conf,final byte[] tableName)
             throws IOException {
         super(conf,tableName);
+        int foo = 42;
+
     }
     
 }
@@ -107,42 +105,6 @@ public class TestNSREHandling {
     }
   }
 
-
-  /**
-   * Listener for regionserver events testing HBASE-2486:
-   * Anti-entropy for No Such Region Exceptions.
-   */
-  static class HBase2486Listener implements RegionServerOperationListener {
-    private final HRegionServer region_host;
-
-    HBase2486Listener(final HRegionServer region_host) {
-      this.region_host = region_host;
-      return;
-    }
- 
-    @Override
-    public boolean process(HServerInfo serverInfo, HMsg incomingMsg) {
-      LOG.info("HBASE-2486: PROCESS(1): " + serverInfo.toString());
-      LOG.info("HBASE-2486: PROCESS(1): " + incomingMsg.toString());
-      return true;
-    }
-
-    @Override
-    public boolean process(RegionServerOperation op) throws IOException {
-      LOG.info("HBASE-2486: PROCESS(2): " + op.toString());
-      return true;
-    }
-
-    @Override
-    public void processed(RegionServerOperation op) {
-      LOG.info("HBASE-2486: PROCESSED: " + op.toString());
-      // while() loop below in test will break out of the test
-      // after this is true.
-      region_closed = true;
-      return;
-    }
-  }
-
   /**
    * HBASE-2486: set up some scenarios to cause a region server to emit a NSRE,
    * and then assert that master has correctly responded in each scenario.
@@ -181,16 +143,16 @@ public class TestNSREHandling {
     final String regionName = hri.getRegionNameAsString();
 
     // open a client connection to this region.
-    nsreHTable table = new nsreHTable(TEST_UTIL.getConfiguration(),
+    NSRETable table = new NSRETable(TEST_UTIL.getConfiguration(),
                             Bytes.toBytes("nsre_test_table"));
     byte [] row = getStartKey(hri);
     Put p = new Put(row);
     p.add(getTestFamily(),getTestQualifier(),row);
     table.put(p);
 
-    Thread.sleep(10000);
+    //Thread.sleep(10000);
     LOG.info("HBASE-2486: Done waiting.");
-
+    assertEquals(42,42);
     LOG.info("EXITING TEST.");
 
   }
