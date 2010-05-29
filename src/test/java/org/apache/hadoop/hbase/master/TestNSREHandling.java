@@ -22,7 +22,8 @@ package org.apache.hadoop.hbase.master;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.commons.logging.Log;
@@ -44,11 +45,15 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- * Test transitions of state across the master.  Sets up the cluster once and
- * then runs a couple of tests.
+ * Deliberately buggy implementation of client connection, 
+ * intended to elicit NoSuchRegionExceptions from RegionServer.
  */
 
-class NSREConnection implements HConnection {
+class NSREConnection implements org.apache.hadoop.hbase.client.HConnection {
+
+    public NSREConnection(Configuration conf) {
+
+    }
 
     public ZooKeeperWrapper getZooKeeperWrapper()
             throws IOException {
@@ -175,7 +180,17 @@ class NSRETable extends HTable {
     private boolean nsre_autoFlush;
     private long nsre_writeBufferSize;
 
-    private final HConnection nsre_connection;
+    private final NSREConnection nsre_connection;
+
+    public NSRETable(Configuration conf,final byte[] tableName)
+            throws IOException {
+      super(conf,tableName);
+	  nsre_tableName = tableName;
+      nsre_connection = new NSREConnection(conf);
+	  nsre_writeBufferSize = conf.getLong("hbase.client.write.buffer", 2097152);
+	  nsre_autoFlush = true;
+	  nsre_currentWriteBufferSize = 0;
+    }
 
     // validate for well-formedness: (super.validatePut is private)
     private void validateNSREPut(final Put put) throws IllegalArgumentException{
@@ -209,7 +224,6 @@ class NSRETable extends HTable {
 	super.put(put);
     }
 
-
     public void flushCommits() throws IOException {
 	// override method that tries to commit to wrong region server.
 	try {
@@ -222,16 +236,6 @@ class NSRETable extends HTable {
 		nsre_currentWriteBufferSize += aPut.heapSize();
 	    }
 	}
-    }
-
-    public NSRETable(Configuration conf,final byte[] tableName)
-            throws IOException {
-        super(conf,tableName);
-	nsre_tableName = tableName;
-        nsre_connection = HConnectionManager.getConnection(conf);
-	nsre_writeBufferSize = conf.getLong("hbase.client.write.buffer", 2097152);
-	nsre_autoFlush = true;
-	nsre_currentWriteBufferSize = 0;
     }
     
 }
