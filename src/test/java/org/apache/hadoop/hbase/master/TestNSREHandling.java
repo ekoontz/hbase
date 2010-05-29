@@ -23,9 +23,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -169,23 +167,71 @@ class NSREConnection implements HConnection {
 
 class NSRETable extends HTable {
 
-    private final HConnection bad_connection;
-    private List<Put> bad_writeBuffer;
-    private byte[] bad_tableName;
-    private ExecutorService bad_pool;
+    private final byte [] nsre_tableName;
+    private final ArrayList<Put> nsre_writeBuffer = new ArrayList<Put>();
+    private ExecutorService nsre_pool;
+    private int nsre_maxKeyValueSize;
+    private long nsre_currentWriteBufferSize;
+    private boolean nsre_autoFlush;
+    private long nsre_writeBufferSize;
+
+    private final HConnection nsre_connection;
+
+    // validate for well-formedness: (super.validatePut is private)
+    private void validateNSREPut(final Put put) throws IllegalArgumentException{
+	if (put.isEmpty()) {
+	    throw new IllegalArgumentException("No columns to insert");
+	}
+	if (nsre_maxKeyValueSize > 0) {
+	    for (List<KeyValue> list : put.getFamilyMap().values()) {
+		for (KeyValue kv : list) {
+		    if (kv.getLength() > nsre_maxKeyValueSize) {
+			throw new IllegalArgumentException("KeyValue size too large");
+		    }
+		}
+	    }
+	}
+    }
+
+    private void doNSREPut(final List<Put> puts) throws IOException {
+	for (Put put : puts) {
+	    validateNSREPut(put);
+	    nsre_writeBuffer.add(put);
+	    nsre_currentWriteBufferSize += put.heapSize();
+	}
+	if (nsre_autoFlush || nsre_currentWriteBufferSize > nsre_writeBufferSize) {
+	    flushCommits();
+	}
+    }
+
+    public void put(final Put put) throws IOException {
+	//	doNSREPut(Arrays.asList(put));
+	super.put(put);
+    }
 
 
     public void flushCommits() throws IOException {
-      // override method that tries to commit to wrong region server.
-      super.flushCommits();
-    //  bad_connection.processBatchOfPuts(bad_writeBuffer,bad_tableName, bad_pool);
-
+	// override method that tries to commit to wrong region server.
+	try {
+	    nsre_connection.processBatchOfPuts(nsre_writeBuffer,
+					  nsre_tableName, nsre_pool);
+	} finally {
+	    // the write buffer was adjusted by processBatchOfPuts
+	    nsre_currentWriteBufferSize = 0;
+	    for (Put aPut : nsre_writeBuffer) {
+		nsre_currentWriteBufferSize += aPut.heapSize();
+	    }
+	}
     }
 
     public NSRETable(Configuration conf,final byte[] tableName)
             throws IOException {
         super(conf,tableName);
-        bad_connection = new NSREConnection();
+	nsre_tableName = tableName;
+        nsre_connection = HConnectionManager.getConnection(conf);
+	nsre_writeBufferSize = conf.getLong("hbase.client.write.buffer", 2097152);
+	nsre_autoFlush = true;
+	nsre_currentWriteBufferSize = 0;
     }
     
 }
