@@ -48,6 +48,10 @@ public class MultiPutResponse implements Writable {
     return answers.get(region);
   }
 
+    public void setRequest(MultiPut req) {
+	this.request = req;
+    }
+
   @Override
   public void write(DataOutput out) throws IOException {
     out.writeInt(answers.size());

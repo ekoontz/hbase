@@ -363,7 +363,8 @@ class NSREConnection implements org.apache.hadoop.hbase.client.HConnection {
 						     new ServerCallable<MultiPutResponse>(connection, tableName, null) {
                 public MultiPutResponse call() throws IOException {
                   MultiPutResponse resp = server.multiPut(puts);
-                  resp.request = puts;
+		  // resp.request = puts
+                  resp.setRequest(puts);
                   return resp;
                 }
                 @Override
@@ -464,9 +465,9 @@ class NSRETable extends HTable {
 	} finally {
 	    // the write buffer was adjusted by processBatchOfPuts
 	    nsre_currentWriteBufferSize = 0;
-	    for (Put aPut : nsre_writeBuffer) {
+	    /*	    for (Put aPut : nsre_writeBuffer) {
 		nsre_currentWriteBufferSize += aPut.heapSize();
-	    }
+		}*/
 	}
     }
     
@@ -559,7 +560,7 @@ public class TestNSREHandling {
     p.add(getTestFamily(),getTestQualifier(),row);
     table.put(p);
 
-    //Thread.sleep(10000);
+    Thread.sleep(10000);
     LOG.info("HBASE-2486: Done waiting.");
     assertEquals(42,42);
     LOG.info("EXITING TEST.");
