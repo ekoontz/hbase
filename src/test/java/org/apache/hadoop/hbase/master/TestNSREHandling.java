@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
@@ -184,15 +185,18 @@ class NSRETable extends HTable {
 
     public NSRETable(Configuration conf,final byte[] tableName)
             throws IOException {
-      super(conf,tableName);
-	  nsre_tableName = tableName;
-      nsre_connection = new NSREConnection(conf);
+	super(conf,tableName);
+	nsre_tableName = tableName;
+	nsre_connection = new NSREConnection(conf);
+
+      // these 3 are needed for validateNSREPut(), doNSREPut(), and flushCommits().
 	  nsre_writeBufferSize = conf.getLong("hbase.client.write.buffer", 2097152);
 	  nsre_autoFlush = true;
 	  nsre_currentWriteBufferSize = 0;
     }
 
-    // validate for well-formedness: (super.validatePut is private)
+    // validate for well-formedness: (super.validatePut() is private, so we cannot call it from doNSREPut(), so
+    // we create a new method, validateNSREPut(), instead.)
     private void validateNSREPut(final Put put) throws IllegalArgumentException{
 	if (put.isEmpty()) {
 	    throw new IllegalArgumentException("No columns to insert");
@@ -207,7 +211,8 @@ class NSRETable extends HTable {
 	    }
 	}
     }
-
+    // doPut() is private, so we cannot call it from put(), so
+    // we create a new method, doNSREPut(), instead.
     private void doNSREPut(final List<Put> puts) throws IOException {
 	for (Put put : puts) {
 	    validateNSREPut(put);
@@ -215,16 +220,15 @@ class NSRETable extends HTable {
 	    nsre_currentWriteBufferSize += put.heapSize();
 	}
 	if (nsre_autoFlush || nsre_currentWriteBufferSize > nsre_writeBufferSize) {
-	    flushCommits();
+	    nsre_flushCommits();
 	}
     }
 
     public void put(final Put put) throws IOException {
-	//	doNSREPut(Arrays.asList(put));
-	super.put(put);
+	  doNSREPut(Arrays.asList(put));
     }
 
-    public void flushCommits() throws IOException {
+    public void nsre_flushCommits() throws IOException {
 	// override method that tries to commit to wrong region server.
 	try {
 	    nsre_connection.processBatchOfPuts(nsre_writeBuffer,
