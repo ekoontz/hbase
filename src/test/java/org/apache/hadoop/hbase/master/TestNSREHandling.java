@@ -131,32 +131,10 @@ public class TestNSREHandling {
     public boolean process(final RegionServerOperation op) throws IOException {
       // If a regionserver shutdown and its of the meta server, then we want to
       // delay the processing of the shutdown and send off a close of a region on
-      // the 'otherServer.
+      // the otherServer.
       boolean result = true;
-      if (op instanceof ProcessServerShutdown) {
-        ProcessServerShutdown pss = (ProcessServerShutdown)op;
-        if (pss.getDeadServerAddress().equals(this.metaAddress)) {
-          // Don't postpone more than once.
-          if (!this.postponed.contains(pss)) {
-            // Close some region.
-            this.cluster.addMessageToSendRegionServer(this.otherServerIndex,
-              new HMsg(HMsg.Type.MSG_REGION_CLOSE, hri,
-              Bytes.toBytes("Forcing close in test")));
-            this.postponed.add(pss);
-            // Put off the processing of the regionserver shutdown processing.
-            pss.setDelay(SERVER_DURATION);
-            this.metaShutdownReceived = true;
-            // Return false.  This will add this op to the delayed queue.
-            result = false;
-          }
-        }
-      } else {
-        // Have the close run frequently.
-        if (isWantedCloseOperation(op) != null) {
-          op.setDelay(CLOSE_DURATION);
-          // Count how many times it comes through here.
-          this.closeCount++;
-        }
+      if (op instanceof ProcessRegionOpen) {
+        boolean test = true;
       }
       return result;
     }
