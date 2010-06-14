@@ -92,7 +92,7 @@ public class TestNSREHandling {
     if (TEST_UTIL.getHBaseCluster().getLiveRegionServerThreads().size() < 2) {
       // Need at least two servers.
       LOG.info("Started new server=" +
-        TEST_UTIL.getHBaseCluster().startRegionServer());
+	       TEST_UTIL.getHBaseCluster().startRegionServer());
       
     }
   }
@@ -133,23 +133,8 @@ public class TestNSREHandling {
       // delay the processing of the shutdown and send off a close of a region on
       // the 'otherServer.
       boolean result = true;
-      if (op instanceof ProcessServerShutdown) {
-        ProcessServerShutdown pss = (ProcessServerShutdown)op;
-        if (pss.getDeadServerAddress().equals(this.metaAddress)) {
-          // Don't postpone more than once.
-          if (!this.postponed.contains(pss)) {
-            // Close some region.
-            this.cluster.addMessageToSendRegionServer(this.otherServerIndex,
-              new HMsg(HMsg.Type.MSG_REGION_CLOSE, hri,
-              Bytes.toBytes("Forcing close in test")));
-            this.postponed.add(pss);
-            // Put off the processing of the regionserver shutdown processing.
-            pss.setDelay(SERVER_DURATION);
-            this.metaShutdownReceived = true;
-            // Return false.  This will add this op to the delayed queue.
-            result = false;
-          }
-        }
+      if (op instanceof ProcessRegionOpen) {
+	LOG.info("got a ProcessRegionOpen.");
       } else {
         // Have the close run frequently.
         if (isWantedCloseOperation(op) != null) {
