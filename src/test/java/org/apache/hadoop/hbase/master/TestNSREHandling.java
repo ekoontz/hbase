@@ -98,14 +98,14 @@ public class TestNSREHandling {
   }
 
   /**
-   * Listener for regionserver events testing hbase-2428 (Infinite loop of
+   * Listener for regionserver events testing hbase-2486 (Infinite loop of
    * region closes if META region is offline).  In particular, listen
    * for the close of the 'metaServer' and when it comes in, requeue it with a
    * delay as though there were an issue processing the shutdown.  As part of
    * the requeuing,  send over a close of a region on 'otherServer' so it comes
    * into a master that has its meta region marked as offline.
    */
-  static class HBase2428Listener implements RegionServerOperationListener {
+  static class HBase2486Listener implements RegionServerOperationListener {
     // Map of what we've delayed so we don't do do repeated delays.
     private final Set<RegionServerOperation> postponed =
       new CopyOnWriteArraySet<RegionServerOperation>();
@@ -119,7 +119,7 @@ public class TestNSREHandling {
     static final int SERVER_DURATION = 3 * 1000;
     static final int CLOSE_DURATION = 1 * 1000;
  
-    HBase2428Listener(final MiniHBaseCluster c, final HServerAddress metaAddress,
+    HBase2486Listener(final MiniHBaseCluster c, final HServerAddress metaAddress,
         final HRegionInfo closingHRI, final int otherServerIndex) {
       this.cluster = c;
       this.metaAddress = metaAddress;
@@ -129,42 +129,17 @@ public class TestNSREHandling {
 
     @Override
     public boolean process(final RegionServerOperation op) throws IOException {
-      // If a regionserver shutdown and its of the meta server, then we want to
-      // delay the processing of the shutdown and send off a close of a region on
-      // the 'otherServer.
       boolean result = true;
       if (op instanceof ProcessRegionOpen) {
-	LOG.info("got a ProcessRegionOpen.");
-      } else {
-        // Have the close run frequently.
-        if (isWantedCloseOperation(op) != null) {
-          op.setDelay(CLOSE_DURATION);
-          // Count how many times it comes through here.
-          this.closeCount++;
-        }
+	LOG.info("begin process of a ProcessRegionOpen.");
       }
       return result;
     }
 
     public void processed(final RegionServerOperation op) {
-      if (isWantedCloseOperation(op) != null) return;
-      this.done = true;
-    }
-
-    /*
-     * @param op
-     * @return Null if not the wanted ProcessRegionClose, else <code>op</code>
-     * cast as a ProcessRegionClose.
-     */
-    private ProcessRegionClose isWantedCloseOperation(final RegionServerOperation op) {
-      // Count every time we get a close operation.
-      if (op instanceof ProcessRegionClose) {
-        ProcessRegionClose c = (ProcessRegionClose)op;
-        if (c.regionInfo.equals(hri)) {
-          return c;
-        }
+      if (op instanceof ProcessRegionOpen) {
+	LOG.info("processed a ProcessRegionOpen.");
       }
-      return null;
     }
 
     boolean isDone() {
@@ -186,13 +161,13 @@ public class TestNSREHandling {
   }
 
   /**
-   * In 2428, the meta region has just been set offline and then a close comes
+   * In 2486, the meta region has just been set offline and then a close comes
    * in.
-   * @see <a href="https://issues.apache.org/jira/browse/HBASE-2428">HBASE-2428</a> 
+   * @see <a href="https://issues.apache.org/jira/browse/HBASE-2486">HBASE-2486</a> 
    */
-  @Test (timeout=300000) public void testRegionCloseWhenNoMetaHBase2428()
+  @Test (timeout=300000) public void testRegionCloseWhenNoMetaHBase2486()
   throws Exception {
-    LOG.info("Running testRegionCloseWhenNoMetaHBase2428");
+    LOG.info("Running testRegionCloseWhenNoMetaHBase2486");
     MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
     final HMaster master = cluster.getMaster();
     int metaIndex = cluster.getServerWithMeta();
@@ -211,7 +186,7 @@ public class TestNSREHandling {
       otherServer.getOnlineRegions().iterator().next().getRegionInfo();
  
     // Add our RegionServerOperationsListener
-    HBase2428Listener listener = new HBase2428Listener(cluster,
+    HBase2486Listener listener = new HBase2486Listener(cluster,
       metaHRS.getHServerInfo().getServerAddress(), hri, otherServerIndex);
     master.getRegionServerOperationQueue().
       registerRegionServerOperationListener(listener);
@@ -227,7 +202,7 @@ public class TestNSREHandling {
       // (Multiple by two to add in some slop in case of GC or something).
       assertTrue(listener.getCloseCount() > 1);
       assertTrue(listener.getCloseCount() <
-        ((HBase2428Listener.SERVER_DURATION/HBase2428Listener.CLOSE_DURATION) * 2));
+        ((HBase2486Listener.SERVER_DURATION/HBase2486Listener.CLOSE_DURATION) * 2));
 
       // Assert the closed region came back online
       assertRegionIsBackOnline(hri);
