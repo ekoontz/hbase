@@ -238,56 +238,6 @@ public class TestNSREHandling {
   }
 
   /**
-   * Test adding in a new server before old one on same host+port is dead.
-   * Make the test more onerous by having the server under test carry the meta.
-   * If confusion between old and new, purportedly meta never comes back.  Test
-   * that meta gets redeployed.
-   */
-  @Test (timeout=300000) public void testAddingServerBeforeOldIsDead2413()
-  throws IOException {
-    LOG.info("Running testAddingServerBeforeOldIsDead2413");
-    MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
-    int count = count();
-    int metaIndex = cluster.getServerWithMeta();
-    MiniHBaseClusterRegionServer metaHRS =
-      (MiniHBaseClusterRegionServer)cluster.getRegionServer(metaIndex);
-    int port = metaHRS.getServerInfo().getServerAddress().getPort();
-    Configuration c = TEST_UTIL.getConfiguration();
-    String oldPort = c.get(HConstants.REGIONSERVER_PORT, "0");
-    try {
-      LOG.info("KILLED=" + metaHRS);
-      metaHRS.kill();
-      c.set(HConstants.REGIONSERVER_PORT, Integer.toString(port));
-      // Try and start new regionserver.  It might clash with the old
-      // regionserver port so keep trying to get past the BindException.
-      HRegionServer hrs = null;
-      while (true) {
-        try {
-          hrs = cluster.startRegionServer().getRegionServer();
-          break;
-        } catch (IOException e) {
-          if (e.getCause() != null && e.getCause() instanceof InvocationTargetException) {
-            InvocationTargetException ee = (InvocationTargetException)e.getCause();
-            if (ee.getCause() != null && ee.getCause() instanceof BindException) {
-              LOG.info("BindException; retrying: " + e.toString());
-            }
-          }
-        }
-      }
-      LOG.info("STARTED=" + hrs);
-      // Wait until he's been given at least 3 regions before we go on to try
-      // and count rows in table.
-      while (hrs.getOnlineRegions().size() < 3) Threads.sleep(100);
-      LOG.info(hrs.toString() + " has " + hrs.getOnlineRegions().size() +
-        " regions");
-      assertEquals(count, count());
-    } finally {
-      c.set(HConstants.REGIONSERVER_PORT, oldPort);
-    }
-  }
-
-
-  /**
    * HBase2482 is about outstanding region openings.  If any are outstanding
    * when a regionserver goes down, then they'll never deploy.  They'll be
    * stuck in the regions-in-transition list for ever.  This listener looks
@@ -351,67 +301,6 @@ public class TestNSREHandling {
           break;
         }
       }
-    }
-  }
-
-  /**
-   * In 2482, a RS with an opening region on it dies.  The said region is then
-   * stuck in the master's regions-in-transition and never leaves it.  This
-   * test works by bringing up a new regionserver, waiting for the load
-   * balancer to give it some regions.  Then, we close all on the new server.
-   * After sending all the close messages, we send the new regionserver the
-   * special blocking message so it can not process any more messages.
-   * Meantime reopening of the just-closed regions is backed up on the new
-   * server.  Soon as master gets an opening region from the new regionserver,
-   * we kill it.  We then wait on all regions to come back on line.  If bug
-   * is fixed, this should happen soon as the processing of the killed server is
-   * done.
-   * @see <a href="https://issues.apache.org/jira/browse/HBASE-2482">HBASE-2482</a> 
-   */
-  @Test (timeout=300000) public void testKillRSWithOpeningRegion2482()
-  throws Exception {
-    LOG.info("Running testKillRSWithOpeningRegion2482");
-    MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
-    if (cluster.getLiveRegionServerThreads().size() < 2) {
-      // Need at least two servers.
-      cluster.startRegionServer();
-    }
-    // Count how many regions are online.  They need to be all back online for
-    // this test to succeed.
-    int countOfMetaRegions = countOfMetaRegions();
-    // Add a listener on the server.
-    HMaster m = cluster.getMaster();
-    // Start new regionserver.
-    MiniHBaseClusterRegionServer hrs =
-      (MiniHBaseClusterRegionServer)cluster.startRegionServer().getRegionServer();
-    LOG.info("Started new regionserver: " + hrs.toString());
-    // Wait until has some regions before proceeding.  Balancer will give it some.
-    int minimumRegions =
-      countOfMetaRegions/(cluster.getRegionServerThreads().size() * 2);
-    while (hrs.getOnlineRegions().size() < minimumRegions) Threads.sleep(100);
-    // Set the listener only after some regions have been opened on new server.
-    HBase2482Listener listener = new HBase2482Listener(hrs);
-    m.getRegionServerOperationQueue().
-      registerRegionServerOperationListener(listener);
-    try {
-      // Go close all non-catalog regions on this new server
-      closeAllNonCatalogRegions(cluster, hrs);
-      // After all closes, add blocking message before the region opens start to
-      // come in.
-      cluster.addMessageToSendRegionServer(hrs,
-        new HMsg(HMsg.Type.TESTING_MSG_BLOCK_RS));
-      // Wait till one of the above close messages has an effect before we start
-      // wait on all regions back online.
-      while (!listener.closed) Threads.sleep(100);
-      LOG.info("Past close");
-      // Make sure the abort server message was sent.
-      while(!listener.abortSent) Threads.sleep(100);
-      LOG.info("Past abort send; waiting on all regions to redeploy");
-      // Now wait for regions to come back online.
-      assertRegionIsBackOnline(listener.regionToFind);
-    } finally {
-      m.getRegionServerOperationQueue().
-        unregisterRegionServerOperationListener(listener);
     }
   }
 
