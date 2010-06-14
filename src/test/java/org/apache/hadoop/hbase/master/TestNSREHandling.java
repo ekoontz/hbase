@@ -304,24 +304,6 @@ public class TestNSREHandling {
     }
   }
 
-  /*
-   * @return Count of all non-catalog regions on the designated server
-   */
-  private int closeAllNonCatalogRegions(final MiniHBaseCluster cluster,
-    final MiniHBaseCluster.MiniHBaseClusterRegionServer hrs)
-  throws IOException {
-    int countOfRegions = 0;
-    for (HRegion r: hrs.getOnlineRegions()) {
-      if (r.getRegionInfo().isMetaRegion()) continue;
-      cluster.addMessageToSendRegionServer(hrs,
-        new HMsg(HMsg.Type.MSG_REGION_CLOSE, r.getRegionInfo()));
-      LOG.info("Sent close of " + r.getRegionInfo().getRegionNameAsString() +
-        " on " + hrs.toString());
-      countOfRegions++;
-    }
-    return countOfRegions;
-  }
-
   private void assertRegionIsBackOnline(final HRegionInfo hri)
   throws IOException {
     // Region should have an entry in its startkey because of addRowToEachRegion.
