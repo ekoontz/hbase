@@ -64,7 +64,7 @@ import org.junit.Test;
 public class TestNSREHandling {
   private static final Log LOG = LogFactory.getLog(TestNSREHandling.class);
   private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
-  private static final String TABLENAME = "master_transitions";
+  private static final String TABLENAME = "master_nsre";
   private static final byte [][] FAMILIES = new byte [][] {Bytes.toBytes("a")};
 
   /**
@@ -193,26 +193,18 @@ public class TestNSREHandling {
     HBase2486Listener listener = new HBase2486Listener(hrs);
     m.getRegionServerOperationQueue().
       registerRegionServerOperationListener(listener);
-    try {
-      // Go close all non-catalog regions on this new server
-      closeAllNonCatalogRegions(cluster, hrs);
-      // After all closes, add blocking message before the region opens start to
-      // come in.
-      cluster.addMessageToSendRegionServer(hrs,
+    // Go close all non-catalog regions on this new server
+    closeAllNonCatalogRegions(cluster, hrs);
+
+    // Try to open a region that used to be hosted on hrs,
+    // so that it throws a NSRE.
+    cluster.addMessageToSendRegionServer(hrs,
         new HMsg(HMsg.Type.TESTING_MSG_BLOCK_RS));
-      // Wait till one of the above close messages has an effect before we start
-      // wait on all regions back online.
-      while (!listener.closed) Threads.sleep(100);
-      LOG.info("Past close");
-      // Make sure the abort server message was sent.
-      while(!listener.abortSent) Threads.sleep(100);
-      LOG.info("Past abort send; waiting on all regions to redeploy");
-      // Now wait for regions to come back online.
-      assertRegionIsBackOnline(listener.regionToFind);
-    } finally {
-      m.getRegionServerOperationQueue().
-        unregisterRegionServerOperationListener(listener);
+    while(true) {
+      Thread.sleep(100);
     }
+    //LOG.info("ending now.");
+
   }
 
   /*
