@@ -100,38 +100,23 @@ public class TestNSREHandling {
   /**
    */
   static class HBase2486Listener implements RegionServerOperationListener {
-    private final HRegionServer victim;
-    private boolean abortSent = false;
-    // We closed regions on new server.
-    private volatile boolean closed = false;
-    // Copy of regions on new server
-    private final Collection<HRegion> copyOfOnlineRegions;
-    // This is the region that was in transition on the server we aborted. Test
-    // passes if this region comes back online successfully.
-    private HRegionInfo regionToFind;
-
-    HBase2486Listener(final HRegionServer victim) {
-      this.victim = victim;
-      // Copy regions currently open on this server so I can notice when
-      // there is a close.
-      this.copyOfOnlineRegions =
-        this.victim.getCopyOfOnlineRegionsSortedBySize().values();
+    private final HRegionServer wrongRS;
+    public boolean gotMessage;
+    HBase2486Listener(final HRegionServer wrongRS) {
+      this.wrongRS = wrongRS;
+      gotMessage = false;
     }
  
     @Override
     public boolean process(HServerInfo serverInfo, HMsg incomingMsg) {
-      if (!victim.getServerInfo().equals(serverInfo) ||
-          this.abortSent || !this.closed) {
+      if (!wrongRS.getServerInfo().equals(serverInfo)) {
         return true;
       }
-      if (!incomingMsg.isType(HMsg.Type.MSG_REPORT_PROCESS_OPEN)) return true;
-      // Save the region that is in transition so can test later it came back.
-      this.regionToFind = incomingMsg.getRegionInfo();
-      LOG.info("ABORTING " + this.victim + " because got a " +
-        HMsg.Type.MSG_REPORT_PROCESS_OPEN + " on this server for " +
-        incomingMsg.getRegionInfo().getRegionNameAsString());
-      this.victim.abort();
-      this.abortSent = true;
+      gotMessage = true;
+      LOG.info("process::wrong region server..");
+      if (incomingMsg.isType(HMsg.Type.MSG_REPORT_PROCESS_OPEN)) {
+	LOG.info("process::trying to open on wrong region server.");
+      }
       return true;
     }
 
@@ -142,19 +127,7 @@ public class TestNSREHandling {
 
     @Override
     public void processed(RegionServerOperation op) {
-      if (this.closed || !(op instanceof ProcessRegionClose)) return;
-      ProcessRegionClose close = (ProcessRegionClose)op;
-      for (HRegion r: this.copyOfOnlineRegions) {
-        if (r.getRegionInfo().equals(close.regionInfo)) {
-          // We've closed one of the regions that was on the victim server.
-          // Now can start testing for when all regions are back online again
-          LOG.info("Found close of " +
-            r.getRegionInfo().getRegionNameAsString() +
-            "; setting close happened flag");
-          this.closed = true;
-          break;
-        }
-      }
+      LOG.info("processed..");
     }
   }
 
@@ -197,11 +170,8 @@ public class TestNSREHandling {
     cluster.addMessageToSendRegionServer(1,
 					 new HMsg(HMsg.Type.MSG_REGION_OPEN,hri));
 
-    // wait for a while..
-    int i = 0;
-    while(i < 10 ) {
+    while (!listener.gotMessage) {
       Thread.sleep(1000);
-      i++;
     }
     LOG.info("ending now.");
     assertTrue(1 == 1);
