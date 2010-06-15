@@ -188,7 +188,13 @@ public class TestNSREHandling {
       metaHRS.getHServerInfo().getServerAddress(), hri, otherServerIndex);
     master.getRegionServerOperationQueue().
       registerRegionServerOperationListener(listener);
-    try {
+ 
+
+  // Get a region out on the otherServer.
+    final HRegionInfo hri2 =
+      otherServer.getOnlineRegions().iterator().next().getRegionInfo();
+ 
+   try {
       // Now close the server carrying meta.
       cluster.abortRegionServer(metaIndex);
 
