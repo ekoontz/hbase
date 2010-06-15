@@ -65,8 +65,7 @@ public class TestNSREHandling {
   private static final Log LOG = LogFactory.getLog(TestNSREHandling.class);
   private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
   private static final String TABLENAME = "master_transitions";
-  private static final byte [][] FAMILIES = new byte [][] {Bytes.toBytes("a"),
-    Bytes.toBytes("b"), Bytes.toBytes("c")};
+  private static final byte [][] FAMILIES = new byte [][] {Bytes.toBytes("a")};
 
   /**
    * Start up a mini cluster and put a small table of many empty regions into it.
@@ -161,13 +160,12 @@ public class TestNSREHandling {
   }
 
   /**
-   * In 2486, the meta region has just been set offline and then a close comes
-   * in.
+   * Test behavior of master when a region server for a region it doesn't have.
    * @see <a href="https://issues.apache.org/jira/browse/HBASE-2486">HBASE-2486</a> 
    */
-  @Test (timeout=300000) public void testRegionCloseWhenNoMetaHBase2486()
+  @Test (timeout=300000) public void testNoSuchRegionServer2486()
   throws Exception {
-    LOG.info("Running testRegionCloseWhenNoMetaHBase2486");
+    LOG.info("Running testNoSuchRegionServer2486");
     MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
     final HMaster master = cluster.getMaster();
     int metaIndex = cluster.getServerWithMeta();
