@@ -96,66 +96,71 @@ public class TestNSREHandling {
     }
   }
 
+
   /**
-   * Listener for regionserver events testing hbase-2486 (Infinite loop of
-   * region closes if META region is offline).  In particular, listen
-   * for the close of the 'metaServer' and when it comes in, requeue it with a
-   * delay as though there were an issue processing the shutdown.  As part of
-   * the requeuing,  send over a close of a region on 'otherServer' so it comes
-   * into a master that has its meta region marked as offline.
+   * HBase2482 is about outstanding region openings.  If any are outstanding
+   * when a regionserver goes down, then they'll never deploy.  They'll be
+   * stuck in the regions-in-transition list for ever.  This listener looks
+   * for a region opening HMsg and if its from the server passed on construction,
+   * then we kill it.  It also looks out for a close message on the victim
+   * server because that signifies start of the fireworks.
    */
   static class HBase2486Listener implements RegionServerOperationListener {
-    // Map of what we've delayed so we don't do do repeated delays.
-    private final Set<RegionServerOperation> postponed =
-      new CopyOnWriteArraySet<RegionServerOperation>();
-    private boolean done = false;;
-    private boolean metaShutdownReceived = false;
-    private final HServerAddress metaAddress;
-    private final MiniHBaseCluster cluster;
-    private final int otherServerIndex;
-    private final HRegionInfo hri;
-    private int closeCount = 0;
-    static final int SERVER_DURATION = 3 * 1000;
-    static final int CLOSE_DURATION = 1 * 1000;
+    private final HRegionServer victim;
+    private boolean abortSent = false;
+    // We closed regions on new server.
+    private volatile boolean closed = false;
+    // Copy of regions on new server
+    private final Collection<HRegion> copyOfOnlineRegions;
+    // This is the region that was in transition on the server we aborted. Test
+    // passes if this region comes back online successfully.
+    private HRegionInfo regionToFind;
+
+    HBase2486Listener(final HRegionServer victim) {
+      this.victim = victim;
+      // Copy regions currently open on this server so I can notice when
+      // there is a close.
+      this.copyOfOnlineRegions =
+        this.victim.getCopyOfOnlineRegionsSortedBySize().values();
+    }
  
-    HBase2486Listener(final MiniHBaseCluster c, final HServerAddress metaAddress,
-        final HRegionInfo closingHRI, final int otherServerIndex) {
-      this.cluster = c;
-      this.metaAddress = metaAddress;
-      this.hri = closingHRI;
-      this.otherServerIndex = otherServerIndex;
-    }
-
-    @Override
-    public boolean process(final RegionServerOperation op) throws IOException {
-      boolean result = true;
-      if (op instanceof ProcessRegionOpen) {
-	LOG.info("begin process of a ProcessRegionOpen.");
-      }
-      return result;
-    }
-
-    public void processed(final RegionServerOperation op) {
-      if (op instanceof ProcessRegionOpen) {
-	LOG.info("processed a ProcessRegionOpen.");
-      }
-    }
-
-    boolean isDone() {
-      return this.done;
-    }
-
-    boolean isMetaShutdownReceived() {
-      return metaShutdownReceived;
-    }
-
-    int getCloseCount() {
-      return this.closeCount;
-    }
-
     @Override
     public boolean process(HServerInfo serverInfo, HMsg incomingMsg) {
+      if (!victim.getServerInfo().equals(serverInfo) ||
+          this.abortSent || !this.closed) {
+        return true;
+      }
+      if (!incomingMsg.isType(HMsg.Type.MSG_REPORT_PROCESS_OPEN)) return true;
+      // Save the region that is in transition so can test later it came back.
+      this.regionToFind = incomingMsg.getRegionInfo();
+      LOG.info("ABORTING " + this.victim + " because got a " +
+        HMsg.Type.MSG_REPORT_PROCESS_OPEN + " on this server for " +
+        incomingMsg.getRegionInfo().getRegionNameAsString());
+      this.victim.abort();
+      this.abortSent = true;
       return true;
+    }
+
+    @Override
+    public boolean process(RegionServerOperation op) throws IOException {
+      return true;
+    }
+
+    @Override
+    public void processed(RegionServerOperation op) {
+      if (this.closed || !(op instanceof ProcessRegionClose)) return;
+      ProcessRegionClose close = (ProcessRegionClose)op;
+      for (HRegion r: this.copyOfOnlineRegions) {
+        if (r.getRegionInfo().equals(close.regionInfo)) {
+          // We've closed one of the regions that was on the victim server.
+          // Now can start testing for when all regions are back online again
+          LOG.info("Found close of " +
+            r.getRegionInfo().getRegionNameAsString() +
+            "; setting close happened flag");
+          this.closed = true;
+          break;
+        }
+      }
     }
   }
 
@@ -163,57 +168,69 @@ public class TestNSREHandling {
    * Test behavior of master when a region server for a region it doesn't have.
    * @see <a href="https://issues.apache.org/jira/browse/HBASE-2486">HBASE-2486</a> 
    */
-  @Test (timeout=300000) public void testNoSuchRegionServer2486()
+  @Test (timeout=300000) public void testNoSuchRegionServer2486() 
   throws Exception {
     LOG.info("Running testNoSuchRegionServer2486");
     MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
-    final HMaster master = cluster.getMaster();
-    int metaIndex = cluster.getServerWithMeta();
-    // Figure the index of the server that is not server the .META.
-    int otherServerIndex = -1;
-    for (int i = 0; i < cluster.getRegionServerThreads().size(); i++) {
-      if (i == metaIndex) continue;
-      otherServerIndex = i;
-      break;
+    if (cluster.getLiveRegionServerThreads().size() < 2) {
+      // Need at least two servers.
+      cluster.startRegionServer();
     }
-    final HRegionServer otherServer = cluster.getRegionServer(otherServerIndex);
-    final HRegionServer metaHRS = cluster.getRegionServer(metaIndex);
-
-    // Get a region out on the otherServer.
-    final HRegionInfo hri =
-      otherServer.getOnlineRegions().iterator().next().getRegionInfo();
- 
-    // Add our RegionServerOperationsListener
-    HBase2486Listener listener = new HBase2486Listener(cluster,
-      metaHRS.getHServerInfo().getServerAddress(), hri, otherServerIndex);
-    master.getRegionServerOperationQueue().
+    // Count how many regions are online.  They need to be all back online for
+    // this test to succeed.
+    int countOfMetaRegions = countOfMetaRegions();
+    // Add a listener on the server.
+    HMaster m = cluster.getMaster();
+    // Start new regionserver.
+    MiniHBaseClusterRegionServer hrs =
+      (MiniHBaseClusterRegionServer)cluster.startRegionServer().getRegionServer();
+    LOG.info("Started new regionserver: " + hrs.toString());
+    // Wait until has some regions before proceeding.  Balancer will give it some.
+    int minimumRegions =
+      countOfMetaRegions/(cluster.getRegionServerThreads().size() * 2);
+    while (hrs.getOnlineRegions().size() < minimumRegions) Threads.sleep(100);
+    // Set the listener only after some regions have been opened on new server.
+    HBase2486Listener listener = new HBase2486Listener(hrs);
+    m.getRegionServerOperationQueue().
       registerRegionServerOperationListener(listener);
- 
-
-  // Get a region out on the otherServer.
-    final HRegionInfo hri2 =
-      otherServer.getOnlineRegions().iterator().next().getRegionInfo();
- 
-   try {
-      // Now close the server carrying meta.
-      cluster.abortRegionServer(metaIndex);
-
-      // First wait on receipt of meta server shutdown message.
-      while(!listener.metaShutdownReceived) Threads.sleep(100);
-      while(!listener.isDone()) Threads.sleep(10);
-      // We should not have retried the close more times than it took for the
-      // server shutdown message to exit the delay queue and get processed
-      // (Multiple by two to add in some slop in case of GC or something).
-      assertTrue(listener.getCloseCount() > 1);
-      assertTrue(listener.getCloseCount() <
-        ((HBase2486Listener.SERVER_DURATION/HBase2486Listener.CLOSE_DURATION) * 2));
-
-      // Assert the closed region came back online
-      assertRegionIsBackOnline(hri);
+    try {
+      // Go close all non-catalog regions on this new server
+      closeAllNonCatalogRegions(cluster, hrs);
+      // After all closes, add blocking message before the region opens start to
+      // come in.
+      cluster.addMessageToSendRegionServer(hrs,
+        new HMsg(HMsg.Type.TESTING_MSG_BLOCK_RS));
+      // Wait till one of the above close messages has an effect before we start
+      // wait on all regions back online.
+      while (!listener.closed) Threads.sleep(100);
+      LOG.info("Past close");
+      // Make sure the abort server message was sent.
+      while(!listener.abortSent) Threads.sleep(100);
+      LOG.info("Past abort send; waiting on all regions to redeploy");
+      // Now wait for regions to come back online.
+      assertRegionIsBackOnline(listener.regionToFind);
     } finally {
-      master.getRegionServerOperationQueue().
+      m.getRegionServerOperationQueue().
         unregisterRegionServerOperationListener(listener);
     }
+  }
+
+  /*
+   * @return Count of all non-catalog regions on the designated server
+   */
+  private int closeAllNonCatalogRegions(final MiniHBaseCluster cluster,
+    final MiniHBaseCluster.MiniHBaseClusterRegionServer hrs)
+  throws IOException {
+    int countOfRegions = 0;
+    for (HRegion r: hrs.getOnlineRegions()) {
+      if (r.getRegionInfo().isMetaRegion()) continue;
+      cluster.addMessageToSendRegionServer(hrs,
+        new HMsg(HMsg.Type.MSG_REGION_CLOSE, r.getRegionInfo()));
+      LOG.info("Sent close of " + r.getRegionInfo().getRegionNameAsString() +
+        " on " + hrs.toString());
+      countOfRegions++;
+    }
+    return countOfRegions;
   }
 
   private void assertRegionIsBackOnline(final HRegionInfo hri)
