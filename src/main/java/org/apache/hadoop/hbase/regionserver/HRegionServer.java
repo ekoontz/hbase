@@ -1493,6 +1493,17 @@ public class HRegionServer implements HConstants, HRegionInterface,
         reportClose(hri);
       }
     }
+    else { // region is null.
+      // If region is not served by this region server, save in this.nsreSet.
+      // Each member of this.nreSet will be sent as a MSG_REPORT_NSRE to the master
+      // at the next call of this.housekeeping(),
+      // so that master can do consistency checking. (See HBASE-2486).
+      if (LOG.isDebugEnabled()) {
+	LOG.debug("HRegionServer::getRegion() :" + serverInfo.getServerAddress().toString() + " adding region: '" + Bytes.toString(hri.getRegionName()) + 
+		  "' to this.nsreSet (but not throwing NotServingRegionException).");
+	this.nsreSet.add(hri.getRegionName());
+      }
+    }
   }
 
   /** Called either when the master tells us to restart or from stop() */
@@ -2154,7 +2165,8 @@ public class HRegionServer implements HConstants, HRegionInterface,
         // so that master can do consistency checking. (See HBASE-2486).
         if (LOG.isDebugEnabled()) {
           LOG.debug("HRegionServer::getRegion() :" + serverInfo.getServerAddress().toString() + " adding region: '" + Bytes.toString(regionName) +
-                    "' to this.nsre_set (before throwing NotServingRegionException()).");
+                    "' to this.nsreSet (before throwing NotServingRegionException()).");
+	  this.nsreSet.add(regionName);
         }
 
         throw new NotServingRegionException(regionName);
