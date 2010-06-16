@@ -165,12 +165,13 @@ public class TestNSREHandling {
     m.getRegionServerOperationQueue().
       registerRegionServerOperationListener(listener);
 
-    // Try to open a region that is on the *first* regionserver on the second regionserver (1).
+    // Try to close a region that is on the *first* regionserver on the second regionserver (1).
     // so that the latter throws a NSRE.
     cluster.addMessageToSendRegionServer(1,
-					 new HMsg(HMsg.Type.MSG_REGION_OPEN,hri));
+					 new HMsg(HMsg.Type.MSG_REGION_CLOSE,hri));
 
     while (!listener.gotMessage) {
+      LOG.info("waiting for message to be received...");
       Thread.sleep(1000);
     }
     LOG.info("ending now.");
