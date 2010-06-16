@@ -80,7 +80,6 @@ public class TestNSREHandling {
     HTable t = new HTable(TEST_UTIL.getConfiguration(), TABLENAME);
     int countOfRegions = TEST_UTIL.createMultiRegions(t, getTestFamily());
     waitUntilAllRegionsAssigned(countOfRegions);
-    addToEachStartKey(countOfRegions);
   }
 
   @AfterClass public static void afterAllTests() throws IOException {
@@ -101,10 +100,9 @@ public class TestNSREHandling {
    */
   static class HBase2486Listener implements RegionServerOperationListener {
     private final HRegionServer wrongRS;
-    public boolean gotMessage;
+    public static boolean gotNSREMessage = false;
     HBase2486Listener(final HRegionServer wrongRS) {
       this.wrongRS = wrongRS;
-      gotMessage = false;
     }
  
     @Override
@@ -112,10 +110,8 @@ public class TestNSREHandling {
       if (!wrongRS.getServerInfo().equals(serverInfo)) {
         return true;
       }
-      gotMessage = true;
-      LOG.info("process::wrong region server..");
-      if (incomingMsg.isType(HMsg.Type.MSG_REPORT_PROCESS_OPEN)) {
-	LOG.info("process::trying to open on wrong region server.");
+      if (incomingMsg.getType().equals(HMsg.Type.MSG_REPORT_NSRE)) {
+        gotNSREMessage = true;
       }
       return true;
     }
@@ -170,12 +166,12 @@ public class TestNSREHandling {
     cluster.addMessageToSendRegionServer(1,
 					 new HMsg(HMsg.Type.MSG_REGION_CLOSE,hri));
 
-    while (!listener.gotMessage) {
+    while (!listener.gotNSREMessage) {
       LOG.info("waiting for message to be received...");
       Thread.sleep(1000);
     }
     LOG.info("ending now.");
-    assertTrue(1 == 1);
+    assertTrue(listener.gotNSREMessage == true);
   }
 
   /*
@@ -206,86 +202,6 @@ public class TestNSREHandling {
       LOG.info("Found=" + rows);
       Threads.sleep(1000); 
     }
-  }
-
-  /*
-   * @return Count of regions in meta table.
-   * @throws IOException
-   */
-  private static int countOfMetaRegions()
-  throws IOException {
-    HTable meta = new HTable(TEST_UTIL.getConfiguration(),
-      HConstants.META_TABLE_NAME);
-    int rows = 0;
-    Scan scan = new Scan();
-    scan.addColumn(HConstants.CATALOG_FAMILY, HConstants.SERVER_QUALIFIER);
-    ResultScanner s = meta.getScanner(scan);
-    for (Result r = null; (r = s.next()) != null;) {
-      byte [] b =
-        r.getValue(HConstants.CATALOG_FAMILY, HConstants.SERVER_QUALIFIER);
-      if (b == null || b.length <= 0) break;
-      rows++;
-    }
-    s.close();
-    return rows;
-  }
-
-  /*
-   * Add to each of the regions in .META. a value.  Key is the startrow of the
-   * region (except its 'aaa' for first region).  Actual value is the row name.
-   * @param expected
-   * @return
-   * @throws IOException
-   */
-  private static int addToEachStartKey(final int expected) throws IOException {
-    HTable t = new HTable(TEST_UTIL.getConfiguration(), TABLENAME);
-    HTable meta = new HTable(TEST_UTIL.getConfiguration(),
-        HConstants.META_TABLE_NAME);
-    int rows = 0;
-    Scan scan = new Scan();
-    scan.addColumn(HConstants.CATALOG_FAMILY, HConstants.REGIONINFO_QUALIFIER);
-    ResultScanner s = meta.getScanner(scan);
-    for (Result r = null; (r = s.next()) != null;) {
-      byte [] b =
-        r.getValue(HConstants.CATALOG_FAMILY, HConstants.REGIONINFO_QUALIFIER);
-      if (b == null || b.length <= 0) break;
-      HRegionInfo hri = Writables.getHRegionInfo(b);
-      // If start key, add 'aaa'.
-      byte [] row = getStartKey(hri);
-      Put p = new Put(row);
-      p.add(getTestFamily(), getTestQualifier(), row);
-      t.put(p);
-      rows++;
-    }
-    s.close();
-    Assert.assertEquals(expected, rows);
-    return rows;
-  }
-
-  /*
-   * @return Count of rows in TABLENAME
-   * @throws IOException
-   */
-  private static int count() throws IOException {
-    HTable t = new HTable(TEST_UTIL.getConfiguration(), TABLENAME);
-    int rows = 0;
-    Scan scan = new Scan();
-    ResultScanner s = t.getScanner(scan);
-    for (Result r = null; (r = s.next()) != null;) {
-      rows++;
-    }
-    s.close();
-    LOG.info("Counted=" + rows);
-    return rows;
-  }
-
-  /*
-   * @param hri
-   * @return Start key for hri (If start key is '', then return 'aaa'.
-   */
-  private static byte [] getStartKey(final HRegionInfo hri) {
-    return Bytes.equals(HConstants.EMPTY_START_ROW, hri.getStartKey())?
-        Bytes.toBytes("aaa"): hri.getStartKey();
   }
 
   private static byte [] getTestFamily() {
