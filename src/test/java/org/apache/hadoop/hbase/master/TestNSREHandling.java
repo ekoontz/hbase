@@ -128,19 +128,14 @@ public class TestNSREHandling {
   }
 
   /**
-   * Test behavior of master when a region server for a region it doesn't have.
+   * Test behavior of region server when told to close a region it doesn't have.
    * @see <a href="https://issues.apache.org/jira/browse/HBASE-2486">HBASE-2486</a> 
    */
   // 20 seconds should be sufficient.
-  @Test (timeout=20000) public void testNoSuchRegionMessageReceived2486() 
+  @Test (timeout=20000) public void testRegionCloseNSRE() 
   throws Exception {
-    LOG.info("Running testNoSuchRegionServer2486");
+    LOG.info("Running testRegionCloseNSRE()");
     MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
-    if (cluster.getLiveRegionServerThreads().size() < 2) {
-      // Need at least two servers.
-      cluster.startRegionServer();
-    }
-
     // get first regionserver
     final HRegionServer server0 = cluster.getRegionServer(0);
 
@@ -172,6 +167,56 @@ public class TestNSREHandling {
     // the *second* regionserver (1), so that the latter throws a NSRE.
     cluster.addMessageToSendRegionServer(1,
 					 new HMsg(HMsg.Type.MSG_REGION_CLOSE,hri));
+
+    while (gotNSREMessage == false) {
+      LOG.info("HBASE-2486: waiting for master to receive NSRE message from regionserver..");
+      Thread.sleep(1000);
+    }
+    LOG.info("HBASE-2486: received NSRE message: " + receivedMessage.toString());
+    assertTrue(hri.getRegionNameAsString().equals(Bytes.toString(receivedMessage.getMessage())));
+
+  }
+
+  /**
+   * Test behavior of region server when told to close a region it doesn't have.
+   * @see <a href="https://issues.apache.org/jira/browse/HBASE-2486">HBASE-2486</a> 
+   */
+  // 20 seconds should be sufficient.
+  @Test (timeout=20000) public void testRegionSplitNSRE() 
+  throws Exception {
+    LOG.info("Running testRegionSplitNSRE()");
+    MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
+    // get first regionserver
+    final HRegionServer server0 = cluster.getRegionServer(0);
+
+    while (server0.getOnlineRegions().size() == 0) {
+      LOG.info("waiting for server0 to host a region..");
+      Threads.sleep(100);
+    }
+
+    // get first region (hri) on first regionserver.
+    final HRegionInfo hri =
+      server0.getOnlineRegions().iterator().next().getRegionInfo();
+
+    // get second region server.
+    final HRegionServer server1 = cluster.getRegionServer(1);
+
+    // server0 and server1 must be distinct.
+    assertTrue(server0 != server1);
+
+    gotNSREMessage = false;  
+
+    // Add a listener to listen for a MSG_REGION_SPLIT sent to the (wrong) regionserver (server0).
+    HMaster m = cluster.getMaster();
+    HBase2486Listener listener = new HBase2486Listener(server1);
+    m.getRegionServerOperationQueue().
+      registerRegionServerOperationListener(listener);
+
+    LOG.info("HBASE-2486: sending MSG_REGION_SPLIT for region: " + hri.getRegionNameAsString());
+    // Try to close a region that is on the *first* regionserver on 
+    // the *second* regionserver (1), so that the latter throws a NSRE.
+    cluster.addMessageToSendRegionServer(1,
+					 new HMsg(HMsg.Type.MSG_REGION_SPLIT,hri));
 
     while (gotNSREMessage == false) {
       LOG.info("HBASE-2486: waiting for master to receive NSRE message from regionserver..");
