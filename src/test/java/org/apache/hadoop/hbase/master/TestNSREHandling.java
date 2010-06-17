@@ -67,6 +67,9 @@ public class TestNSREHandling {
   private static final String TABLENAME = "master";
   private static final byte [][] FAMILIES = new byte [][] {Bytes.toBytes("a")};
 
+  private static boolean gotNSREMessage = false;
+  private static HMsg receivedMessage = (HMsg)null;
+
   /**
    * Start up a mini cluster and put a small table of many empty regions into it.
    * @throws Exception
@@ -95,12 +98,8 @@ public class TestNSREHandling {
     }
   }
 
-
-  /**
-   */
   static class HBase2486Listener implements RegionServerOperationListener {
     private final HRegionServer wrongRS;
-    public static boolean gotNSREMessage = false;
     HBase2486Listener(final HRegionServer wrongRS) {
       this.wrongRS = wrongRS;
     }
@@ -112,6 +111,7 @@ public class TestNSREHandling {
       }
       if (incomingMsg.getType().equals(HMsg.Type.MSG_REPORT_NSRE)) {
         gotNSREMessage = true;
+	receivedMessage = incomingMsg;
       }
       return true;
     }
@@ -123,7 +123,7 @@ public class TestNSREHandling {
 
     @Override
     public void processed(RegionServerOperation op) {
-      LOG.info("processed..");
+      return;
     }
   }
 
@@ -131,7 +131,8 @@ public class TestNSREHandling {
    * Test behavior of master when a region server for a region it doesn't have.
    * @see <a href="https://issues.apache.org/jira/browse/HBASE-2486">HBASE-2486</a> 
    */
-  @Test (timeout=300000) public void testNoSuchRegionServer2486() 
+  // 20 seconds should be sufficient.
+  @Test (timeout=20000) public void testNoSuchRegionMessageReceived2486() 
   throws Exception {
     LOG.info("Running testNoSuchRegionServer2486");
     MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
@@ -155,23 +156,30 @@ public class TestNSREHandling {
     // get second region server.
     final HRegionServer server1 = cluster.getRegionServer(1);
 
+    // server0 and server1 must be distinct.
+    assertTrue(server0 != server1);
+
+    gotNSREMessage = false;  
+
     // Add a listener to listen for a MSG_REGION_OPEN sent to the (wrong) regionserver (server0).
     HMaster m = cluster.getMaster();
     HBase2486Listener listener = new HBase2486Listener(server1);
     m.getRegionServerOperationQueue().
       registerRegionServerOperationListener(listener);
 
-    // Try to close a region that is on the *first* regionserver on the second regionserver (1).
-    // so that the latter throws a NSRE.
+    LOG.info("HBASE-2486: sending MSG_REGION_CLOSE for region: " + hri.getRegionNameAsString());
+    // Try to close a region that is on the *first* regionserver on 
+    // the *second* regionserver (1), so that the latter throws a NSRE.
     cluster.addMessageToSendRegionServer(1,
 					 new HMsg(HMsg.Type.MSG_REGION_CLOSE,hri));
 
-    while (!listener.gotNSREMessage) {
-      LOG.info("waiting for message to be received...");
+    while (gotNSREMessage == false) {
+      LOG.info("HBASE-2486: waiting for master to receive NSRE message from regionserver..");
       Thread.sleep(1000);
     }
-    LOG.info("ending now.");
-    assertTrue(listener.gotNSREMessage == true);
+    LOG.info("HBASE-2486: received NSRE message: " + receivedMessage.toString());
+    assertTrue(hri.getRegionNameAsString().equals(Bytes.toString(receivedMessage.getMessage())));
+
   }
 
   /*
