@@ -1499,10 +1499,11 @@ public class HRegionServer implements HConstants, HRegionInterface,
       // at the next call of this.housekeeping(),
       // so that master can do consistency checking. (See HBASE-2486).
       if (LOG.isDebugEnabled()) {
-	LOG.debug("HRegionServer::getRegion() :" + serverInfo.getServerAddress().toString() + " adding region: '" + Bytes.toString(hri.getRegionName()) + 
-		  "' to this.nsreSet (but not throwing NotServingRegionException).");
+	LOG.debug("HRegionServer::closeRegion() :" + serverInfo.getServerAddress().toString() + " adding region: '" + Bytes.toString(hri.getRegionName()) + 
+		  "' to this.nsreSet.");
 	this.nsreSet.add(hri.getRegionName());
       }
+      throw new NotServingRegionException(hri.getRegionName());
     }
   }
 
