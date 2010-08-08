@@ -28,8 +28,6 @@
   </property>
   <property>
     <name>hbase.regionserver.info.bindAddress</name>
-    <value>192.168.56.1</value>
-    <description>The address for the hbase regionserver web UI
-    </description>
+    <value>192.168.56.10</value>
   </property>
 </configuration>
