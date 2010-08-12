@@ -9,3 +9,4 @@
 *.iml
 *.orig
 *~
+/conf/hbase-site.xml
