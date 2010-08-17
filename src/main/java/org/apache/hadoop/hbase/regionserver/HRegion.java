@@ -643,9 +643,8 @@ public class HRegion implements HeapSize { // , Writable{
     return size;
   }
 
+
   /*
-<<<<<<< HEAD
-=======
    * Split the HRegion to create two brand-new ones.  This also closes
    * current HRegion.  Split should be fast since we don't rewrite store files
    * but instead create new 'reference' store files that read off the top and
@@ -759,7 +758,6 @@ public class HRegion implements HeapSize { // , Writable{
   }
 
   /*
->>>>>>> merge remainder of HBASE-2001-RegionObserver.patch from https://issues.apache.org/jira/browse/HBASE-2001 : some of it (whole files) were merged in 5ad39b990; this is the patching to existing files
    * Do preparation for pending compaction.
    * @throws IOException
    */
@@ -3172,11 +3170,7 @@ public class HRegion implements HeapSize { // , Writable{
 
   public static final long FIXED_OVERHEAD = ClassSize.align(
       (4 * Bytes.SIZEOF_LONG) + Bytes.SIZEOF_BOOLEAN +
-<<<<<<< HEAD
-      (19 * ClassSize.REFERENCE) + ClassSize.OBJECT + Bytes.SIZEOF_INT);
-=======
       (21 * ClassSize.REFERENCE) + ClassSize.OBJECT + Bytes.SIZEOF_INT);
->>>>>>> merge remainder of HBASE-2001-RegionObserver.patch from https://issues.apache.org/jira/browse/HBASE-2001 : some of it (whole files) were merged in 5ad39b990; this is the patching to existing files
 
   public static final long DEEP_OVERHEAD = ClassSize.align(FIXED_OVERHEAD +
       ClassSize.OBJECT + (2 * ClassSize.ATOMIC_BOOLEAN) +
