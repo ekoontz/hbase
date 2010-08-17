@@ -1807,15 +1807,15 @@ public class HRegion implements HeapSize { // , Writable{
   private void put(byte [] family, List<KeyValue> edits)
   throws IOException {
     Map<byte[], List<KeyValue>> familyMap;
+    familyMap = new HashMap<byte[], List<KeyValue>>();
 
     if (coprocessorHost != null) {
-      familyMap = coprocessorHost.onPut(familyMap);
+      familyMap = coprocessorHost.onPut(family,edits);
       if (familyMap.isEmpty()) {
         return;
       }
     }
 
-    familyMap = new HashMap<byte[], List<KeyValue>>();
     familyMap.put(family, edits);
     this.put(familyMap, true);
   }
