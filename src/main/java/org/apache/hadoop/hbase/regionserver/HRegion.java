@@ -1810,7 +1810,7 @@ public class HRegion implements HeapSize { // , Writable{
     familyMap = new HashMap<byte[], List<KeyValue>>();
 
     if (coprocessorHost != null) {
-      familyMap = coprocessorHost.onPut(family,edits);
+      familyMap = coprocessorHost.onPut(familyMap);
       if (familyMap.isEmpty()) {
         return;
       }
@@ -3104,10 +3104,10 @@ public class HRegion implements HeapSize { // , Writable{
       Get get = new Get(row);
       get.addColumn(family, qualifier);
 
-      List<KeyValue> results;
+      List<KeyValue> results = new ArrayList<KeyValue>();
 
       if (coprocessorHost != null) {
-        results = coprocessorHost.onGet(get, results);
+        results = coprocessorHost.onGet(get,results);
       }
       else {
 	results = get(get);
