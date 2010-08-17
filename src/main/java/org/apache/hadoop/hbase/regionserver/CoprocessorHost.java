@@ -143,6 +143,11 @@ public class CoprocessorHost {
         return table.checkAndPut(row, family, qualifier, value, put);
       }
 
+      public boolean checkAndDelete(byte[] row, byte[] family, byte[] qualifier,
+          byte[] value, Delete delete) throws IOException {
+        return table.checkAndDelete(row, family, qualifier, value, delete);
+      }
+
       public long incrementColumnValue(byte[] row, byte[] family,
           byte[] qualifier, long amount) throws IOException {
         return table.incrementColumnValue(row, family, qualifier, amount);
