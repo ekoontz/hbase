@@ -136,10 +136,10 @@ public class TestCoprocessorInterface extends HBaseTestCase {
 
   HRegion reopenRegion(final HRegion closedRegion, Class<?> implClass)
       throws IOException {
-    HRegion r = new HRegion(closedRegion.getBaseDir(), closedRegion.getLog(),
+    HRegion r = new HRegion(closedRegion.getRegionDir(), closedRegion.getLog(),
         closedRegion.getFilesystem(), closedRegion.getConf(),
         closedRegion.getRegionInfo(), null);
-    r.initialize(null, null);
+    r.initialize();
     CoprocessorHost host = r.getCoprocessorHost();
     host.load(implClass, Priority.USER);
     host.onOpen();
