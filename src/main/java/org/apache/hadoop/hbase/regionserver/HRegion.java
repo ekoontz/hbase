@@ -230,6 +230,9 @@ public class HRegion implements HeapSize { // , Writable{
   private final ReadWriteConsistencyControl rwcc =
       new ReadWriteConsistencyControl();
 
+  // Coprocessor host
+  private final CoprocessorHost coprocessorHost;
+
   /**
    * Name of the region info file that resides just under the region directory.
    */
@@ -249,6 +252,7 @@ public class HRegion implements HeapSize { // , Writable{
     this.regiondir = null;
     this.regionInfo = null;
     this.threadWakeFrequency = 0L;
+    this.coprocessorHost = null;
   }
 
   /**
@@ -302,6 +306,8 @@ public class HRegion implements HeapSize { // , Writable{
     this.memstoreFlushSize = flushSize;
     this.blockingMemStoreSize = this.memstoreFlushSize *
       conf.getLong("hbase.hregion.memstore.block.multiplier", 2);
+
+    this.coprocessorHost = new CoprocessorHost(this);
   }
 
   /**
@@ -477,6 +483,11 @@ public class HRegion implements HeapSize { // , Writable{
       return null;
     }
     boolean wasFlushing = false;
+
+    if (coprocessorHost != null) {
+      coprocessorHost.onClose(abort);
+    }
+
     synchronized (writestate) {
       // Disable compacting and flushing by background threads for this
       // region.
@@ -633,6 +644,122 @@ public class HRegion implements HeapSize { // , Writable{
   }
 
   /*
+<<<<<<< HEAD
+=======
+   * Split the HRegion to create two brand-new ones.  This also closes
+   * current HRegion.  Split should be fast since we don't rewrite store files
+   * but instead create new 'reference' store files that read off the top and
+   * bottom ranges of parent store files.
+   * @param splitRow row on which to split region
+   * @return two brand-new HRegions or null if a split is not needed
+   * @throws IOException
+   */
+  public HRegion [] splitRegion(final byte [] splitRow) throws IOException {
+    prepareToSplit();
+    synchronized (splitLock) {
+      if (closed.get()) {
+        return null;
+      }
+      // Add start/end key checking: hbase-428.
+      byte [] startKey = this.regionInfo.getStartKey();
+      byte [] endKey = this.regionInfo.getEndKey();
+      if (this.comparator.matchingRows(startKey, 0, startKey.length,
+          splitRow, 0, splitRow.length)) {
+        LOG.debug("Startkey and midkey are same, not splitting");
+        return null;
+      }
+      if (this.comparator.matchingRows(splitRow, 0, splitRow.length,
+          endKey, 0, endKey.length)) {
+        LOG.debug("Endkey and midkey are same, not splitting");
+        return null;
+      }
+      LOG.info("Starting split of region " + this);
+      Path splits = new Path(this.regiondir, SPLITDIR);
+      if(!this.fs.exists(splits)) {
+        this.fs.mkdirs(splits);
+      }
+      // Calculate regionid to use.  Can't be less than that of parent else
+      // it'll insert into wrong location over in .META. table: HBASE-710.
+      long rid = EnvironmentEdgeManager.currentTimeMillis();
+      if (rid < this.regionInfo.getRegionId()) {
+        LOG.warn("Clock skew; parent regions id is " +
+          this.regionInfo.getRegionId() + " but current time here is " + rid);
+        rid = this.regionInfo.getRegionId() + 1;
+      }
+      HRegionInfo regionAInfo = new HRegionInfo(this.regionInfo.getTableDesc(),
+        startKey, splitRow, false, rid);
+      Path dirA = getSplitDirForDaughter(splits, regionAInfo);
+      HRegionInfo regionBInfo = new HRegionInfo(this.regionInfo.getTableDesc(),
+        splitRow, endKey, false, rid);
+      Path dirB = getSplitDirForDaughter(splits, regionBInfo);
+
+      // Create the region instances
+      HRegion regionA =
+        HRegion.newHRegion(basedir, log, fs, conf, regionAInfo, null);
+      HRegion regionB =
+        HRegion.newHRegion(basedir, log, fs, conf, regionBInfo, null);
+
+      // Inform the coprocessors of the pending split
+      if (coprocessorHost != null) {
+        coprocessorHost.onSplit(regionA, regionB);
+      }
+
+      // Now close the HRegion.  Close returns all store files or null if not
+      // supposed to close (? What to do in this case? Implement abort of close?)
+      // Close also does wait on outstanding rows and calls a flush just-in-case.
+      List<StoreFile> hstoreFilesToSplit = close(false);
+      if (hstoreFilesToSplit == null) {
+        LOG.warn("Close came back null (Implement abort of close?)");
+        throw new RuntimeException("close returned empty vector of HStoreFiles");
+      }
+
+      // Split each store file.
+      for(StoreFile h: hstoreFilesToSplit) {
+        StoreFile.split(fs,
+          Store.getStoreHomedir(splits, regionAInfo.getEncodedName(),
+            h.getFamily()),
+          h, splitRow, Range.bottom);
+        StoreFile.split(fs,
+          Store.getStoreHomedir(splits, regionBInfo.getEncodedName(),
+            h.getFamily()),
+          h, splitRow, Range.top);
+      }
+
+      // Move the splits into place under regionA and regionB.
+      moveInitialFilesIntoPlace(this.fs, dirA, regionA.getRegionDir());
+      moveInitialFilesIntoPlace(this.fs, dirB, regionB.getRegionDir());
+
+      return new HRegion [] {regionA, regionB};
+    }
+  }
+
+  /*
+   * Get the daughter directories in the splits dir.  The splits dir is under
+   * the parent regions' directory.
+   * @param splits
+   * @param hri
+   * @return Path to split dir.
+   * @throws IOException
+   */
+  private Path getSplitDirForDaughter(final Path splits, final HRegionInfo hri)
+  throws IOException {
+    Path d =
+      new Path(splits, hri.getEncodedName());
+    if (fs.exists(d)) {
+      // This should never happen; the splits dir will be newly made when we
+      // come in here.  Even if we crashed midway through a split, the reopen
+      // of the parent region clears out the dir in its initialize method.
+      throw new IOException("Cannot split; target file collision at " + d);
+    }
+    return d;
+  }
+
+  protected void prepareToSplit() {
+    // nothing
+  }
+
+  /*
+>>>>>>> merge remainder of HBASE-2001-RegionObserver.patch from https://issues.apache.org/jira/browse/HBASE-2001 : some of it (whole files) were merged in 5ad39b990; this is the patching to existing files
    * Do preparation for pending compaction.
    * @throws IOException
    */
@@ -704,10 +831,13 @@ public class HRegion implements HeapSize { // , Writable{
       return null;
     }
     splitsAndClosesLock.readLock().lock();
+    byte [] splitRow = null;
     try {
-      byte [] splitRow = null;
       if (this.closed.get()) {
         return splitRow;
+      }
+      if (coprocessorHost != null) {
+        coprocessorHost.onCompact(false, false);
       }
       try {
         synchronized (writestate) {
@@ -741,10 +871,13 @@ public class HRegion implements HeapSize { // , Writable{
           writestate.notifyAll();
         }
       }
-      return splitRow;
     } finally {
+      if (coprocessorHost != null) {
+        coprocessorHost.onCompact(true, splitRow != null);
+      }
       splitsAndClosesLock.readLock().unlock();
     }
+    return splitRow;
   }
 
   /**
@@ -788,7 +921,11 @@ public class HRegion implements HeapSize { // , Writable{
       // Prevent splits and closes
       splitsAndClosesLock.readLock().lock();
       try {
-        return internalFlushcache();
+        boolean shouldCompact = internalFlushcache();
+        if (coprocessorHost != null) {
+          coprocessorHost.onFlush();
+        }
+        return shouldCompact;
       } finally {
         splitsAndClosesLock.readLock().unlock();
       }
@@ -988,6 +1125,7 @@ public class HRegion implements HeapSize { // , Writable{
         ", compaction requested=" + compactionRequested +
         ((wal == null)? "; wal=null": ""));
     }
+
     return compactionRequested;
   }
 
@@ -1054,14 +1192,18 @@ public class HRegion implements HeapSize { // , Writable{
     try {
       Store store = getStore(family);
       KeyValue kv = new KeyValue(row, HConstants.LATEST_TIMESTAMP);
+      Result result = null;
       // get the closest key. (HStore.getRowKeyAtOrBefore can return null)
       key = store.getRowKeyAtOrBefore(kv);
-      if (key == null) {
-        return null;
+      if (key != null) {
+        Get get = new Get(key.getRow());
+        get.addFamily(family);
+        result = get(get, null);
       }
-      Get get = new Get(key.getRow());
-      get.addFamily(family);
-      return get(get, null);
+      if (coprocessorHost != null) {
+        result = coprocessorHost.onGetClosestRowBefore(row, family, result);
+      }
+      return result;
     } finally {
       splitsAndClosesLock.readLock().unlock();
     }
@@ -1106,7 +1248,11 @@ public class HRegion implements HeapSize { // , Writable{
   }
 
   protected InternalScanner instantiateInternalScanner(Scan scan, List<KeyValueScanner> additionalScanners) throws IOException {
-    return new RegionScanner(scan, additionalScanners);
+    InternalScanner s = new RegionScanner(scan, additionalScanners);
+    if (coprocessorHost != null) {
+      coprocessorHost.onScannerOpen(scan, s.hashCode());
+    }
+    return s;
   }
 
   /*
@@ -1141,9 +1287,15 @@ public class HRegion implements HeapSize { // , Writable{
   public void delete(Delete delete, Integer lockid, boolean writeToWAL)
   throws IOException {
     checkReadOnly();
-    checkResources();
     Integer lid = null;
+
+    // Do a rough check that we have resources to accept a write.  The check is
+    // 'rough' in that between the resource check and the call to obtain a
+    // read lock, resources may run out.  For now, the thought is that this
+    // will be extremely rare; we'll deal with it when it happens.
+    checkResources();
     splitsAndClosesLock.readLock().lock();
+
     try {
       byte [] row = delete.getRow();
       // If we did not pass an existing row lock, obtain a new one
@@ -1170,6 +1322,13 @@ public class HRegion implements HeapSize { // , Writable{
     long now = EnvironmentEdgeManager.currentTimeMillis();
     byte [] byteNow = Bytes.toBytes(now);
     boolean flush = false;
+
+    if (coprocessorHost != null) {
+      familyMap = coprocessorHost.onDelete(familyMap);
+      if (familyMap.isEmpty()) {
+        return;
+      }
+    }
 
     updatesLock.readLock().lock();
 
@@ -1302,6 +1461,7 @@ public class HRegion implements HeapSize { // , Writable{
 
       try {
         // All edits for the given row (across all column families) must happen atomically.
+	// Coprocessor interception happens in put(Map,boolean)
         put(put.getFamilyMap(), writeToWAL);
       } finally {
         if(lockid == null) releaseRowLock(lid);
@@ -1515,7 +1675,12 @@ public class HRegion implements HeapSize { // , Writable{
       List<KeyValue> result = new ArrayList<KeyValue>();
       try {
         result = get(get);
-
+        if (coprocessorHost != null) {
+          result = coprocessorHost.onGet(get, result);
+          if (result.isEmpty()) {
+            return false;
+          }
+        }
         boolean matches = false;
         if (result.size() == 0 && expectedValue.length == 0) {
           matches = true;
@@ -1639,9 +1804,18 @@ public class HRegion implements HeapSize { // , Writable{
    * @praram now
    * @throws IOException
    */
-  private void put(final byte [] family, final List<KeyValue> edits)
+  private void put(byte [] family, List<KeyValue> edits)
   throws IOException {
-    Map<byte[], List<KeyValue>> familyMap = new HashMap<byte[], List<KeyValue>>();
+    Map<byte[], List<KeyValue>> familyMap;
+
+    if (coprocessorHost != null) {
+      familyMap = coprocessorHost.onPut(familyMap);
+      if (familyMap.isEmpty()) {
+        return;
+      }
+    }
+
+    familyMap = new HashMap<byte[], List<KeyValue>>();
     familyMap.put(family, edits);
     this.put(familyMap, true);
   }
@@ -2095,7 +2269,7 @@ public class HRegion implements HeapSize { // , Writable{
    * Release the row lock!
    * @param lockid  The lock ID to release.
    */
-  void releaseRowLock(final Integer lockid) {
+  public void releaseRowLock(final Integer lockid) {
     synchronized (lockedRows) {
       byte[] row = lockIds.remove(lockid);
       lockedRows.remove(row);
@@ -2271,6 +2445,10 @@ public class HRegion implements HeapSize { // , Writable{
       results.clear();
       boolean returnResult = nextInternal(limit);
 
+      if (coprocessorHost != null) {
+        results = coprocessorHost.onScannerNext(hashCode(), results);
+      }
+
       outResults.addAll(results);
       resetFilters();
       if (isFilterDone()) {
@@ -2374,6 +2552,9 @@ public class HRegion implements HeapSize { // , Writable{
     }
 
     public synchronized void close() {
+      if (coprocessorHost != null) {
+        coprocessorHost.onScannerClose(hashCode());
+      } 
       if (storeHeap != null) {
         storeHeap.close();
         storeHeap = null;
@@ -2872,9 +3053,11 @@ public class HRegion implements HeapSize { // , Writable{
         get.addFamily(family);
       }
     }
-    List<KeyValue> result = get(get);
-
-    return new Result(result);
+    List<KeyValue> results = get(get);
+    if (coprocessorHost != null) {
+      coprocessorHost.onGet(get, results);
+    }
+    return new Result(results);
   }
 
   /*
@@ -2921,13 +3104,23 @@ public class HRegion implements HeapSize { // , Writable{
       Get get = new Get(row);
       get.addColumn(family, qualifier);
 
-      List<KeyValue> results = get(get);
+      List<KeyValue> results;
+
+      if (coprocessorHost != null) {
+        results = coprocessorHost.onGet(get, results);
+      }
+      else {
+	results = get(get);
+      }
 
       if (!results.isEmpty()) {
         KeyValue kv = results.get(0);
         byte [] buffer = kv.getBuffer();
         int valueOffset = kv.getValueOffset();
         result += Bytes.toLong(buffer, valueOffset, Bytes.SIZEOF_LONG);
+        if (coprocessorHost != null) {
+          kv = coprocessorHost.onPut(kv);
+        }
       }
 
       // bulid the KeyValue now:
@@ -2979,7 +3172,11 @@ public class HRegion implements HeapSize { // , Writable{
 
   public static final long FIXED_OVERHEAD = ClassSize.align(
       (4 * Bytes.SIZEOF_LONG) + Bytes.SIZEOF_BOOLEAN +
+<<<<<<< HEAD
       (19 * ClassSize.REFERENCE) + ClassSize.OBJECT + Bytes.SIZEOF_INT);
+=======
+      (21 * ClassSize.REFERENCE) + ClassSize.OBJECT + Bytes.SIZEOF_INT);
+>>>>>>> merge remainder of HBASE-2001-RegionObserver.patch from https://issues.apache.org/jira/browse/HBASE-2001 : some of it (whole files) were merged in 5ad39b990; this is the patching to existing files
 
   public static final long DEEP_OVERHEAD = ClassSize.align(FIXED_OVERHEAD +
       ClassSize.OBJECT + (2 * ClassSize.ATOMIC_BOOLEAN) +
@@ -3094,6 +3291,11 @@ public class HRegion implements HeapSize { // , Writable{
       }
     }
     return false;
+  }
+
+  /** @return the coprocessor host */
+  public CoprocessorHost getCoprocessorHost() {
+    return coprocessorHost;
   }
 
   /**
