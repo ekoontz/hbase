@@ -695,9 +695,9 @@ public class HRegion implements HeapSize { // , Writable{
 
       // Create the region instances
       HRegion regionA =
-        HRegion.newHRegion(basedir, log, fs, conf, regionAInfo, null);
+        HRegion.newHRegion(dirA, log, fs, conf, regionAInfo, null);
       HRegion regionB =
-        HRegion.newHRegion(basedir, log, fs, conf, regionBInfo, null);
+        HRegion.newHRegion(dirB, log, fs, conf, regionBInfo, null);
 
       // Inform the coprocessors of the pending split
       if (coprocessorHost != null) {
