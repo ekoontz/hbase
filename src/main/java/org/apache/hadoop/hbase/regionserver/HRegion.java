@@ -482,12 +482,12 @@ public class HRegion implements HeapSize { // , Writable{
       LOG.warn("Region " + this + " already closed");
       return null;
     }
-    boolean wasFlushing = false;
 
     if (coprocessorHost != null) {
       coprocessorHost.onClose(abort);
     }
 
+    boolean wasFlushing = false;
     synchronized (writestate) {
       // Disable compacting and flushing by background threads for this
       // region.
