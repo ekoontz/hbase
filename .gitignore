@@ -10,3 +10,5 @@
 *.orig
 *~
 /conf/hbase-site.xml
+/test/build/
+*.rej
