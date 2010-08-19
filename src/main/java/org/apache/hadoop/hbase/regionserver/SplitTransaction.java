@@ -276,6 +276,12 @@ class SplitTransaction {
     // Unlock if successful split.
     this.parent.splitsAndClosesLock.writeLock().unlock();
 
+    // Coprocessor callback
+    if (this.parent.getCoprocessorHost() != null) {
+      this.parent.getCoprocessorHost().onSplit(a,b);
+    }
+
+
     // Leaving here, the splitdir with its dross will be in place but since the
     // split was successful, just leave it; it'll be cleaned when parent is
     // deleted and cleaned up.
