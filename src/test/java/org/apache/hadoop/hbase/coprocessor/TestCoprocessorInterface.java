@@ -18,9 +18,10 @@
  * limitations under the License.
  */
 
-package org.apache.hadoop.hbase.coprocessor;
+package org.apache.hadoop.hbase.regionserver;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -31,10 +32,12 @@ import org.apache.hadoop.hbase.HBaseTestCase;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.coprocessor.Coprocessor;
 import org.apache.hadoop.hbase.coprocessor.Coprocessor.Priority;
 import org.apache.hadoop.hbase.regionserver.CoprocessorHost;
 import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.util.PairOfSameType;
 
 public class TestCoprocessorInterface extends HBaseTestCase {
   static final Log LOG = LogFactory.getLog(TestCoprocessorInterface.class);
@@ -179,9 +182,34 @@ public class TestCoprocessorInterface extends HBaseTestCase {
 
   private HRegion [] split(final HRegion r, final byte [] splitRow)
       throws IOException {
-    HRegion [] regions = r.splitRegion(splitRow);
-    assertEquals(regions.length, 2);
+
+    HRegion[] regions = new HRegion[2];
+
+    SplitTransaction st = new SplitTransaction(r, splitRow);
+    int i = 0;
+
+    if (!st.prepare()) {
+      // test fails.
+      assertTrue(false);
+    }
+    try {
+      PairOfSameType<HRegion> daughters = st.execute(null);
+      for (HRegion each_daughter: daughters) {
+	regions[i] = each_daughter;
+	i++;
+      }
+    }
+    catch (IOException ioe) {
+      LOG.info("Split transaction of " + r.getRegionNameAsString() + " failed:" + ioe.getMessage());
+      assertTrue(false);
+    }
+    catch (RuntimeException e) {
+      LOG.info("Failed rollback of failed split of " + r.getRegionNameAsString() + e.getMessage());
+    }
+
+    assertTrue(i == 2);
     return regions;
   }
 }
+
 
