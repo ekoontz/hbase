@@ -22,6 +22,7 @@ package org.apache.hadoop.hbase.client;
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
@@ -954,10 +955,14 @@ public class HConnectionManager {
           server = this.servers.get(rsName);
           if (server == null) {
             try {
+              InetSocketAddress addr = regionServer.getInetSocketAddress();
+              if (conf.get("hosts." + addr.getHostName()) != null) {
+                  addr = new InetSocketAddress(conf.get("hosts."+addr.getHostName()),addr.getPort());
+              }
               // definitely a cache miss. establish an RPC for this RS
               server = (HRegionInterface) HBaseRPC.waitForProxy(
                   serverInterfaceClass, HRegionInterface.VERSION,
-                  regionServer.getInetSocketAddress(), this.conf,
+                  addr, this.conf,
                   this.maxRPCAttempts, this.rpcTimeout, this.rpcTimeout);
               this.servers.put(rsName, server);
             } catch (RemoteException e) {

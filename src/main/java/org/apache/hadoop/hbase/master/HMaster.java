@@ -622,16 +622,25 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
     // we pass it back to the regionserver by setting "hbase.regionserver.address"
     // Everafter, the HSI combination 'server name' is what uniquely identifies
     // the incoming RegionServer.
-    InetSocketAddress address = new InetSocketAddress(
-        HBaseServer.getRemoteIp().getHostName(),
-        serverInfo.getServerAddress().getPort());
-    serverInfo.setServerAddress(new HServerAddress(address));
+    InetSocketAddress address;
+    String remoteHostName = HBaseServer.getRemoteIp().getHostName();
+    if (conf.get("hosts." + remoteHostName) != null) {
+      address = new InetSocketAddress(conf.get("hosts."+ remoteHostName), serverInfo.getServerAddress().getPort());
+      HServerAddress serverAddress = new HServerAddress(address);
+      serverInfo.setServerAddress(serverAddress);
+    }
+    else {
+        address = new InetSocketAddress(remoteHostName,serverInfo.getServerAddress().getPort());
+        serverInfo.setServerAddress(new HServerAddress(address));
+    }
+
+
 
     // Register with server manager
     this.serverManager.regionServerStartup(serverInfo, serverCurrentTime);
     // Send back some config info
     MapWritable mw = createConfigurationSubset();
-     mw.put(new Text("hbase.regionserver.address"),
+    mw.put(new Text("hbase.regionserver.address"),
          serverInfo.getServerAddress());
     return mw;
   }
@@ -654,6 +663,12 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
   public HMsg [] regionServerReport(HServerInfo serverInfo, HMsg msgs[],
     HRegionInfo[] mostLoadedRegions)
   throws IOException {
+    String remoteHostName = serverInfo.getHostname();
+    if (conf.get("hosts." + remoteHostName) != null) {
+        InetSocketAddress address = new InetSocketAddress(conf.get("hosts."+remoteHostName),serverInfo.getServerAddress().getPort());
+        HServerAddress serverAddress = new HServerAddress(address);
+        serverInfo.setServerAddress(serverAddress);
+    }
     return adornRegionServerAnswer(serverInfo,
       this.serverManager.regionServerReport(serverInfo, msgs, mostLoadedRegions));
   }

@@ -1437,6 +1437,10 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
     while (!stopped && master == null) {
 
       masterAddress = getMasterAddress();
+      if (conf.get("hosts." + masterAddress.getHostname()) != null) {
+          masterAddress = new HServerAddress(conf.get("hosts." + masterAddress.getHostname()),conf.getInt("hbase.master.port",60000));
+      }
+      InetSocketAddress mysockaddr = masterAddress.getInetSocketAddress();
       LOG.info("Attempting connect to Master server at " + masterAddress);
       try {
         // Do initial RPC setup. The final argument indicates that the RPC
