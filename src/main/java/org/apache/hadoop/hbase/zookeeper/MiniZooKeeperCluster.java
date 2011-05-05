@@ -53,9 +53,17 @@ public class MiniZooKeeperCluster {
   private NIOServerCnxn.Factory standaloneServerFactory;
   private int tickTime = 0;
 
+  private org.apache.hadoop.conf.Configuration configuration;
+
   /** Create mini ZooKeeper cluster. */
   public MiniZooKeeperCluster() {
     this.started = false;
+  }
+
+  /** Create mini ZooKeeper cluster with configuration (usually from test environment) */
+  public MiniZooKeeperCluster(org.apache.hadoop.conf.Configuration configuration) {
+    this.started = false;
+    this.configuration = configuration;
   }
 
   public void setClientPort(int clientPort) {
@@ -105,8 +113,9 @@ public class MiniZooKeeperCluster {
     ZooKeeperServer server = new ZooKeeperServer(dir, dir, tickTimeToUse);
     while (true) {
       try {
+        int numberOfConnections = this.configuration.getInt("hbase.zookeeper.property.maxClientCnxns",5000);
         standaloneServerFactory =
-          new NIOServerCnxn.Factory(new InetSocketAddress(clientPort));
+	  new NIOServerCnxn.Factory(new InetSocketAddress(clientPort), numberOfConnections);
       } catch (BindException e) {
         LOG.info("Failed binding ZK Server to client port: " + clientPort);
         //this port is already in use. try to use another
