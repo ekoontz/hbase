@@ -84,7 +84,7 @@ public class TestRegionObserverInterface {
   public void testRegionObserver() throws IOException {
     byte[] tableName = TEST_TABLE;
     // recreate table every time in order to reset the status of the
-    // coproccessor.
+    // coprocessor.
     HTable table = util.createTable(tableName, new byte[][] {A, B, C});
     verifyMethodResult(SimpleRegionObserver.class,
         new String[] {"hadPreGet", "hadPostGet", "hadPrePut", "hadPostPut",
@@ -132,7 +132,7 @@ public class TestRegionObserverInterface {
     );
     util.deleteTable(tableName);
   }
-  **/
+
   @Test
   public void testIncrementHook() throws IOException {
     byte[] tableName = TEST_TABLE;

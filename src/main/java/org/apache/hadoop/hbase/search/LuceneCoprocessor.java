@@ -25,7 +25,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.coprocessor.BaseRegionObserverCoprocessor;
+import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.ipc.CoprocessorProtocol;
 import org.apache.hadoop.hbase.regionserver.HRegion;
@@ -46,7 +46,7 @@ import org.apache.lucene.index.codecs.appending.AppendingCodec;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
 
-public class LuceneCoprocessor extends BaseRegionObserverCoprocessor implements
+public class LuceneCoprocessor extends BaseRegionObserver implements
     CoprocessorProtocol {
   IndexWriter writer;
   public static final String ROW_FIELD = "row";

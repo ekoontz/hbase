@@ -886,7 +886,21 @@
       <scope>test</scope>
     </dependency>
     <!-- Lucene -->
+
+   <dependency>
+      <groupId>org.apache.lucene</groupId>
+      <artifactId>lucene-core</artifactId>
+      <version>4.0-SNAPSHOT</version>
+   </dependency>
+
     <dependency>
+      <groupId>org.apache.lucene</groupId>
+      <artifactId>lucene-analyzers-common</artifactId>
+      <version>4.0-SNAPSHOT</version>
+    </dependency>
+
+
+<!--    <dependency>
       <groupId>org.apache.lucene</groupId>
       <artifactId>lucene-tests</artifactId>
       <version>4.0-SNAPSHOT</version>
@@ -900,7 +914,7 @@
       <groupId>org.apache.lucene</groupId>
       <artifactId>lucene-analyzers-common</artifactId>
       <version>4.0-SNAPSHOT</version>
-    </dependency>
+    </dependency> -->
   </dependencies>
   
   <!--
