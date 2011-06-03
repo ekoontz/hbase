@@ -614,7 +614,6 @@
       Note: Both org.apache.avro:avro and com.sun.jersey:jersey-json depend on Jackson so the version
         is chosen which comes first in the list of dependencies (jersey in this case)
     -->
-
     <!-- General dependencies -->
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -886,8 +885,24 @@
       <version>${hadoop.version}</version>
       <scope>test</scope>
     </dependency>
+    <!-- Lucene -->
+    <dependency>
+      <groupId>org.apache.lucene</groupId>
+      <artifactId>lucene-tests</artifactId>
+      <version>4.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.lucene</groupId>
+      <artifactId>lucene-misc</artifactId>
+      <version>4.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.lucene</groupId>
+      <artifactId>lucene-analyzers-common</artifactId>
+      <version>4.0-SNAPSHOT</version>
+    </dependency>
   </dependencies>
-
+  
   <!--
   To publish, use the following settings.xml file ( placed in ~/.m2/settings.xml )
 

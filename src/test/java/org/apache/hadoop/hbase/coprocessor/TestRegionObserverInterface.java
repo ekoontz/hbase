@@ -132,7 +132,7 @@ public class TestRegionObserverInterface {
     );
     util.deleteTable(tableName);
   }
-
+  **/
   @Test
   public void testIncrementHook() throws IOException {
     byte[] tableName = TEST_TABLE;
