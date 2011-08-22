@@ -56,6 +56,7 @@ import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.MetaScanner;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.MetaScanner.MetaScannerVisitor;
+import org.apache.hadoop.hbase.coprocessor.CoprocessorHost;
 import org.apache.hadoop.hbase.executor.ExecutorService;
 import org.apache.hadoop.hbase.executor.ExecutorService.ExecutorType;
 import org.apache.hadoop.hbase.ipc.HBaseRPC;
@@ -1195,8 +1196,20 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
     return fileSystemManager.getClusterId();
   }
 
+  public String getLoadedCoprocessors() {
+    if (cpHost != null) {
+      return CoprocessorHost.getLoadedCoprocessors().toString();
+    }
+    return "";
+  }
+
   @Override
   public void abort(final String msg, final Throwable t) {
+    if (cpHost != null) {
+      // HBASE-4014: dump a list of loaded coprocessors.
+      LOG.fatal("Master server abort: loaded coprocessors are: " + CoprocessorHost.getLoadedCoprocessors());
+    }
+
     if (abortNow(msg, t)) {
       if (t != null) LOG.fatal(msg, t);
       else LOG.fatal(msg);
