@@ -78,10 +78,17 @@ public class MasterCoprocessorHost
     abortServer("master", masterServices, env, e);
   }
 
-  private void handleCoprocessorThrowableAsUnknownRegionException(final CoprocessorEnvironment env, final Throwable e)
-    // Similar to the handleCoprocessorThrowable(), but for those Master coprocessor hooks that throw specifically
-    // a UnknownRegionException (rather than the more general IOException). In this case, treat any IOException that is
-    // not an UnknownRegionException as we would a non-IOException Throwable: abort the master.
+
+  /**
+   * HBASE-4014: This is used by coprocessor hooks whose signature restricts them to throw
+   * UnknownRegionException rather than the more general IOException.
+   *
+   * For example, {@link MasterCoprocessorHost#preMove} and {@link MasterCoprocessorHost#postMove}
+   * are declared to throw specifically a UnknownRegionException.
+   *
+   * See also {@link org.apache.hadoop.hbase.regionserver.RegionCoprocessorHost#handleCoprocessorThrowableNoRethrow()}.
+   */
+  private void handleCoprocessorThrowableUREOnly(final CoprocessorEnvironment env, final Throwable e)
     throws UnknownRegionException {
     if (e instanceof UnknownRegionException) {
       // The coprocessor threw an UnknownRegionException, which should be passed back to the client.

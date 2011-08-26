@@ -196,16 +196,13 @@ public class RegionCoprocessorHost
   }
 
   /**
-   * This is the counterpart of handleCoprocessorThrowable(), but used by coprocessor hooks
-   * which are NOT declared to throw IOException (or its subtypes).
-   * It's called when a coprocessor hook H threw an exception, but H's signature does
-   * not allow it to throw an exception. For example, postClose() is such a hook.
-   * For such hooks, handleCoprocessorThrowableNoRethrow(), as with handleCoprocessorThrowable(),
-   * acts according to the Throwable e's type:
-   * If e is an instanceof IOException, ignore the exception (but emit a LOG.warn()).
-   * Otherwise the coprocessor has a fatal bug (for example, a null pointer
-   * access that causes a NullPointerException) that should cause the regionserver
-   * to abort (HBASE-4014).
+   * HBASE-4014 : This is used by coprocessor hooks which are not declared to throw exceptions.
+   *
+   * For example, {@link
+   * org.apache.hadoop.hbase.regionserver.RegionCoprocessorHost#preOpen()} and
+   * {@link org.apache.hadoop.hbase.regionserver.RegionCoprocessorHost#postOpen()} are such hooks.
+   *
+   * See also {@link org.apache.hadoop.hbase.master.MasterCoprocessorHost#handleCoprocessorThrowable()}
    */
   private void handleCoprocessorThrowableNoRethrow(final CoprocessorEnvironment env, final Throwable e, final String hookName) {
     if (e instanceof java.io.IOException) {
