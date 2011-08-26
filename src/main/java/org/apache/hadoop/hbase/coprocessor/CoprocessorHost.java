@@ -58,7 +58,7 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
   public static final String WAL_COPROCESSOR_CONF_KEY =
     "hbase.coprocessor.wal.classes";
 
-  protected static final Log LOG = LogFactory.getLog(CoprocessorHost.class);
+  private static final Log LOG = LogFactory.getLog(CoprocessorHost.class);
   /** Ordered set of loaded coprocessors with lock */
   protected SortedSet<E> coprocessors =
       new SortedCopyOnWriteSet<E>(new EnvironmentPriorityComparator());
