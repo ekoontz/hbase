@@ -35,7 +35,6 @@ import java.util.NoSuchElementException;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -195,7 +194,7 @@ public class HConnectionManager {
    * @param stopProxy
    *          Shuts down all the proxy's put up to cluster members including to
    *          cluster HMaster. Calls
-   *          {@link HBaseRPC#stopProxy(org.apache.hadoop.ipc.VersionedProtocol)}
+   *          {@link HBaseRPC#stopProxy(org.apache.hadoop.hbase.ipc.VersionedProtocol)}
    *          .
    */
   public static void deleteConnection(Configuration conf, boolean stopProxy) {
@@ -1122,7 +1121,7 @@ public class HConnectionManager {
       if (tableLocations.put(startKey, location) == null) {
         LOG.debug("Cached location for " +
             location.getRegionInfo().getRegionNameAsString() +
-            " is " + location.getServerAddress());
+            " is " + location.getHostnamePort());
       }
     }
 

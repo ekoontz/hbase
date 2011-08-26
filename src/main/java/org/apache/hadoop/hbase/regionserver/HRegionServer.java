@@ -99,7 +99,7 @@ import org.apache.hadoop.hbase.filter.BinaryComparator;
 import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp;
 import org.apache.hadoop.hbase.filter.WritableByteArrayComparable;
 import org.apache.hadoop.hbase.io.hfile.BlockCache;
-import org.apache.hadoop.hbase.io.hfile.LruBlockCache;
+import org.apache.hadoop.hbase.io.hfile.BlockCacheColumnFamilySummary;
 import org.apache.hadoop.hbase.io.hfile.LruBlockCache.CacheStats;
 import org.apache.hadoop.hbase.ipc.CoprocessorProtocol;
 import org.apache.hadoop.hbase.ipc.HBaseRPC;
@@ -120,7 +120,6 @@ import org.apache.hadoop.hbase.regionserver.handler.OpenRootHandler;
 import org.apache.hadoop.hbase.regionserver.metrics.RegionServerMetrics;
 import org.apache.hadoop.hbase.regionserver.wal.HLog;
 import org.apache.hadoop.hbase.regionserver.wal.WALActionsListener;
-import org.apache.hadoop.hbase.regionserver.RegionOpeningState;
 import org.apache.hadoop.hbase.replication.regionserver.Replication;
 import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -1746,9 +1745,9 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
       }
 
       this.requestCount.addAndGet(puts.size());
-      OperationStatusCode[] codes = region.put(putsWithLocks);
+      OperationStatus codes[] = region.put(putsWithLocks);
       for (i = 0; i < codes.length; i++) {
-        if (codes[i] != OperationStatusCode.SUCCESS) {
+        if (codes[i].getOperationStatusCode() != OperationStatusCode.SUCCESS) {
           return i;
         }
       }
@@ -2366,6 +2365,12 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
     }
     return closeRegion(region, false, zk);
   }
+  
+  @Override
+  @QosPriority(priority=HIGH_QOS)
+  public boolean closeRegion(byte[] encodedRegionName, boolean zk) throws IOException {
+    return closeRegion(encodedRegionName, false, zk);
+  }
 
   /**
    * @param region Region to close
@@ -2393,6 +2398,29 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
     }
     this.service.submit(crh);
     return true;
+  }
+  
+  /**
+   * @param encodedRegionName
+   *          encodedregionName to close
+   * @param abort
+   *          True if we are aborting
+   * @param zk
+   *          True if we are to update zk about the region close; if the close
+   *          was orchestrated by master, then update zk. If the close is being
+   *          run by the regionserver because its going down, don't update zk.
+   * @return True if closed a region.
+   */
+  protected boolean closeRegion(byte[] encodedRegionName, final boolean abort,
+      final boolean zk) throws IOException {
+    String encodedRegionNameStr = Bytes.toString(encodedRegionName);
+    HRegion region = this.getFromOnlineRegions(encodedRegionNameStr);
+    if (null != region) {
+      return closeRegion(region.getRegionInfo(), abort, zk);
+    }
+    LOG.error("The specified region name" + encodedRegionNameStr
+        + " does not exist to close the region.");
+    return false;
   }
 
   // Manual remote region administration RPCs
@@ -2838,19 +2866,20 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
 
           this.requestCount.addAndGet(puts.size());
 
-          OperationStatusCode[] codes =
+          OperationStatus[] codes =
               region.put(putsWithLocks.toArray(new Pair[]{}));
 
           for( int i = 0 ; i < codes.length ; i++) {
-            OperationStatusCode code = codes[i];
+            OperationStatus code = codes[i];
 
             Action<R> theAction = puts.get(i);
             Object result = null;
 
-            if (code == OperationStatusCode.SUCCESS) {
+            if (code.getOperationStatusCode() == OperationStatusCode.SUCCESS) {
               result = new Result();
-            } else if (code == OperationStatusCode.BAD_FAMILY) {
-              result = new NoSuchColumnFamilyException();
+            } else if (code.getOperationStatusCode()
+                == OperationStatusCode.BAD_FAMILY) {
+              result = new NoSuchColumnFamilyException(code.getExceptionMsg());
             }
             // FAILURE && NOT_RUN becomes null, aka: need to run again.
 
@@ -3028,4 +3057,13 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
 
     new HRegionServerCommandLine(regionServerClass).doMain(args);
   }
+
+  @Override
+  public List<BlockCacheColumnFamilySummary> getBlockCacheColumnFamilySummaries() throws IOException {
+    BlockCache c = StoreFile.getBlockCache(this.conf);
+    return c.getBlockCacheColumnFamilySummaries(this.conf);
+  }
+
+
+
 }

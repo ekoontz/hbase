@@ -209,13 +209,18 @@ module Hbase
         @admin.createTable(htd, splits)
       end
     end
-
+    
     #----------------------------------------------------------------------------------------------
-    # Closes a region
-    def close_region(region_name, server = nil)
-      @admin.closeRegion(region_name, server)
+    # Closes a region.
+    # If server name is nil, we presume region_name is full region name (HRegionInfo.getRegionName).
+    # If server name is not nil, we presume it is the region's encoded name (HRegionInfo.getEncodedName)
+    def close_region(region_name, server)
+      if (server == nil || !closeEncodedRegion?(region_name, server))         
+      	@admin.closeRegion(region_name, server)
+      end	
     end
 
+    #----------------------------------------------------------------------------------------------
     #----------------------------------------------------------------------------------------------
     # Assign a region
     def assign(region_name, force)
@@ -390,6 +395,12 @@ module Hbase
     end
 
     #----------------------------------------------------------------------------------------------
+    #Is supplied region name is encoded region name
+    def closeEncodedRegion?(region_name, server)
+       @admin.closeRegionWithEncodedRegionName(region_name, server)
+    end   
+
+    #----------------------------------------------------------------------------------------------
     # Return a new HColumnDescriptor made of passed args
     def hcd(arg, htd)
       # String arg, single parameter constructor
@@ -408,6 +419,7 @@ module Hbase
       family.setCompressionType(org.apache.hadoop.hbase.io.hfile.Compression::Algorithm.valueOf(arg[org.apache.hadoop.hbase.HColumnDescriptor::COMPRESSION])) if arg.include?(org.apache.hadoop.hbase.HColumnDescriptor::COMPRESSION)
       family.setBlocksize(JInteger.valueOf(arg[org.apache.hadoop.hbase.HColumnDescriptor::BLOCKSIZE])) if arg.include?(org.apache.hadoop.hbase.HColumnDescriptor::BLOCKSIZE)
       family.setMaxVersions(JInteger.valueOf(arg[org.apache.hadoop.hbase.HColumnDescriptor::VERSIONS])) if arg.include?(org.apache.hadoop.hbase.HColumnDescriptor::VERSIONS)
+      family.setMinVersions(JInteger.valueOf(arg[org.apache.hadoop.hbase.HColumnDescriptor::MIN_VERSIONS])) if arg.include?(org.apache.hadoop.hbase.HColumnDescriptor::MIN_VERSIONS)
       if arg.include?(org.apache.hadoop.hbase.HColumnDescriptor::BLOOMFILTER)
         bloomtype = arg[org.apache.hadoop.hbase.HColumnDescriptor::BLOOMFILTER].upcase
         unless org.apache.hadoop.hbase.regionserver.StoreFile::BloomType.constants.include?(bloomtype)      

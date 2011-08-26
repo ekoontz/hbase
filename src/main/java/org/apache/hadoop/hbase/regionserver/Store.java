@@ -40,7 +40,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.HeapSize;
-import org.apache.hadoop.hbase.io.hfile.BlockCache;
 import org.apache.hadoop.hbase.io.hfile.Compression;
 import org.apache.hadoop.hbase.io.hfile.HFile;
 import org.apache.hadoop.hbase.io.hfile.HFileScanner;
@@ -49,11 +48,10 @@ import org.apache.hadoop.hbase.monitoring.MonitoredTask;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.ClassSize;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
+import org.apache.hadoop.hbase.util.CollectionBackedScanner;
 import org.apache.hadoop.util.StringUtils;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -92,6 +90,8 @@ public class Store implements HeapSize {
   final Configuration conf;
   // ttl in milliseconds.
   protected long ttl;
+  protected int minVersions;
+  protected int maxVersions;
   long majorCompactionTime;
   private final int minFilesToCompact;
   private final int maxFilesToCompact;
@@ -179,6 +179,8 @@ public class Store implements HeapSize {
       // second -> ms adjust for user data
       this.ttl *= 1000;
     }
+    this.minVersions = family.getMinVersions();
+    this.maxVersions = family.getMaxVersions();
     this.memstore = new MemStore(conf, this.comparator);
     this.storeNameStr = Bytes.toString(this.family.getName());
 
@@ -482,32 +484,45 @@ public class Store implements HeapSize {
     if (set.size() == 0) {
       return null;
     }
-    long oldestTimestamp = System.currentTimeMillis() - ttl;
-    // TODO:  We can fail in the below block before we complete adding this
-    // flush to list of store files.  Add cleanup of anything put on filesystem
-    // if we fail.
-    synchronized (flushLock) {
-      status.setStatus("Flushing " + this + ": creating writer");
-      // A. Write the map out to the disk
-      writer = createWriterInTmp(set.size());
-      writer.setTimeRangeTracker(snapshotTimeRangeTracker);
-      int entries = 0;
-      try {
-        for (KeyValue kv: set) {
-          if (!isExpired(kv, oldestTimestamp)) {
-            writer.append(kv);
-            entries++;
-            flushed += this.memstore.heapSizeChange(kv, true);
+    Scan scan = new Scan();
+    scan.setMaxVersions(maxVersions);
+    // Use a store scanner to find which rows to flush.
+    // Note that we need to retain deletes, hence
+    // pass true as the StoreScanner's retainDeletesInOutput argument.
+    InternalScanner scanner = new StoreScanner(this, scan,
+        Collections.singletonList(new CollectionBackedScanner(set,
+            this.comparator)), true);
+    try {
+      // TODO:  We can fail in the below block before we complete adding this
+      // flush to list of store files.  Add cleanup of anything put on filesystem
+      // if we fail.
+      synchronized (flushLock) {
+        status.setStatus("Flushing " + this + ": creating writer");
+        // A. Write the map out to the disk
+        writer = createWriterInTmp(set.size());
+        writer.setTimeRangeTracker(snapshotTimeRangeTracker);
+        try {
+          List<KeyValue> kvs = new ArrayList<KeyValue>();
+          while (scanner.next(kvs)) {
+            if (!kvs.isEmpty()) {
+              for (KeyValue kv : kvs) {
+                writer.append(kv);
+                flushed += this.memstore.heapSizeChange(kv, true);
+              }
+              kvs.clear();
+            }
           }
+        } finally {
+          // Write out the log sequence number that corresponds to this output
+          // hfile.  The hfile is current up to and including logCacheFlushId.
+          status.setStatus("Flushing " + this + ": appending metadata");
+          writer.appendMetadata(logCacheFlushId, false);
+          status.setStatus("Flushing " + this + ": closing flushed file");
+          writer.close();
         }
-      } finally {
-        // Write out the log sequence number that corresponds to this output
-        // hfile.  The hfile is current up to and including logCacheFlushId.
-        status.setStatus("Flushing " + this + ": appending metadata");
-        writer.appendMetadata(logCacheFlushId, false);
-        status.setStatus("Flushing " + this + ": closing flushed file");
-        writer.close();
       }
+    } finally {
+      scanner.close();
     }
 
     // Write-out finished successfully, move into the right spot
@@ -717,7 +732,7 @@ public class Store implements HeapSize {
       // Ready to go. Have list of files to compact.
       StoreFile.Writer writer = compactStore(filesToCompact, isMajor, maxId);
       // Move the compaction into place.
-      StoreFile sf = completeCompaction(filesToCompact, writer);
+      completeCompaction(filesToCompact, writer);
     } finally {
       synchronized (filesCompacting) {
         filesCompacting.removeAll(filesToCompact);
@@ -1267,14 +1282,23 @@ public class Store implements HeapSize {
    * current container: i.e. we'll see deletes before we come across cells we
    * are to delete. Presumption is that the memstore#kvset is processed before
    * memstore#snapshot and so on.
-   * @param kv First possible item on targeted row; i.e. empty columns, latest
-   * timestamp and maximum type.
+   * @param row The row key of the targeted row.
    * @return Found keyvalue or null if none found.
    * @throws IOException
    */
-  KeyValue getRowKeyAtOrBefore(final KeyValue kv) throws IOException {
+  KeyValue getRowKeyAtOrBefore(final byte[] row) throws IOException {
+    // If minVersions is set, we will not ignore expired KVs.
+    // As we're only looking for the latest matches, that should be OK.
+    // With minVersions > 0 we guarantee that any KV that has any version
+    // at all (expired or not) has at least one version that will not expire.
+    // Note that this method used to take a KeyValue as arguments. KeyValue
+    // can be back-dated, a row key cannot.
+    long ttlToUse = this.minVersions > 0 ? Long.MAX_VALUE : this.ttl;
+
+    KeyValue kv = new KeyValue(row, HConstants.LATEST_TIMESTAMP);
+
     GetClosestRowBeforeTracker state = new GetClosestRowBeforeTracker(
-      this.comparator, kv, this.ttl, this.region.getRegionInfo().isMetaRegion());
+      this.comparator, kv, ttlToUse, this.region.getRegionInfo().isMetaRegion());
     this.lock.readLock().lock();
     try {
       // First go to the memstore.  Pick up deletes and candidates.
@@ -1724,7 +1748,7 @@ public class Store implements HeapSize {
   public static final long FIXED_OVERHEAD = ClassSize.align(
       ClassSize.OBJECT + (15 * ClassSize.REFERENCE) +
       (8 * Bytes.SIZEOF_LONG) + (1 * Bytes.SIZEOF_DOUBLE) +
-      (4 * Bytes.SIZEOF_INT) + (3 * Bytes.SIZEOF_BOOLEAN));
+      (6 * Bytes.SIZEOF_INT) + (3 * Bytes.SIZEOF_BOOLEAN));
 
   public static final long DEEP_OVERHEAD = ClassSize.align(FIXED_OVERHEAD +
       ClassSize.OBJECT + ClassSize.REENTRANT_LOCK +
