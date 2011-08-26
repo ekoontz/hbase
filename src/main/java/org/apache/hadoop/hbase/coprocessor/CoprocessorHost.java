@@ -616,20 +616,21 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
    * handle Throwable objects thrown by coprocessors depending on the Throwable object's type.
    * @param env Coprocessor Environment
    * @param e Throwable object thrown by coprocessor.
-   * @exception java.io.IOException Exception
+   * @exception IOException Exception
    */
   protected void handleCoprocessorThrowable(final CoprocessorEnvironment env, final Throwable e)
       throws IOException {
-    if (e instanceof java.io.IOException) {
+    if (e instanceof IOException) {
       throw (IOException)e;
     }
     else {
       // e is not an IOException. A loaded coprocessor has a fatal bug,
       // and the server (master or regionserver) should remove the faulty
       // coprocessor from its set of active coprocessors. Setting
-      // 'hbase.coprocessor.abort_on_error' to true may be useful in development
-      // environments where 'failing fast' is desired.
-      LOG.error("Removing coprocessor '" + env.toString() + "' from environment because it threw:  " + e);
+      // 'hbase.coprocessor.abort_on_error' to true will cause abortServer(), which may be
+      // useful in development and testing environments where 'failing fast' for error analysis
+      // is desired.
+      LOG.error("Removing coprocessor '" + env.toString() + "' from environment because it threw:  " + e,e);
       coprocessors.remove(env);
       if (env.getConfiguration().get("hbase.coprocessor.abort_on_error").equals("true")) {
         // server is configured to abort.
@@ -637,7 +638,7 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
       }
       else {
         throw new DoNotRetryIOException("Coprocessor: '" + env.toString() + "' threw: '" + e + "' and has been removed" +
-          "from the active coprocessor set.");
+          "from the active coprocessor set.",e);
       }
     }
   }
