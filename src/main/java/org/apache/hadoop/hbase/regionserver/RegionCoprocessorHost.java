@@ -210,7 +210,8 @@ public class RegionCoprocessorHost
       handleCoprocessorThrowable(env,e);
     } catch (IOException ioe) {
       // We cannot throw exceptions from the caller hook, so ignore.
-      LOG.warn("handleCoprocessorThrowable() threw exception : ignoring.",e);
+      LOG.warn("handleCoprocessorThrowable() threw an IOException while attempting to handle Throwable " + e
+        + ". Ignoring.",e);
     }
   }
 

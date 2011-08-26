@@ -102,7 +102,8 @@ public class MasterCoprocessorHost
         // We cannot throw this type of exception from the caller hook, so ignore.
         // Alternatively, we could throw an UnknownRegionException and supply information about the
         // real source of the problem (that handleCoprocessorThrowable threw an IOException).
-        LOG.warn("handleCoprocessorThrowable() threw exception: ignoring.",ioe);
+        LOG.warn("handleCoprocessorThrowable() threw an IOException while attempting to handle Throwable " + e
+          + ". Ignoring.",ioe);
 
       }
 
