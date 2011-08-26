@@ -95,14 +95,17 @@ public class MasterCoprocessorHost
       throw (UnknownRegionException)e;
     }
     else {
-      // regardless of configuration, remove coprocessor.
-      LOG.error("Removing coprocessor '" + env + "' from environment because it threw: " + e);
-      coprocessors.remove(env);
-      // e is not an UnknownRegionException: master should abort (depending on configuration).
-      if (env.getConfiguration().get("hbase.coprocessor.abort_on_error").equals("true")) {
-        // server is configured to abort.
-        abortServer(env, e);
+      try {
+        handleCoprocessorThrowable(env,e);
       }
+      catch (IOException ioe) {
+        // We cannot throw this type of exception from the caller hook, so ignore.
+        // Alternatively, we could throw an UnknownRegionException and supply information about the
+        // real source of the problem (that handleCoprocessorThrowable threw an IOException).
+        LOG.warn("handleCoprocessorThrowable() threw exception: ignoring.",ioe);
+
+      }
+
     }
   }
 
@@ -416,7 +419,7 @@ public class MasterCoprocessorHost
               ctx, region, srcServer, destServer);
         }
         catch (Throwable e) {
-          handleCoprocessorThrowableAsUnknownRegionException(env, e);
+          handleCoprocessorThrowableUREOnly(env, e);
         }
         if (ctx.shouldComplete()) {
           break;
@@ -436,7 +439,7 @@ public class MasterCoprocessorHost
               ctx, region, srcServer, destServer);
         }
         catch (Throwable e) {
-          handleCoprocessorThrowableAsUnknownRegionException(env,e);
+          handleCoprocessorThrowableUREOnly(env,e);
         }
         if (ctx.shouldComplete()) {
           break;

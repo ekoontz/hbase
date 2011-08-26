@@ -204,16 +204,13 @@ public class RegionCoprocessorHost
    *
    * See also {@link org.apache.hadoop.hbase.master.MasterCoprocessorHost#handleCoprocessorThrowable()}
    */
-  private void handleCoprocessorThrowableNoRethrow(final CoprocessorEnvironment env, final Throwable e, final String hookName) {
-    if (e instanceof java.io.IOException) {
-      LOG.warn("The coprocessor : " + env.toString() + " threw an exception: " + e +
-        ", but the regionserver's coprocessor host hook " + hookName + " is not intended to pass this on to the client." +
-        "Since the exception is an IOException, it will be ignored rather than causing the regionserver to abort. ");
-    }
-    else {
-      // e is not an IOException. A loaded coprocessor has a fatal bug,
-      // and the regionserver should abort (HBASE-4014).
-      abortServer(env, e);
+  private void handleCoprocessorThrowableNoRethrow(final CoprocessorEnvironment env, final Throwable e,
+                                                   final String hookName) {
+    try {
+      handleCoprocessorThrowable(env,e);
+    } catch (IOException ioe) {
+      // We cannot throw exceptions from the caller hook, so ignore.
+      LOG.warn("handleCoprocessorThrowable() threw exception : ignoring.",e);
     }
   }
 
