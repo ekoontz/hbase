@@ -630,13 +630,13 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
       // 'hbase.coprocessor.abort_on_error' to true will cause abortServer(), which may be
       // useful in development and testing environments where 'failing fast' for error analysis
       // is desired.
-      LOG.error("Removing coprocessor '" + env.toString() + "' from environment because it threw:  " + e,e);
-      coprocessors.remove(env);
       if (env.getConfiguration().get("hbase.coprocessor.abort_on_error").equals("true")) {
         // server is configured to abort.
         abortServer(env, e);
       }
       else {
+        LOG.error("Removing coprocessor '" + env.toString() + "' from environment because it threw:  " + e,e);
+        coprocessors.remove(env);
         throw new DoNotRetryIOException("Coprocessor: '" + env.toString() + "' threw: '" + e + "' and has been removed" +
           "from the active coprocessor set.",e);
       }
