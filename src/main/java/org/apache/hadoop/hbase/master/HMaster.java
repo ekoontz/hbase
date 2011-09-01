@@ -1130,11 +1130,14 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
     return fileSystemManager.getClusterId();
   }
 
+  /**
+   * If cpHost is null, then the static method will simply return a String
+   * representation of the CoprocessorHost's static empty coprocessor names
+   * set.
+   * @return a String represention of the set of loaded coprocessor names.
+   */
   public String getLoadedCoprocessors() {
-    if (cpHost != null) {
-      return CoprocessorHost.getLoadedCoprocessors().toString();
-    }
-    return "";
+    return CoprocessorHost.getLoadedCoprocessors().toString();
   }
 
   @Override
@@ -1142,7 +1145,7 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
     if (cpHost != null) {
       // HBASE-4014: dump a list of loaded coprocessors.
       LOG.fatal("Master server abort: loaded coprocessors are: " +
-          CoprocessorHost.getLoadedCoprocessors());
+          getLoadedCoprocessors());
     }
 
     if (abortNow(msg, t)) {
