@@ -90,8 +90,8 @@ public class MasterCoprocessorHost
    * See also
    * {@link org.apache.hadoop.hbase.regionserver.RegionCoprocessorHost#handleCoprocessorThrowableNoRethrow()}.
    */
-  private void handleCoprocessorThrowableUREOnly(
-      final CoprocessorEnvironment env, final Throwable e)
+  private void handleCoprocessorUnknownRegion(final CoprocessorEnvironment env,
+                                              final Throwable e)
     throws UnknownRegionException {
     if (e instanceof UnknownRegionException) {
       // The coprocessor threw an UnknownRegionException, which should be
@@ -106,7 +106,7 @@ public class MasterCoprocessorHost
         // supply information about the real source of the problem (that
         // handleCoprocessorThrowable threw an IOException).
         LOG.warn("handleCoprocessorThrowable() threw an IOException while " +
-            "attempting to handle Throwable " + e + ". Ignoring.", ioe);
+            "attempting to handle Throwable " + e + ". Ignoring", ioe);
 
       }
     }
@@ -414,7 +414,7 @@ public class MasterCoprocessorHost
           ((MasterObserver)env.getInstance()).preMove(
               ctx, region, srcServer, destServer);
         } catch (Throwable e) {
-          handleCoprocessorThrowableUREOnly(env, e);
+          handleCoprocessorUnknownRegion(env, e);
         }
         if (ctx.shouldComplete()) {
           break;
@@ -434,7 +434,7 @@ public class MasterCoprocessorHost
           ((MasterObserver)env.getInstance()).postMove(
               ctx, region, srcServer, destServer);
         } catch (Throwable e) {
-          handleCoprocessorThrowableUREOnly(env, e);
+          handleCoprocessorUnknownRegion(env, e);
         }
         if (ctx.shouldComplete()) {
           break;
