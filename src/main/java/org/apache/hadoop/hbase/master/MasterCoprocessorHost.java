@@ -107,7 +107,6 @@ public class MasterCoprocessorHost
         // handleCoprocessorThrowable threw an IOException).
         LOG.warn("handleCoprocessorThrowable() threw an IOException while " +
             "attempting to handle Throwable " + e + ". Ignoring", ioe);
-
       }
     }
   }
