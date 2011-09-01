@@ -210,8 +210,8 @@ public class RegionCoprocessorHost
    *
    * See also {@link org.apache.hadoop.hbase.master.MasterCoprocessorHost#handleCoprocessorThrowable()}
    */
-  private void handleCoprocessorThrowableNoRethrow(final CoprocessorEnvironment env, final Throwable e,
-                                                   final String hookName) {
+  private void handleCoprocessorThrowableNoRethrow(
+      final CoprocessorEnvironment env, final Throwable e) {
     try {
       handleCoprocessorThrowable(env,e);
     } catch (IOException ioe) {
@@ -232,7 +232,7 @@ public class RegionCoprocessorHost
          try {
           ((RegionObserver)env.getInstance()).preOpen(ctx);
          } catch (Throwable e) {
-           handleCoprocessorThrowableNoRethrow(env, e, "preOpen");
+           handleCoprocessorThrowableNoRethrow(env, e);
          }
         if (ctx.shouldComplete()) {
           break;
@@ -252,7 +252,7 @@ public class RegionCoprocessorHost
         try {
           ((RegionObserver)env.getInstance()).postOpen(ctx);
         } catch (Throwable e) {
-          handleCoprocessorThrowableNoRethrow(env, e, "postOpen");
+          handleCoprocessorThrowableNoRethrow(env, e);
         }
         if (ctx.shouldComplete()) {
           break;
@@ -273,7 +273,7 @@ public class RegionCoprocessorHost
         try {
           ((RegionObserver)env.getInstance()).preClose(ctx, abortRequested);
         } catch (Throwable e) {
-          handleCoprocessorThrowableNoRethrow(env, e, "preClose");
+          handleCoprocessorThrowableNoRethrow(env, e);
         }
       }
     }
@@ -291,7 +291,7 @@ public class RegionCoprocessorHost
         try {
           ((RegionObserver)env.getInstance()).postClose(ctx, abortRequested);
         } catch (Throwable e) {
-          handleCoprocessorThrowableNoRethrow(env, e, "postClose");
+          handleCoprocessorThrowableNoRethrow(env, e);
         }
 
       }
@@ -311,7 +311,7 @@ public class RegionCoprocessorHost
         try {
           ((RegionObserver)env.getInstance()).preCompact(ctx, willSplit);
         } catch (Throwable e) {
-          handleCoprocessorThrowableNoRethrow(env, e, "preCompact");
+          handleCoprocessorThrowableNoRethrow(env, e);
         }
         if (ctx.shouldComplete()) {
           break;
@@ -332,7 +332,7 @@ public class RegionCoprocessorHost
         try {
           ((RegionObserver)env.getInstance()).postCompact(ctx, willSplit);
         } catch (Throwable e) {
-          handleCoprocessorThrowableNoRethrow(env, e, "postCompact");
+          handleCoprocessorThrowableNoRethrow(env, e);
         }
         if (ctx.shouldComplete()) {
           break;
@@ -352,7 +352,7 @@ public class RegionCoprocessorHost
         try {
           ((RegionObserver)env.getInstance()).preFlush(ctx);
         } catch (Throwable e) {
-          handleCoprocessorThrowableNoRethrow(env, e, "preFlush");
+          handleCoprocessorThrowableNoRethrow(env, e);
         }
         if (ctx.shouldComplete()) {
           break;
@@ -372,7 +372,7 @@ public class RegionCoprocessorHost
         try {
           ((RegionObserver)env.getInstance()).postFlush(ctx);
         } catch (Throwable e) {
-          handleCoprocessorThrowableNoRethrow(env, e, "postFlush");
+          handleCoprocessorThrowableNoRethrow(env, e);
         }
         if (ctx.shouldComplete()) {
           break;
@@ -392,7 +392,7 @@ public class RegionCoprocessorHost
         try {
           ((RegionObserver)env.getInstance()).preSplit(ctx);
         } catch (Throwable e) {
-          handleCoprocessorThrowableNoRethrow(env, e, "preSplit");
+          handleCoprocessorThrowableNoRethrow(env, e);
         }
         if (ctx.shouldComplete()) {
           break;
@@ -414,7 +414,7 @@ public class RegionCoprocessorHost
         try {
           ((RegionObserver)env.getInstance()).postSplit(ctx, l, r);
         } catch (Throwable e) {
-          handleCoprocessorThrowableNoRethrow(env, e, "postSplit");
+          handleCoprocessorThrowableNoRethrow(env, e);
         }
         if (ctx.shouldComplete()) {
           break;
@@ -440,8 +440,8 @@ public class RegionCoprocessorHost
       if (env.getInstance() instanceof RegionObserver) {
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
-          ((RegionObserver)env.getInstance()).preGetClosestRowBefore(ctx, row, family,
-            result);
+          ((RegionObserver)env.getInstance()).preGetClosestRowBefore(ctx, row,
+              family, result);
         } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
@@ -467,8 +467,8 @@ public class RegionCoprocessorHost
       if (env.getInstance() instanceof RegionObserver) {
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
-          ((RegionObserver)env.getInstance()).postGetClosestRowBefore(ctx, row, family,
-            result);
+          ((RegionObserver)env.getInstance()).postGetClosestRowBefore(ctx, row,
+              family, result);
         } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
