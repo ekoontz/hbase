@@ -843,6 +843,27 @@ public class TestAdmin {
     new HTable(TEST_UTIL.getConfiguration(), name);
   }
 
+  /***
+   * HMaster.createTable used to be kind of synchronous call
+   * Thus creating of table with lots of regions can cause RPC timeout
+   * After the fix to make createTable truly async, RPC timeout shouldn't be an
+   * issue anymore
+   * @throws Exception
+   */
+  @Test
+  public void testCreateTableRPCTimeOut() throws Exception {
+    String name = "testCreateTableRPCTimeOut";
+    TEST_UTIL.getConfiguration().setInt(HConstants.HBASE_RPC_TIMEOUT_KEY, 1500);
+
+    int expectedRegions = 100;
+    // Use 80 bit numbers to make sure we aren't limited
+    byte [] startKey = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+    byte [] endKey =   { 9, 9, 9, 9, 9, 9, 9, 9, 9, 9 };
+    HBaseAdmin hbaseadmin = new HBaseAdmin(TEST_UTIL.getConfiguration());
+    hbaseadmin.createTable(new HTableDescriptor(name), startKey, endKey,
+      expectedRegions);
+  }
+
   /**
    * Test read only tables
    * @throws Exception
@@ -1004,7 +1025,7 @@ public class TestAdmin {
 
   @Test
   public void testCloseRegionWhenServerNameIsEmpty() throws Exception {
-    byte[] TABLENAME = Bytes.toBytes("TestHBACloseRegion3");
+    byte[] TABLENAME = Bytes.toBytes("TestHBACloseRegionWhenServerNameIsEmpty");
     HBaseAdmin admin = createTable(TABLENAME);
 
     HRegionServer rs = TEST_UTIL.getRSForFirstRegionInTable(TABLENAME);
@@ -1014,7 +1035,7 @@ public class TestAdmin {
       for (HRegionInfo regionInfo : onlineRegions) {
         if (!regionInfo.isMetaRegion() && !regionInfo.isRootRegion()) {
           if (regionInfo.getRegionNameAsString()
-              .contains("TestHBACloseRegion3")) {
+              .contains("TestHBACloseRegionWhenServerNameIsEmpty")) {
             admin.closeRegionWithEncodedRegionName(regionInfo.getEncodedName(),
                 " ");
           }

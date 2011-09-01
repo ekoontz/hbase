@@ -81,38 +81,198 @@
   <para>See <link xlink:href="http://hbase.org/apidocs/org/apache/hadoop/hbase/mapreduce/package-summary.html#package_description">HBase and MapReduce</link> up in javadocs.
   Start there.  Below is some additional help.</para>
   <section xml:id="splitter">
-  <title>The default HBase MapReduce Splitter</title>
-  <para>When <link xlink:href="http://hbase.apache.org/apidocs/org/apache/hadoop/hbase/mapreduce/TableInputFormat.html">TableInputFormat</link>,
-  is used to source an HBase table in a MapReduce job,
-  its splitter will make a map task for each region of the table.
-  Thus, if there are 100 regions in the table, there will be
-  100 map-tasks for the job - regardless of how many column families are selected in the Scan.</para>
+    <title>Map-Task Spitting</title>
+    <section xml:id="splitter.default">
+    <title>The Default HBase MapReduce Splitter</title>
+    <para>When <link xlink:href="http://hbase.apache.org/apidocs/org/apache/hadoop/hbase/mapreduce/TableInputFormat.html">TableInputFormat</link>
+    is used to source an HBase table in a MapReduce job,
+    its splitter will make a map task for each region of the table.
+    Thus, if there are 100 regions in the table, there will be
+    100 map-tasks for the job - regardless of how many column families are selected in the Scan.</para>
+    </section>
+    <section xml:id="splitter.custom">
+    <title>Custom Splitters</title>
+    <para>For those interested in implementing custom splitters, see the method <code>getSplits</code> in 
+    <link xlink:href="http://hbase.apache.org/apidocs/org/apache/hadoop/hbase/mapreduce/TableInputFormatBase.html">TableInputFormatBase</link>.
+    That is where the logic for map-task assignment resides.  
+    </para>
+    </section>
   </section>
   <section xml:id="mapreduce.example">
-  <title>HBase Input MapReduce Example</title>
-  <para>To use HBase as a MapReduce source,
-  the job would be configured via <link xlink:href="http://hbase.apache.org/apidocs/org/apache/hadoop/hbase/mapreduce/TableMapReduceUtil.html">TableMapReduceUtil</link> in the following manner...
-	<programlisting>Job job = ...;	
+    <title>HBase MapReduce Examples</title>
+    <section xml:id="mapreduce.example.read">
+    <title>HBase MapReduce Read Example</title>
+    <para>The following is an example of using HBase as a MapReduce source in read-only manner.  Specifically,
+    there is a Mapper instance but no Reducer, and nothing is being emitted from the Mapper.  There job would be defined
+    as follows...
+	<programlisting>
+Configuration config = HBaseConfiguration.create();
+Job job = new Job(config, "ExampleRead");
+job.setJarByClass(MyReadJob.class);     // class that contains mapper
+	
 Scan scan = new Scan();
-scan.setCaching(500);  // 1 is the default in Scan, which will be bad for MapReduce jobs
-scan.setCacheBlocks(false);  
-// Now set other scan attrs
+scan.setCaching(500);        // 1 is the default in Scan, which will be bad for MapReduce jobs
+scan.setCacheBlocks(false);  // don't set to true for MR jobs
+// set other scan attrs
 ...
   
 TableMapReduceUtil.initTableMapperJob(
-  tableName,   		// input HBase table name
-  scan, 			// Scan instance to control CF and attribute selection
-  MyMapper.class,		// mapper
-  Text.class,		// reducer key 
-  LongWritable.class,	// reducer value
-  job			// job instance
-  );</programlisting>
+  tableName,        // input HBase table name
+  scan,             // Scan instance to control CF and attribute selection
+  MyMapper.class,   // mapper
+  null,             // mapper output key 
+  null,             // mapper output value
+  job);
+job.setOutputFormatClass(NullOutputFormat.class);   // because we aren't emitting anything from mapper
+	    
+boolean b = job.waitForCompletion(true);
+if (!b) {
+  throw new IOException("error with job!");
+}
+  </programlisting>
   ...and the mapper instance would extend <link xlink:href="http://hbase.apache.org/apidocs/org/apache/hadoop/hbase/mapreduce/TableMapper.html">TableMapper</link>...
 	<programlisting>
-public class MyMapper extends TableMapper&lt;Text, LongWritable&gt; {
+public static class MyMapper extends TableMapper&lt;Text, Text&gt; {
+
   public void map(ImmutableBytesWritable row, Result value, Context context) throws InterruptedException, IOException {
-  // process data for the row from the Result instance.</programlisting>
-  	</para>
+    // process data for the row from the Result instance.
+   }
+}    
+    </programlisting>
+  	  </para>
+  	 </section>
+    <section xml:id="mapreduce.example.readwrite">
+    <title>HBase MapReduce Read/Write Example</title>
+    <para>The following is an example of using HBase both as a source and as a sink with MapReduce. 
+    This example will simply copy data from one table to another.
+    <programlisting>
+Configuration config = HBaseConfiguration.create();
+Job job = new Job(config,"ExampleReadWrite");
+job.setJarByClass(MyReadWriteJob.class);    // class that contains mapper
+	        	        
+Scan scan = new Scan();
+scan.setCaching(500);        // 1 is the default in Scan, which will be bad for MapReduce jobs
+scan.setCacheBlocks(false);  // don't set to true for MR jobs
+// set other scan attrs
+	        
+TableMapReduceUtil.initTableMapperJob(
+	sourceTable,      // input table
+	scan,	          // Scan instance to control CF and attribute selection
+	MyMapper.class,   // mapper class
+	null,	          // mapper output key
+	null,	          // mapper output value
+	job);
+TableMapReduceUtil.initTableReducerJob(
+	targetTable,      // output table
+	null,             // reducer class
+	job);
+job.setNumReduceTasks(0);
+	        
+boolean b = job.waitForCompletion(true);
+if (!b) {
+    throw new IOException("error with job!");
+}
+    </programlisting>
+	An explanation is required of what <classname>TableMapReduceUtil</classname> is doing, especially with the reducer.  
+	<link xlink:href="http://hbase.apache.org/apidocs/org/apache/hadoop/hbase/mapreduce/TableOutputFormat.html">TableOutputFormat</link> is being used
+	as the outputFormat class, and several parameters are being set on the config (e.g., TableOutputFormat.OUTPUT_TABLE), as
+	well as setting the reducer output key to <classname>ImmutableBytesWritable</classname> and reducer value to <classname>Writable</classname>.
+	These could be set by the programmer on the job and conf, but <classname>TableMapReduceUtil</classname> tries to make things easier.    
+	<para>The following is the example mapper, which will create a <classname>Put</classname> and matching the input <classname>Result</classname>
+	and emit it.  Note:  this is what the CopyTable utility does.
+	</para>
+    <programlisting>
+public static class MyMapper extends TableMapper&lt;ImmutableBytesWritable, Put&gt;  {
+
+	public void map(ImmutableBytesWritable row, Result value, Context context) throws IOException, InterruptedException {
+		// this example is just copying the data from the source table...
+   		context.write(row, resultToPut(row,value));
+   	}
+        
+  	private static Put resultToPut(ImmutableBytesWritable key, Result result) throws IOException {
+  		Put put = new Put(key.get());
+ 		for (KeyValue kv : result.raw()) {
+			put.add(kv);
+		}
+		return put;
+   	}
+}
+    </programlisting>
+    <para>There isn't actually a reducer step, so <classname>TableOutputFormat</classname> takes care of sending the <classname>Put</classname>
+    to the target table. 
+    </para>
+    <para>This is just an example, developers could choose not to use <classname>TableOutputFormat</classname> and connect to the 
+    target table themselves.
+    </para>
+    </para>
+    </section>
+    <section xml:id="mapreduce.example.summary">
+    <title>HBase MapReduce Summary Example</title>
+    <para>The following example uses HBase as a MapReduce source and sink with a summarization step.  This example will 
+    count the number of distinct instances of a value in a table and write those summarized counts in another table.
+    <programlisting>
+Configuration config = HBaseConfiguration.create();
+Job job = new Job(config,"ExampleSummary");
+job.setJarByClass(MySummaryJob.class);     // class that contains mapper and reducer
+	        
+Scan scan = new Scan();
+scan.setCaching(500);        // 1 is the default in Scan, which will be bad for MapReduce jobs
+scan.setCacheBlocks(false);  // don't set to true for MR jobs
+// set other scan attrs
+	        
+TableMapReduceUtil.initTableMapperJob(
+	sourceTable,        // input table
+	scan,               // Scan instance to control CF and attribute selection
+	MyMapper.class,     // mapper class
+	Text.class,         // mapper output key
+	IntWritable.class,  // mapper output value
+	job);
+TableMapReduceUtil.initTableReducerJob(
+	targetTable,        // output table
+	MyReducer.class,    // reducer class
+	job);
+job.setNumReduceTasks(1);   // at least one, adjust as required
+	    
+boolean b = job.waitForCompletion(true);
+if (!b) {
+	throw new IOException("error with job!");
+}    
+    </programlisting>
+    In this example mapper a column with a String-value is chosen as the value to summarize upon.  
+    This value is used as the key to emit from the mapper, and an <classname>IntWritable</classname> represents an instance counter.
+    <programlisting>
+public static class MyMapper extends TableMapper&lt;Text, IntWritable&gt;  {
+
+	private final IntWritable ONE = new IntWritable(1);
+   	private Text text = new Text();
+    	
+   	public void map(ImmutableBytesWritable row, Result value, Context context) throws IOException, InterruptedException {
+        	String val = new String(value.getValue(Bytes.toBytes("cf"), Bytes.toBytes("attr1")));
+          	text.set(val);     // we can only emit Writables...
+
+        	context.write(text, ONE);
+   	}
+}
+    </programlisting>
+    In the reducer, the "ones" are counted (just like any other MR example that does this), and then emits a <classname>Put</classname>.
+    <programlisting>
+public static class MyReducer extends TableReducer&lt;Text, IntWritable, ImmutableBytesWritable&gt;  {
+        
+ 	public void reduce(Text key, Iterable&lt;IntWritable&gt; values, Context context) throws IOException, InterruptedException {
+    		int i = 0;
+    		for (IntWritable val : values) {
+    			i += val.get();
+    		}
+    		Put put = new Put(Bytes.toBytes(key.toString()));
+    		put.add(Bytes.toBytes("cf"), Bytes.toBytes("count"), Bytes.toBytes(i));
+
+    		context.write(null, put);
+   	}
+}
+    </programlisting>
+    
+    </para>
+    </section>
    </section>
    <section xml:id="mapreduce.htable.access">
    <title>Accessing Other HBase Tables in a MapReduce Job</title>
@@ -123,10 +283,16 @@ public class MyMapper extends TableMapper&lt;Text, LongWritable&gt; {
 	<programlisting>public class MyMapper extends TableMapper&lt;Text, LongWritable&gt; {
   private HTable myOtherTable;
 
-  @Override
   public void setup(Context context) {
     myOtherTable = new HTable("myOtherTable");
-  }</programlisting>
+  }
+  
+  public void map(ImmutableBytesWritable row, Result value, Context context) throws IOException, InterruptedException {
+	// process Result...
+	// use 'myOtherTable' for lookups
+  }
+  
+  </programlisting>
    </para>
     </section>
   <section xml:id="mapreduce.specex">
@@ -381,7 +547,7 @@ admin.enableTable(table);
       </title>
       <para>A secondary index could be created in an other table which is periodically updated via a MapReduce job.  The job could be executed intra-day, but depending on 
       load-strategy it could still potentially be out of sync with the main data table.</para>
-      <para>See <xref linkend="mapreduce"/> for more information.</para>
+      <para>See <xref linkend="mapreduce.example.readwrite"/> for more information.</para>
     </section>
     <section xml:id="secondary.indexes.dualwrite">
       <title>
@@ -396,7 +562,7 @@ admin.enableTable(table);
       </title>
       <para>Where time-ranges are very wide (e.g., year-long report) and where the data is voluminous, summary tables are a common approach.
       These would be generated with MapReduce jobs into another table.</para>
-      <para>See <xref linkend="mapreduce"/> for more information.</para>
+      <para>See <xref linkend="mapreduce.example.summary"/> for more information.</para>
     </section>
     <section xml:id="secondary.indexes.coproc">
       <title>
@@ -635,6 +801,61 @@ admin.enableTable(table);
       specifies a <literal>cell</literal> in HBase. 
       Cell content is uninterrpreted bytes</para>
     </section>
+    <section xml:id="data_model_operations">
+       <title>Data Model Operations</title>
+       <para>The four primary data model operations are Get, Put, Scan, and Delete.  Operations are applied via 
+       <link xlink:href="http://hbase.apache.org/docs/current/api/org/apache/hadoop/hbase/client/HTable.html">HTable</link> instances.
+       </para>
+      <section xml:id="get">
+        <title>Get</title>
+        <para><link xlink:href="http://hbase.apache.org/docs/current/api/org/apache/hadoop/hbase/client/Get.html">Get</link> returns
+        attributes for a specified row.  Gets are executed via 
+        <link xlink:href="http://hbase.apache.org/docs/current/api/org/apache/hadoop/hbase/client/HTable.html#get%28org.apache.hadoop.hbase.client.Get%29">
+        HTable.get</link>.
+        </para>
+      </section>
+      <section xml:id="put">
+        <title>Put</title>
+        <para><link xlink:href="http://hbase.apache.org/docs/current/api/org/apache/hadoop/hbase/client/Put.html">Put</link> either 
+        adds new rows to a table (if the key is new) or can update existing rows (if the key already exists).  Puts are executed via
+        <link xlink:href="http://hbase.apache.org/docs/current/api/org/apache/hadoop/hbase/client/HTable.html#put%28org.apache.hadoop.hbase.client.Put%29">
+        HTable.put</link> (writeBuffer) or <link xlink:href="http://hbase.apache.org/docs/current/api/org/apache/hadoop/hbase/client/HTable.html#batch%28java.util.List%29">
+        HTable.batch</link> (non-writeBuffer).  
+        </para>
+      </section>
+      <section xml:id="scan">
+          <title>Scans</title>
+          <para><link xlink:href="http://hbase.apache.org/docs/current/api/org/apache/hadoop/hbase/client/Scan.html">Scan</link> allow
+          iteration over multiple rows for specified attributes.
+          </para>
+          <para>The following is an example of a 
+           on an HTable table instance.  Assume that a table is populated with rows with keys "row1", "row2", "row3", 
+           and then another set of rows with the keys "abc1", "abc2", and "abc3".  The following example shows how startRow and stopRow 
+           can be applied to a Scan instance to return the rows beginning with "row".        
+<programlisting>
+HTable htable = ...      // instantiate HTable
+    
+Scan scan = new Scan();
+scan.addColumn(Bytes.toBytes("cf"),Bytes.toBytes("attr"));
+scan.setStartRow( Bytes.toBytes("row"));
+scan.setStopRow( Bytes.toBytes("row" +  new byte[] {0}));  // note: stop key != start key
+for(Result result : htable.getScanner(scan)) {
+  // process Result instance
+}
+</programlisting>
+         </para>        
+        </section>
+      <section xml:id="delete">
+        <title>Delete</title>
+        <para><link xlink:href="http://hbase.apache.org/docs/current/api/org/apache/hadoop/hbase/client/Delete.html">Delete</link> removes
+        a row from a table.  Deletes are executed via 
+        <link xlink:href="http://hbase.apache.org/docs/current/api/org/apache/hadoop/hbase/client/HTable.html#delete%28org.apache.hadoop.hbase.client.Delete%29">
+        HTable.delete</link>.
+        </para>
+      </section>
+            
+    </section>
+
 
     <section xml:id="versions">
       <title>Versions<indexterm><primary>Versions</primary></indexterm></title>
@@ -728,25 +949,26 @@ admin.enableTable(table);
         <section xml:id="default_get_example">
         <title>Default Get Example</title>
         <para>The following Get will only retrieve the current version of the row
-        <programlisting>
-        Get get = new Get(Bytes.toBytes("row1"));
-        Result r = htable.get(get);
-        byte[] b = r.getValue(Bytes.toBytes("cf"), Bytes.toBytes("attr"));  // returns current version of value          </programlisting>
+<programlisting>
+Get get = new Get(Bytes.toBytes("row1"));
+Result r = htable.get(get);
+byte[] b = r.getValue(Bytes.toBytes("cf"), Bytes.toBytes("attr"));  // returns current version of value          
+</programlisting>
         </para>
         </section>
         <section xml:id="versioned_get_example">
         <title>Versioned Get Example</title>
         <para>The following Get will return the last 3 versions of the row.
-        <programlisting>
-        Get get = new Get(Bytes.toBytes("row1"));
-        get.setMaxVersions(3);  // will return last 3 versions of row
-        Result r = htable.get(get);
-        byte[] b = r.getValue(Bytes.toBytes("cf"), Bytes.toBytes("attr"));  // returns current version of value
-        List&lt;KeyValue&gt; kv = r.getColumn(Bytes.toBytes("cf"), Bytes.toBytes("attr"));  // returns all versions of this column       
-        </programlisting>
+<programlisting>
+Get get = new Get(Bytes.toBytes("row1"));
+get.setMaxVersions(3);  // will return last 3 versions of row
+Result r = htable.get(get);
+byte[] b = r.getValue(Bytes.toBytes("cf"), Bytes.toBytes("attr"));  // returns current version of value
+List&lt;KeyValue&gt; kv = r.getColumn(Bytes.toBytes("cf"), Bytes.toBytes("attr"));  // returns all versions of this column       
+</programlisting>
         </para>
         </section>
-
+     
         <section>
           <title>Put</title>
 
@@ -763,24 +985,25 @@ admin.enableTable(table);
           <section xml:id="implicit_version_example">
           <title>Implicit Version Example</title>
           <para>The following Put will be implicitly versioned by HBase with the current time.
-          <programlisting>
-          Put put = new Put(Bytes.toBytes(row));
-          put.add(Bytes.toBytes("cf"), Bytes.toBytes("attr1"), Bytes.toBytes( data));
-          htable.put(put);
-          </programlisting>
+<programlisting>
+Put put = new Put(Bytes.toBytes(row));
+put.add(Bytes.toBytes("cf"), Bytes.toBytes("attr1"), Bytes.toBytes( data));
+htable.put(put);
+</programlisting>
           </para>
           </section>
           <section xml:id="explicit_version_example">
           <title>Explicit Version Example</title>
           <para>The following Put has the version timestamp explicitly set.
-          <programlisting>
-          Put put = new Put( Bytes.toBytes(row ));
-          long explicitTimeInMs = 555;  // just an example
-          put.add(Bytes.toBytes("cf"), Bytes.toBytes("attr1"), explicitTimeInMs, Bytes.toBytes(data));
-          htable.put(put);
-          </programlisting>
+<programlisting>
+Put put = new Put( Bytes.toBytes(row));
+long explicitTimeInMs = 555;  // just an example
+put.add(Bytes.toBytes("cf"), Bytes.toBytes("attr1"), explicitTimeInMs, Bytes.toBytes(data));
+htable.put(put);
+</programlisting>
           </para>
           </section>
+          
         </section>
 
         <section>
@@ -999,369 +1222,12 @@ HTable table2 = new HTable(conf2, "myTable");</programlisting>
            optionally configured with <link xlink:href="http://hbase.apache.org/apidocs/org/apache/hadoop/hbase/filter/Filter.html">filters</link> which are applied on the RegionServer. 
     	   </para>
 		</section>
+	   <section xml:id="client.external"><title>External Clients</title>
+           <para>Information on non-Java clients and custom protocols is covered in <xref linkend="external_apis" />
+           </para>
+		</section>
 	</section>
-    
-           <section xml:id="client.filter-language"><title>Filter Language</title>
-             <section xml:id="use-case"><title>Use Case</title>
-               <para>This allows the user to perform server-side filtering when accessing HBase over Thrift. The user specifies a filter via a string. The string is parsed on the server to construct the filter</para>
-             </section>
-
-             <section xml:id="general-syntax"><title>General Filter String Syntax</title>
-               <para>A simple filter expression is expressed as: <code>“FilterName (argument, argument, ... , argument)”</code></para>
-               <para>You must specify the name of the filter followed by the argument list in parenthesis. Commas separate the individual arguments</para>
-               <para>If the argument represents a string, it should be enclosed in single quotes.</para>
-               <para>If it represents a boolean, an integer or a comparison operator like &lt;,
-                 >, != etc. it should not be enclosed in quotes</para>
-               <para>The filter name must be one word. All ASCII characters are allowed except for whitespace, single quotes and parenthesis.</para>
-               <para>The filter’s arguments can contain any ASCII character. <code>If single quotes are present in the argument, they must be escaped by a
-                   preceding single quote</code></para>
-             </section>
-
-             <section xml:id="compound-filters-and-operators"><title>Compound Filters and Operators</title>
-               <para>Currently, two binary operators – AND/OR and two unary operators – WHILE/SKIP are supported.</para>
-               <para>Note: the operators are all in uppercase</para>
-               <para><emphasis role="bold">AND</emphasis> – as the name suggests, if this
-                 operator is used, the key-value must pass both the filters</para>
-               <para><emphasis role="bold">OR</emphasis> – as the name suggests, if this operator
-                 is used, the key-value must pass at least one of the filters</para>
-               <para><emphasis role="bold">SKIP</emphasis> – For a particular row, if any of the
-                 key-values don’t pass the filter condition, the entire row is skipped</para>
-               <para><emphasis role="bold">WHILE</emphasis> - For a particular row, it continues
-                 to emit key-values until a key-value is reached that fails the filter condition</para>
-               <para><emphasis role="bold">Compound Filters:</emphasis> Using these operators, a
-                 hierarchy of filters can be created. For example: <code>“(Filter1 AND Filter2) OR (Filter3 AND Filter4)”</code></para>
-             </section>
-
-             <section xml:id="order-of-evaluation"><title>Order of Evaluation</title>
-               <para>Parenthesis have the highest precedence. The SKIP and WHILE operators are next and have the same precedence.The AND operator has the next highest precedence followed by the OR operator.</para>
-               <para>For example:</para>
-               <para>A filter string of the form:<code>“Filter1 AND Filter2 OR Filter3”</code>
-                 will be evaluated as:<code>“(Filter1 AND Filter2) OR Filter3”</code></para>
-               <para>A filter string of the form:<code>“Filter1 AND SKIP Filter2 OR Filter3”</code>
-                 will be evaluated as:<code>“(Filter1 AND (SKIP Filter2)) OR Filter3”</code></para>
-             </section>
-
-             <section xml:id="compare-operator"><title>Compare Operator</title>
-               <para>A compare operator can be any of the following:</para>
-               <orderedlist>
-                 <listitem>
-                   <para>LESS (&lt;)</para>
-                 </listitem>
-                 <listitem>
-                   <para>LESS_OR_EQUAL (&lt;=)</para>
-                 </listitem>
-                 <listitem>
-                   <para>EQUAL (=)</para>
-                 </listitem>
-                 <listitem>
-                   <para>NOT_EQUAL (!=)</para>
-                 </listitem>
-                 <listitem>
-                   <para>GREATER_OR_EQUAL (&gt;=)</para>
-                 </listitem>
-                 <listitem>
-                   <para>GREATER (&gt;)</para>
-                 </listitem>
-                 <listitem>
-                   <para>NO_OP (no operation)</para>
-                 </listitem>
-               </orderedlist>
-               <para>The client should use the symbols (&lt;, &lt;=, =, !=, >, >=) to express
-                 compare operators.</para>
-             </section>
-
-             <section xml:id="comparator"><title>Comparator</title>
-               <para>A comparator can be any of the following:</para>
-               <orderedlist>
-                 <listitem>
-                   <para><emphasis role="bold">BinaryComparator</emphasis> - This
-                     lexicographically compares against the specified byte array using
-                     Bytes.compareTo(byte[], byte[])</para>
-                 </listitem>
-                 <listitem>
-                   <para><emphasis role="bold">BinaryPrefixComparator</emphasis> - This
-                     lexicographically compares against a specified byte array. It only compares up to
-                     the length of this byte array.</para>
-                 </listitem>
-                 <listitem>
-                   <para><emphasis role="bold">RegexStringComparator</emphasis> - This compares
-                     against the specified byte array using the given regular expression. Only EQUAL
-                     and NOT_EQUAL comparisons are valid with this comparator</para>
-                 </listitem>
-                 <listitem>
-                   <para><emphasis role="bold">SubStringComparator</emphasis> - This tests if
-                     the given substring appears in a specified byte array. The comparison is case
-                     insensitive. Only EQUAL and NOT_EQUAL comparisons are valid with this
-                     comparator</para>
-                 </listitem>
-               </orderedlist>
-               <para>The general syntax of a comparator is:<code> ComparatorType:ComparatorValue</code></para>
-               <para>The ComparatorType for the various comparators is as follows:</para>
-               <orderedlist>
-                 <listitem>
-                   <para><emphasis role="bold">BinaryComparator</emphasis> - binary</para>
-                 </listitem>
-                 <listitem>
-                   <para><emphasis role="bold">BinaryPrefixComparator</emphasis> - binaryprefix</para>
-                 </listitem>
-                 <listitem>
-                   <para><emphasis role="bold">RegexStringComparator</emphasis> - regexstring</para>
-                 </listitem>
-                 <listitem>
-                   <para><emphasis role="bold">SubStringComparator</emphasis> - substring</para>
-                 </listitem>
-               </orderedlist>
-               <para>The ComparatorValue can be any value.</para>
-               <para>Example1:<code> >, 'binary:abc' </code>will match everything that is lexicographically greater than "abc" </para>
-               <para>Example2:<code> =, 'binaryprefix:abc' </code>will match everything whose first 3 characters are lexicographically equal to "abc"</para>
-               <para>Example3:<code> !=, 'regexstring:ab*yz' </code>will match everything that doesn't begin with "ab" and ends with "yz"</para>
-               <para>Example4:<code> =, 'substring:abc123' </code>will match everything that begins with the substring "abc123"</para>
-             </section>
-
-             <section xml:id="example PHP Client Program"><title>Example PHP Client Program that uses the Filter Language</title>
-               <programlisting>
-&lt;? $_SERVER['PHP_ROOT'] = realpath(dirname(__FILE__).'/..');
-   require_once $_SERVER['PHP_ROOT'].'/flib/__flib.php';
-   flib_init(FLIB_CONTEXT_SCRIPT);
-   require_module('storage/hbase');
-   $hbase = new HBase('&lt;server_name_running_thrift_server&gt;', &lt;port on which thrift server is running&gt;);
-   $hbase->open();
-   $client = $hbase->getClient();
-   $result = $client-&gt;scannerOpenWithFilterString('table_name', "(PrefixFilter ('row2') AND (QualifierFilter (&gt;=, 'binary:xyz'))) AND (TimestampsFilter ( 123, 456))");
-   $to_print = $client-&gt;scannerGetList($result,1);
-   while ($to_print) {
-      print_r($to_print);
-      $to_print = $client-&gt;scannerGetList($result,1);
-    }
-   $client-&gt;scannerClose($result);
-?>
-        </programlisting>
-      </section>
-
-      <section xml:id="example-filter-strings"><title>Example Filter Strings</title>
-        <para>
-          <itemizedlist>
-            <listitem>
-              <para><code>“PrefixFilter (‘Row’) AND PageFilter (1) AND FirstKeyOnlyFilter ()”</code> will return all key-value pairs that match the following conditions:</para>
-              <para>1) The row containing the key-value should have prefix “Row” </para>
-              <para>2) The key-value must be located in the first row of the table </para>
-              <para>3) The key-value pair must be the first key-value in the row </para>
-            </listitem>
-          </itemizedlist>
-        </para>
-
-        <orderedlist>
-          <para>
-            <itemizedlist>
-              <listitem>
-                <para><code>“(RowFilter (=, ‘binary:Row 1’) AND TimeStampsFilter (74689, 89734)) OR
-                    ColumnRangeFilter (‘abc’, true, ‘xyz’, false))”</code> will return all key-value pairs that match both the following conditions:</para>
-                <para>1) The key-value is in a row having row key “Row 1” </para>
-                <para>2) The key-value must have a timestamp of either 74689 or 89734.</para>
-                <para>Or it must match the following condition:</para>
-                <para>1) The key-value pair must be in a column that is lexicographically >= abc and &lt; xyz </para>
-              </listitem>
-            </itemizedlist>
-          </para>
-        </orderedlist>
-
-        <para>
-          <itemizedlist>
-            <listitem>
-              <para><code>“SKIP ValueFilter (0)”</code> will skip the entire row if any of the values in the row is not 0</para>
-            </listitem>
-          </itemizedlist>
-        </para>
-      </section>
-
-      <section xml:id="Individual Filter Syntax"><title>Individual Filter Syntax</title>
-        <orderedlist>
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">KeyOnlyFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter doesn’t take any
-              arguments. It returns only the key component of each key-value. </para>
-            <para><emphasis role="bold">Syntax:</emphasis> KeyOnlyFilter () </para>
-            <para><emphasis role="bold">Example:</emphasis> "KeyOnlyFilter ()"</para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">FirstKeyOnlyFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter doesn’t take any
-              arguments. It returns only the first key-value from each row. </para>
-            <para><emphasis role="bold">Syntax:</emphasis> FirstKeyOnlyFilter () </para>
-            <para><emphasis role="bold">Example:</emphasis> "FirstKeyOnlyFilter ()" </para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">PrefixFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes one argument – a prefix of a
-              row key. It returns only those key-values present in a row that starts with the
-              specified row prefix</para>
-            <para><emphasis role="bold">Syntax:</emphasis> PrefixFilter (‘&lt;row_prefix>’) </para>
-            <para><emphasis role="bold">Example:</emphasis> "PrefixFilter (‘Row’)" </para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">
-                  ColumnPrefixFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes one argument
-              – a column prefix. It returns only those key-values present in a column that starts
-              with the specified column prefix. The column prefix must be of the form: <code>“qualifier” </code></para>
-            <para><emphasis role="bold">Syntax:</emphasis>ColumnPrefixFilter(‘&lt;column_prefix>’)</para>
-            <para><emphasis role="bold">Example:</emphasis> "ColumnPrefixFilter(‘Col’)"</para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="underline"><emphasis role="bold">MultipleColumnPrefixFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes a list of
-              column prefixes. It returns key-values that are present in a column that starts with
-              any of the specified column prefixes. Each of the column prefixes must be of the form: <code>“qualifier”</code></para>
-            <para><emphasis role="bold">Syntax:</emphasis>MultipleColumnPrefixFilter(‘&lt;column_prefix>’, ‘&lt;column_prefix>’, …, ‘&lt;column_prefix>’)</para>
-            <para><emphasis role="bold">Example:</emphasis> "MultipleColumnPrefixFilter(‘Col1’, ‘Col2’)" </para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">ColumnCountGetFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes one argument
-              – a limit. It returns the first limit number of columns in the table</para>
-            <para><emphasis role="bold">Syntax:</emphasis> ColumnCountGetFilter (‘&lt;limit>’)</para>
-            <para><emphasis role="bold">Example:</emphasis> "ColumnCountGetFilter (4)"</para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">PageFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes one argument
-              – a page size. It returns page size number of rows from the table. </para>
-            <para><emphasis role="bold">Syntax:</emphasis> PageFilter (‘&lt;page_size>’)</para>
-            <para><emphasis role="bold">Example:</emphasis> "PageFilter (2)" </para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">ColumnPaginationFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes two
-              arguments – a limit and offset. It returns limit number of columns after offset number
-              of columns. It does this for all the rows</para>
-            <para><emphasis role="bold">Syntax:</emphasis> ColumnPaginationFilter(‘&lt;limit>’, ‘&lt;offest>’) </para>
-            <para><emphasis role="bold">Example:</emphasis> "ColumnPaginationFilter (3, 5)" </para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">InclusiveStopFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes one argument
-              – a row key on which to stop scanning. It returns all key-values present in rows up to
-              and including the specified row</para>
-            <para><emphasis role="bold">Syntax:</emphasis> InclusiveStopFilter(‘&lt;stop_row_key>’) </para>
-            <para><emphasis role="bold">Example:</emphasis> "InclusiveStopFilter ('Row2')" </para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">TimeStampsFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes a list of
-              timestamps. It returns those key-values whose timestamps matches any of the specified
-              timestamps</para>
-            <para> <emphasis role="bold">Syntax:</emphasis> TimeStampsFilter (&lt;timestamp>, &lt;timestamp>, ... ,&lt;timestamp>) </para>
-            <para> <emphasis role="bold">Example:</emphasis> "TimeStampsFilter (5985489, 48895495, 58489845945)"</para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">RowFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes a compare
-              operator and a comparator. It compares each row key with the comparator using the
-              compare operator and if the comparison returns true, it returns all the key-values in
-              that row</para>
-            <para><emphasis role="bold">Syntax:</emphasis> RowFilter (&lt;compareOp>, ‘&lt;row_comparator>’) </para>
-            <para><emphasis role="bold">Example: </emphasis>"RowFilter (&lt;=, ‘xyz)" </para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">Family Filter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes a compare
-              operator and a comparator. It compares each qualifier name with the comparator using
-              the compare operator and if the comparison returns true, it returns all the key-values
-              in that column</para>
-            <para><emphasis role="bold">Syntax:</emphasis> QualifierFilter (&lt;compareOp&gt;, ‘&lt;qualifier_comparator>’) </para>
-            <para><emphasis role="bold">Example:</emphasis> "QualifierFilter (=, ‘Column1’)"</para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">QualifierFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes a compare
-              operator and a comparator. It compares each qualifier name with the comparator using
-              the compare operator and if the comparison returns true, it returns all the key-values
-              in that column</para>
-            <para><emphasis role="bold">Syntax:</emphasis> QualifierFilter (&lt;compareOp>,‘&lt;qualifier_comparator>’) </para>
-            <para><emphasis role="bold">Example:</emphasis> "QualifierFilter (=,‘Column1’)"</para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">ValueFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes a compare operator and a
-              comparator. It compares each value with the comparator using the compare operator and
-              if the comparison returns true, it returns that key-value</para>
-            <para><emphasis role="bold">Syntax:</emphasis> ValueFilter (&lt;compareOp>,‘&lt;value_comparator>’) </para>
-            <para><emphasis role="bold">Example:</emphasis> "ValueFilter (!=, ‘Value’)" </para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">DependentColumnFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes two arguments – a family
-              and a qualifier. It tries to locate this column in each row and returns all key-values
-              in that row that have the same timestamp. If the row doesn’t contain the specified
-              column – none of the key-values in that row will be returned.</para>
-            <para>The filter can also take an optional boolean argument – dropDependentColumn. If set to true, the column we were depending on doesn’t get returned.</para>
-            <para>The filter can also take two more additional optional arguments – a compare operator and a value comparator, which are further checks in addition to the family and qualifier. If the dependent column is found, its value should also pass the value check and then only is its timestamp taken into consideration</para>
-            <para><emphasis role="bold">Syntax:</emphasis> DependentColumnFilter (‘&lt;family>’, ‘&lt;qualifier>’, &lt;boolean>, &lt;compare operator>, ‘&lt;value comparator’)</para>
-            <para><emphasis role="bold">Syntax:</emphasis> DependentColumnFilter (‘&lt;family>’, ‘&lt;qualifier>’, &lt;boolean>) </para>
-            <para><emphasis role="bold">Syntax:</emphasis> DependentColumnFilter (‘&lt;family>’, ‘&lt;qualifier>’) </para>
-            <para><emphasis role="bold">Example:</emphasis> "DependentColumnFilter (‘conf’, ‘blacklist’, false, >=, ‘zebra’)" </para>
-            <para><emphasis role="bold">Example:</emphasis> "DependentColumnFilter (‘conf’, 'blacklist', true)"</para>
-            <para><emphasis role="bold">Example:</emphasis> "DependentColumnFilter (‘conf’, 'blacklist')"</para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">SingleColumnValueFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes a column family, a
-              qualifier, a compare operator and a comparator. If the specified column is not found –
-              all the columns of that row will be emitted. If the column is found and the comparison
-              with the comparator returns true, all the columns of the row will be emitted. If the
-              condition fails, the row will not be emitted. </para>
-            <para>This filter also takes two additional optional boolean arguments – filterIfColumnMissing and setLatestVersionOnly</para>
-            <para>If the filterIfColumnMissing flag is set to true the columns of the row will not be emitted if the specified column to check is not found in the row. The default value is false.</para>
-            <para>If the setLatestVersionOnly flag is set to false, it will test previous versions (timestamps) too. The default value is true.</para>
-            <para>These flags are optional and if you must set neither or both</para>
-            <para><emphasis role="bold">Syntax:</emphasis> SingleColumnValueFilter(&lt;compare operator>, ‘&lt;comparator>’, ‘&lt;family>’, ‘&lt;qualifier>’,&lt;filterIfColumnMissing_boolean>, &lt;latest_version_boolean>) </para>
-            <para><emphasis role="bold">Syntax:</emphasis> SingleColumnValueFilter(&lt;compare operator>, ‘&lt;comparator>’, ‘&lt;family>’, ‘&lt;qualifier>) </para>
-            <para><emphasis role="bold">Example:</emphasis> "SingleColumnValueFilter (&lt;=, ‘abc’,‘FamilyA’, ‘Column1’, true, false)" </para>
-            <para><emphasis role="bold">Example:</emphasis> "SingleColumnValueFilter (&lt;=, ‘abc’,‘FamilyA’, ‘Column1’)" </para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">SingleColumnValueExcludeFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter takes the same arguments and
-              behaves same as SingleColumnValueFilter – however, if the column is found and the
-              condition passes, all the columns of the row will be emitted except for the tested
-              column value. </para>
-            <para><emphasis role="bold">Syntax:</emphasis> SingleColumnValueExcludeFilter(&lt;compare operator>, '&lt;comparator>', '&lt;family>', '&lt;qualifier>',&lt;latest_version_boolean>, &lt;filterIfColumnMissing_boolean>)</para>
-            <para><emphasis role="bold">Syntax:</emphasis> SingleColumnValueExcludeFilter(&lt;compare operator>, '&lt;comparator>', '&lt;family>', '&lt;qualifier>') </para>
-            <para><emphasis role="bold">Example:</emphasis> "SingleColumnValueExcludeFilter (‘&lt;=’, ‘abc’,‘FamilyA’, ‘Column1’, ‘false’, ‘true’)"</para>
-            <para><emphasis role="bold">Example:</emphasis> "SingleColumnValueExcludeFilter (‘&lt;=’, ‘abc’, ‘FamilyA’, ‘Column1’)" </para>
-          </listitem>
-
-          <listitem>
-            <para><emphasis role="bold"><emphasis role="underline">ColumnRangeFilter</emphasis></emphasis></para>
-            <para><emphasis role="bold">Description:</emphasis> This filter is used for selecting only those
-              keys with columns that are between minColumn and maxColumn. It also takes two boolean
-              variables to indicate whether to include the minColumn and maxColumn or not.</para>
-            <para>If you don’t want to set the minColumn or the maxColumn – you can pass in an empty argument.</para>
-            <para><emphasis role="bold">Syntax:</emphasis> ColumnRangeFilter (‘&lt;minColumn>’, &lt;minColumnInclusive_bool>, ‘&lt;maxColumn>’, &lt;maxColumnInclusive_bool>)</para>
-            <para><emphasis role="bold">Example:</emphasis> "ColumnRangeFilter (‘abc’, true, ‘xyz’, false)"</para>
-          </listitem>
-
-          </orderedlist>
-        </section>
-      </section>
-
-
+ 
     <section xml:id="daemons">
      <title>Daemons</title>
      <section xml:id="master"><title>Master</title>
@@ -1759,216 +1625,8 @@ HTable table2 = new HTable(conf2, "myTable");</programlisting>
   <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="troubleshooting.xml" />
   <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="build.xml" />
   <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="developer.xml" />
-
-  <appendix xml:id="tools">
-    <title >Tools</title>
-
-    <para>Here we list HBase tools for administration, analysis, fixup, and
-    debugging.</para>
-    <section xml:id="hbck">
-        <title>HBase <application>hbck</application></title>
-        <subtitle>An <emphasis>fsck</emphasis> for your HBase install</subtitle>
-        <para>To run <application>hbck</application> against your HBase cluster run
-        <programlisting>$ ./bin/hbase hbck</programlisting>
-        At the end of the commands output it prints <emphasis>OK</emphasis>
-        or <emphasis>INCONSISTENCY</emphasis>. If your cluster reports
-        inconsistencies, pass <command>-details</command> to see more detail emitted.
-        If inconsistencies, run <command>hbck</command> a few times because the
-        inconsistency may be transient (e.g. cluster is starting up or a region is
-        splitting).
-        Passing <command>-fix</command> may correct the inconsistency (This latter
-        is an experimental feature).
-        </para>
-    </section>
-    <section xml:id="hfile_tool2"><title>HFile Tool</title>
-        <para>See <xref linkend="hfile_tool" />.</para>
-    </section>
-    <section xml:id="wal_tools">
-      <title>WAL Tools</title>
-
-      <section xml:id="hlog_tool">
-        <title><classname>HLog</classname> tool</title>
-
-        <para>The main method on <classname>HLog</classname> offers manual
-        split and dump facilities. Pass it WALs or the product of a split, the
-        content of the <filename>recovered.edits</filename>. directory.</para>
-
-        <para>You can get a textual dump of a WAL file content by doing the
-        following:<programlisting> <code>$ ./bin/hbase org.apache.hadoop.hbase.regionserver.wal.HLog --dump hdfs://example.org:8020/hbase/.logs/example.org,60020,1283516293161/10.10.21.10%3A60020.1283973724012</code> </programlisting>The
-        return code will be non-zero if issues with the file so you can test
-        wholesomeness of file by redirecting <varname>STDOUT</varname> to
-        <code>/dev/null</code> and testing the program return.</para>
-
-        <para>Similarily you can force a split of a log file directory by
-        doing:<programlisting> $ ./<code>bin/hbase org.apache.hadoop.hbase.regionserver.wal.HLog --split hdfs://example.org:8020/hbase/.logs/example.org,60020,1283516293161/</code></programlisting></para>
-      </section>
-    </section>
-    <section xml:id="compression.tool"><title>Compression Tool</title>
-        <para>See <xref linkend="compression.tool" />.</para>
-    </section>
-    <section xml:id="decommission"><title>Node Decommission</title>
-        <para>You can stop an individual RegionServer by running the following
-            script in the HBase directory on the particular  node:
-            <programlisting>$ ./bin/hbase-daemon.sh stop regionserver</programlisting>
-            The RegionServer will first close all regions and then shut itself down.
-            On shutdown, the RegionServer's ephemeral node in ZooKeeper will expire.
-            The master will notice the RegionServer gone and will treat it as
-            a 'crashed' server; it will reassign the nodes the RegionServer was carrying.
-            <note><title>Disable the Load Balancer before Decommissioning a node</title>
-             <para>If the load balancer runs while a node is shutting down, then
-                 there could be contention between the Load Balancer and the
-                 Master's recovery of the just decommissioned RegionServer.
-                 Avoid any problems by disabling the balancer first.
-                 See <xref linkend="lb" /> below.
-             </para>
-            </note>
-        </para>
-        <para>
-        A downside to the above stop of a RegionServer is that regions could be offline for
-        a good period of time.  Regions are closed in order.  If many regions on the server, the
-        first region to close may not be back online until all regions close and after the master
-        notices the RegionServer's znode gone.  In HBase 0.90.2, we added facility for having
-        a node gradually shed its load and then shutdown itself down.  HBase 0.90.2 added the
-            <filename>graceful_stop.sh</filename> script.  Here is its usage:
-            <programlisting>$ ./bin/graceful_stop.sh 
-Usage: graceful_stop.sh [--config &amp;conf-dir>] [--restart] [--reload] [--thrift] [--rest] &amp;hostname>
- thrift      If we should stop/start thrift before/after the hbase stop/start
- rest        If we should stop/start rest before/after the hbase stop/start
- restart     If we should restart after graceful stop
- reload      Move offloaded regions back on to the stopped server
- debug       Move offloaded regions back on to the stopped server
- hostname    Hostname of server we are to stop</programlisting>
-        </para>
-        <para>
-            To decommission a loaded RegionServer, run the following:
-            <programlisting>$ ./bin/graceful_stop.sh HOSTNAME</programlisting>
-            where <varname>HOSTNAME</varname> is the host carrying the RegionServer
-            you would decommission.  
-            <note><title>On <varname>HOSTNAME</varname></title>
-                <para>The <varname>HOSTNAME</varname> passed to <filename>graceful_stop.sh</filename>
-            must match the hostname that hbase is using to identify RegionServers.
-            Check the list of RegionServers in the master UI for how HBase is
-            referring to servers. Its usually hostname but can also be FQDN.
-            Whatever HBase is using, this is what you should pass the
-            <filename>graceful_stop.sh</filename> decommission
-            script.  If you pass IPs, the script is not yet smart enough to make
-            a hostname (or FQDN) of it and so it will fail when it checks if server is
-            currently running; the graceful unloading of regions will not run.
-            </para>
-        </note> The <filename>graceful_stop.sh</filename> script will move the regions off the
-            decommissioned RegionServer one at a time to minimize region churn.
-            It will verify the region deployed in the new location before it
-            will moves the next region and so on until the decommissioned server
-            is carrying zero regions.  At this point, the <filename>graceful_stop.sh</filename>
-            tells the RegionServer <command>stop</command>.  The master will at this point notice the
-            RegionServer gone but all regions will have already been redeployed
-            and because the RegionServer went down cleanly, there will be no
-            WAL logs to split.
-            <note xml:id="lb"><title>Load Balancer</title>
-            <para> 
-                It is assumed that the Region Load Balancer is disabled while the
-                <command>graceful_stop</command> script runs (otherwise the balancer
-                and the decommission script will end up fighting over region deployments).
-                Use the shell to disable the balancer:
-                <programlisting>hbase(main):001:0> balance_switch false
-true
-0 row(s) in 0.3590 seconds</programlisting>
-This turns the balancer OFF.  To reenable, do:
-                <programlisting>hbase(main):001:0> balance_switch true
-false
-0 row(s) in 0.3590 seconds</programlisting>
-            </para> 
-        </note>
-        </para>
-        <section xml:id="rolling">
-            <title>Rolling Restart</title>
-        <para>
-            You can also ask this script to restart a RegionServer after the shutdown
-            AND move its old regions back into place.  The latter you might do to
-            retain data locality.  A primitive rolling restart might be effected by
-            running something like the following:
-            <programlisting>$ for i in `cat conf/regionservers|sort`; do ./bin/graceful_stop.sh --restart --reload --debug $i; done &amp;> /tmp/log.txt &amp;
-            </programlisting>
-            Tail the output of <filename>/tmp/log.txt</filename> to follow the scripts
-            progress. The above does RegionServers only.  Be sure to disable the
-            load balancer before doing the above.  You'd need to do the master
-            update separately.  Do it before you run the above script.
-            Here is a pseudo-script for how you might craft a rolling restart script:
-            <orderedlist>
-                <listitem><para>Untar your release, make sure of its configuration and
-                        then rsync it across the cluster. If this is 0.90.2, patch it
-                        with HBASE-3744 and HBASE-3756.
-                    </para>
-                </listitem>
-                <listitem>
-                    <para>Run hbck to ensure the cluster consistent
-                        <programlisting>$ ./bin/hbase hbck</programlisting>
-                    Effect repairs if inconsistent.
-                    </para>
-                </listitem>
-                <listitem>
-                    <para>Restart the Master: <programlisting>$ ./bin/hbase-daemon.sh stop master; ./bin/hbase-daemon.sh start master</programlisting>
-                    </para>
-                </listitem>
-                <listitem>
-                    <para>
-                       Disable the region balancer:<programlisting>$ echo "balance_switch false" | ./bin/hbase shell</programlisting>
-                    </para>
-                </listitem>
-                <listitem>
-                     <para>Run the <filename>graceful_stop.sh</filename> script per RegionServer.  For example:
-            <programlisting>$ for i in `cat conf/regionservers|sort`; do ./bin/graceful_stop.sh --restart --reload --debug $i; done &amp;> /tmp/log.txt &amp;
-            </programlisting>
-                     If you are running thrift or rest servers on the RegionServer, pass --thrift or --rest options (See usage
-                     for <filename>graceful_stop.sh</filename> script).
-                 </para>
-                </listitem>
-                <listitem>
-                    <para>Restart the Master again.  This will clear out dead servers list and reenable the balancer.
-                    </para>
-                </listitem>
-                <listitem>
-                    <para>Run hbck to ensure the cluster is consistent.
-                    </para>
-                </listitem>
-            </orderedlist>
-        </para>
-    </section>
-    
-    </section>
-    <section xml:id="copytable">
-        <title>CopyTable</title>
-      <para>
-            CopyTable is a utility that can copy part or of all of a table, either to the same cluster or another cluster. The usage is as follows:
-<programlisting>$ bin/hbase org.apache.hadoop.hbase.mapreduce.CopyTable [--rs.class=CLASS] [--rs.impl=IMPL] [--starttime=X] [--endtime=Y] [--new.name=NEW] [--peer.adr=ADR] tablename
-</programlisting>
-        </para>
-        <para>
-        Options:
-        <itemizedlist>
-          <listitem><varname>rs.class</varname> hbase.regionserver.class of the peer cluster.  Specify if different from current cluster.</listitem>
-          <listitem><varname>rs.impl</varname>  hbase.regionserver.impl of the peer cluster. </listitem>
-          <listitem><varname>starttime</varname>  Beginning of the time range.  Without endtime means starttime to forever.</listitem>
-          <listitem><varname>endtime</varname>  End of the time range.  Without endtime means starttime to forever.</listitem>
-          <listitem><varname>new.name</varname>  New table's name.</listitem>
-          <listitem><varname>peer.adr</varname>  Address of the peer cluster given in the format hbase.zookeeper.quorum:hbase.zookeeper.client.port:zookeeper.znode.parent</listitem>
-          <listitem><varname>families</varname>  Comma-separated list of ColumnFamilies to copy.</listitem>
-        </itemizedlist>
-         Args:
-        <itemizedlist>
-          <listitem>tablename  Name of table to copy.</listitem>
-        </itemizedlist>
-        </para>
-        <para>Example of copying 'TestTable' to a cluster that uses replication for a 1 hour window:
-<programlisting>$ bin/hbase org.apache.hadoop.hbase.mapreduce.CopyTable
---rs.class=org.apache.hadoop.hbase.ipc.ReplicationRegionInterface
---rs.impl=org.apache.hadoop.hbase.regionserver.replication.ReplicationRegionServer
---starttime=1265875194289 --endtime=1265878794289
---peer.adr=server1,server2,server3:2181:/hbase TestTable</programlisting>
-        </para>
-    </section>    
-    
-  </appendix>
+  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="external_apis.xml" />
+  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="ops_mgt.xml" />
 
   <appendix xml:id="compression">
 
@@ -2208,7 +1866,7 @@ When I build, why do I always get <code>Unable to find resource 'VM_global_libra
             </para></question>
             <answer>
                 <para>
-                    See <link xlink:href="http://blog.sematext.com/2011/03/11/hbase-backup-options/">HBase Backup Options</link> over on the Sematext Blog.
+                    See <xref linkend="ops.backup" />
                 </para>
             </answer>
         </qandaentry>
@@ -2227,15 +1885,6 @@ When I build, why do I always get <code>Unable to find resource 'VM_global_libra
 
 <appendix xml:id="hfilev2">
    <title>HFile format version 2</title>
-
-   <appendixinfo>
-           <personname>Mikhail Bautin</personname>
-       <authorgroup>
-           <author><personname>Mikhail Bautin</personname></author>
-           <author><personname>Liyin Tang</personname></author>
-           <author><personname>Kannan Muthukarrupan</personname></author>
-       </authorgroup>
-   </appendixinfo>
 
    <section><title>Motivation </title>
    <para>We found it necessary to revise the HFile format after encountering high memory usage and slow startup times caused by large Bloom filters and block indexes in the region server. Bloom filters can get as large as 100 MB per HFile, which adds up to 2 GB when aggregated over 20 regions. Block indexes can grow as large as 6 GB in aggregate size over the same set of regions. A region is not considered opened until all of its block index data is loaded. Large Bloom filters produce a different performance problem: the first get request that requires a Bloom filter lookup will incur the latency of loading the entire Bloom filter bit array.</para>

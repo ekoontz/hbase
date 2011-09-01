@@ -200,8 +200,10 @@ public class HLogSplitter {
     splits = splitLog(logfiles);
 
     splitTime = EnvironmentEdgeManager.currentTimeMillis() - startTime;
-    logAndReport("hlog file splitting completed in " + splitTime +
-        " ms for " + srcDir.toString());
+    String msg = "hlog file splitting completed in " + splitTime +
+        " ms for " + srcDir.toString();
+    status.markComplete(msg);
+    LOG.info(msg);
     return splits;
   }
   
@@ -993,7 +995,10 @@ public class HLogSplitter {
     }
 
     void finish() {
-      shouldStop = true;
+      synchronized (dataAvailable) {
+        shouldStop = true;
+        dataAvailable.notifyAll();
+      }
     }
   }
 
