@@ -594,7 +594,7 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
     String coprocessorName = (environment.getInstance()).toString();
     server.abort("Aborting service: " + service + " running on : "
             + server.getServerName() + " because coprocessor: "
-            + coprocessorName + " threw an exception.",e);
+            + coprocessorName + " threw an exception.", e);
   }
 
   protected void abortServer(final CoprocessorEnvironment environment, final Throwable e) {
@@ -638,7 +638,7 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
         LOG.error("Removing coprocessor '" + env.toString() + "' from environment because it threw:  " + e,e);
         coprocessors.remove(env);
         throw new DoNotRetryIOException("Coprocessor: '" + env.toString() + "' threw: '" + e + "' and has been removed" +
-          "from the active coprocessor set.",e);
+          "from the active coprocessor set.", e);
       }
     }
   }

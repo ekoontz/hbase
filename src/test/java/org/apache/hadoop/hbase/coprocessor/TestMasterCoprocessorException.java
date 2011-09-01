@@ -53,7 +53,7 @@ public class TestMasterCoprocessorException {
     public boolean masterZKNodeWasDeleted = false;
 
     public MasterTracker(ZooKeeperWatcher zkw, String masterNode, Abortable abortable) {
-      super(zkw,masterNode,abortable);
+      super(zkw, masterNode, abortable);
     }
 
     @Override
@@ -119,8 +119,9 @@ public class TestMasterCoprocessorException {
       startCalled = true;
     }
 
-    public boolean wasStarted() { return startCalled; }
-
+    public boolean wasStarted() {
+      return startCalled;
+    }
   }
 
   private static HBaseTestingUtility UTIL = new HBaseTestingUtility();
@@ -132,7 +133,7 @@ public class TestMasterCoprocessorException {
     Configuration conf = UTIL.getConfiguration();
     conf.set(CoprocessorHost.MASTER_COPROCESSOR_CONF_KEY,
         BuggyMasterObserver.class.getName());
-    conf.set("hbase.coprocessor.abort_on_error","true");
+    conf.set("hbase.coprocessor.abort_on_error", "true");
     UTIL.startMiniCluster(2);
   }
 
@@ -141,7 +142,8 @@ public class TestMasterCoprocessorException {
     UTIL.shutdownMiniCluster();
   }
 
-  // TODO: This is simply copied from TestMasterObserver : factor it out rather than copying.
+  // TODO: This is simply copied from TestMasterObserver : factor it out rather
+  // than copying.
   @Test(timeout=30000)
   public void testStarted() throws Exception {
     MiniHBaseCluster cluster = UTIL.getHBaseCluster();
@@ -152,7 +154,8 @@ public class TestMasterCoprocessorException {
     assertNotNull("CoprocessorHost should not be null", host);
     BuggyMasterObserver cp = (BuggyMasterObserver)host.findCoprocessor(
         BuggyMasterObserver.class.getName());
-    assertNotNull("BuggyMasterObserver coprocessor not found or not installed!", cp);
+    assertNotNull("BuggyMasterObserver coprocessor not found or not installed!",
+        cp);
 
     // check basic lifecycle
     assertTrue("MasterObserver should have been started", cp.wasStarted());
@@ -161,7 +164,8 @@ public class TestMasterCoprocessorException {
   }
 
   @Test(timeout=30000)
-  public void testExceptionFromCoprocessorWhenCreatingTable() throws IOException {
+  public void testExceptionFromCoprocessorWhenCreatingTable()
+      throws IOException {
     MiniHBaseCluster cluster = UTIL.getHBaseCluster();
 
     HMaster master = cluster.getMaster();
@@ -170,7 +174,8 @@ public class TestMasterCoprocessorException {
         BuggyMasterObserver.class.getName());
     assertFalse("No table created yet", cp.wasCreateTableCalled());
 
-    // set a watch on the zookeeper /hbase/master node. If the master dies, the node will be deleted.
+    // set a watch on the zookeeper /hbase/master node. If the master dies,
+    // the node will be deleted.
     ZooKeeperWatcher zkw = new ZooKeeperWatcher(UTIL.getConfiguration(),
       "unittest", new Abortable() {
         @Override
@@ -179,7 +184,8 @@ public class TestMasterCoprocessorException {
         }
     });
 
-    MasterTracker masterTracker = new MasterTracker(zkw,"/hbase/master", new Abortable() {
+    MasterTracker masterTracker = new MasterTracker(zkw,"/hbase/master",
+        new Abortable() {
       @Override
       public void abort(String why, Throwable e) {
         throw new RuntimeException("Fatal ZK master tracker error, why=", e);
@@ -209,17 +215,20 @@ public class TestMasterCoprocessorException {
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
-        assertFalse("InterruptedException while waiting for master zk node to be deleted.",true);
+        assertFalse("InterruptedException while waiting for master zk node to "
+            + "be deleted.", true);
       }
     }
 
-    assertTrue("Master aborted on coprocessor exception, as expected.",masterTracker.masterZKNodeWasDeleted);
+    assertTrue("Master aborted on coprocessor exception, as expected.",
+        masterTracker.masterZKNodeWasDeleted);
 
     createTableThread.interrupt();
     try {
       createTableThread.join(1000);
     } catch (InterruptedException e) {
-      assertTrue("Ignoring InterruptedException while waiting for createTableThread.join().",true);
+      assertTrue("Ignoring InterruptedException while waiting for " +
+          " createTableThread.join().", true);
     }
   }
 

@@ -41,8 +41,8 @@ import static org.junit.Assert.*;
 /**
  * Tests unhandled exceptions thrown by coprocessors running on a regionserver..
  * Expected result is that the regionserver will abort with an informative
- * error message describing the set of its loaded coprocessors for crash diagnosis.
- * (HBASE-4014).
+ * error message describing the set of its loaded coprocessors for crash
+ * diagnosis. (HBASE-4014).
  */
 public class TestRegionServerCoprocessorException {
 
@@ -52,7 +52,8 @@ public class TestRegionServerCoprocessorException {
 
     private String rsNode;
 
-    public DeadRegionServerTracker(ZooKeeperWatcher zkw, String rsNode, Abortable abortable) {
+    public DeadRegionServerTracker(ZooKeeperWatcher zkw, String rsNode,
+                                   Abortable abortable) {
       super(zkw,rsNode,abortable);
       this.rsNode = rsNode;
     }
@@ -74,7 +75,8 @@ public class TestRegionServerCoprocessorException {
 
     @Override
     public void run() {
-      // write to the table: regionserver coprocessor will throw an exception, causing the regionserver to abort.
+      // write to the table: regionserver coprocessor will throw an exception,
+      // causing the regionserver to abort.
       final byte[] ROW = Bytes.toBytes("bbb");
       final byte[] TEST_FAMILY = Bytes.toBytes("aaa");
       Put put = new Put(ROW);
@@ -82,7 +84,7 @@ public class TestRegionServerCoprocessorException {
       try {
         table.put(put);
       } catch (IOException e) {
-        assertFalse("failed to put to table.",true);
+        assertFalse("failed to put to table.", true);
       }
     }
   }
@@ -95,8 +97,9 @@ public class TestRegionServerCoprocessorException {
   public static void setupBeforeClass() throws Exception {
     // set configure to indicate which cp should be loaded
     Configuration conf = TEST_UTIL.getConfiguration();
-    conf.set(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY, BuggyRegionObserver.class.getName());
-    conf.set("hbase.coprocessor.abort_on_error","true");
+    conf.set(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY,
+        BuggyRegionObserver.class.getName());
+    conf.set("hbase.coprocessor.abort_on_error", "true");
     TEST_UTIL.startMiniCluster(2);
   }
 
@@ -106,12 +109,15 @@ public class TestRegionServerCoprocessorException {
   }
 
   @Test(timeout=30000)
-  public void testExceptionFromCoprocessorWhenCreatingTable() throws IOException {
-    // Set watches on the zookeeper nodes for all of the regionservers in the cluster.
-    // When we try to write to TEST_TABLE, the buggy coprocessor will cause a NullPointerException,
-    // which will cause the regionserver (which hosts the region we attempted to write to) to abort.
-    // In turn, this will cause the nodeDeleted() method of the DeadRegionServer tracker to execute,
-    // which will set the rsZKNodeDeleted flag to true, which will pass this test.
+  public void testExceptionFromCoprocessorWhenCreatingTable()
+      throws IOException {
+    // Set watches on the zookeeper nodes for all of the regionservers in the
+    // cluster. When we try to write to TEST_TABLE, the buggy coprocessor will
+    // cause a NullPointerException, which will cause the regionserver (which
+    // hosts the region we attempted to write to) to abort. In turn, this will
+    // cause the nodeDeleted() method of the DeadRegionServer tracker to
+    // execute, which will set the rsZKNodeDeleted flag to true, which will
+    // pass this test.
 
     byte[] TEST_TABLE = Bytes.toBytes("observed_table");
     byte[] TEST_FAMILY = Bytes.toBytes("aaa");
@@ -120,32 +126,37 @@ public class TestRegionServerCoprocessorException {
     TEST_UTIL.createMultiRegions(table, TEST_FAMILY);
 
     // Create a tracker for each RegionServer.
-    // As a future improvement, should only be necessary to track a single regionserver (the one
-    // hosting the region that we are going to attempt to write to).
-    // For now, we don't know how to determine which RegionServer this is, so we track all of them.
-    List<JVMClusterUtil.RegionServerThread> threads = TEST_UTIL.getHBaseCluster().getRegionServerThreads();
+    // As a future improvement, should only be necessary to track a single
+    // regionserver (the one hosting the region that we are going to attempt to
+    // write to). For now, we don't know how to determine which RegionServer
+    // this is, so we track all of them.
+    List<JVMClusterUtil.RegionServerThread> threads =
+        TEST_UTIL.getHBaseCluster().getRegionServerThreads();
     for(JVMClusterUtil.RegionServerThread rst : threads) {
-      String rsNodeString = "/hbase/rs/" + rst.getRegionServer().getServerName();
+      String rsNodeString = "/hbase/rs/" +
+          rst.getRegionServer().getServerName();
       zkw = TEST_UTIL.getHBaseAdmin().getConnection().getZooKeeperWatcher();
-      DeadRegionServerTracker regionServerTracker = new DeadRegionServerTracker(zkw,
-        rsNodeString,
-        new Abortable() {
+      DeadRegionServerTracker regionServerTracker =
+          new DeadRegionServerTracker(zkw, rsNodeString, new Abortable() {
           @Override
           public void abort(String why, Throwable e) {
             assertFalse("regionServerTracker failed because: " + why, true);
           }
         });
       regionServerTracker.start();
-    // TODO: do we need to registerListener()? or is it already taken care of in the super constructor?
+      // TODO: do we need to registerListener()? or is it already taken care of
+      // in the super constructor?
       zkw.registerListener(regionServerTracker);
     }
 
     // Attempting to write TEST_TABLE will trigger BuggyRegionObserver's NPE.
-    // The hosting region server will then abort and the regionserver's ephemeral node in /hbase/rs will be deleted.
+    // The hosting region server will then abort and the regionserver's
+    // ephemeral node in /hbase/rs will be deleted.
     WriteToTableThread writeToTableThread = new WriteToTableThread(table);
     writeToTableThread.start();
 
-    // Wait up to 30 seconds for regionserver's ephemeral node to go away after the regionserver aborts.
+    // Wait up to 30 seconds for regionserver's ephemeral node to go away after
+    // the regionserver aborts.
     for (int i = 0; i < 30; i++) {
       if (rsZKNodeWasDeleted == true) {
         break;
@@ -153,20 +164,24 @@ public class TestRegionServerCoprocessorException {
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
-        assertFalse("InterruptedException while waiting for regionserver zk node to be deleted.",true);
+        assertFalse("InterruptedException while waiting for regionserver " +
+            "zk node to be deleted.", true);
       }
     }
 
-    assertTrue("RegionServer aborted on coprocessor exception, as expected.",rsZKNodeWasDeleted);
+    assertTrue("RegionServer aborted on coprocessor exception, as expected.",
+        rsZKNodeWasDeleted);
     writeToTableThread.interrupt();
     TEST_UTIL.shutdownMiniCluster();
   }
 
     public static class BuggyRegionObserver extends SimpleRegionObserver {
     @Override
-    public void prePut(final ObserverContext<RegionCoprocessorEnvironment> c, final Map<byte[],
-              List<KeyValue>> familyMap, final boolean writeToWAL) {
-      String tableName = c.getEnvironment().getRegion().getRegionInfo().getTableNameAsString();
+    public void prePut(final ObserverContext<RegionCoprocessorEnvironment> c,
+                       final Map<byte[], List<KeyValue>> familyMap,
+                       final boolean writeToWAL) {
+      String tableName =
+          c.getEnvironment().getRegion().getRegionInfo().getTableNameAsString();
       if (tableName.equals("observed_table")) {
         Integer i = null;
         i = i + 1;
