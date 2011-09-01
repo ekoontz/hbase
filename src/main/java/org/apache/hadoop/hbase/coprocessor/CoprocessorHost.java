@@ -74,7 +74,7 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
   }
 
   private static Set<String> coprocessorNames =
-      Collections.synchronizedSet(new HashSet());
+      Collections.synchronizedSet(new HashSet<String>());
   public static Set<String> getLoadedCoprocessors() {
       return coprocessorNames;
   }
@@ -223,7 +223,7 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
       ((Environment)env).startup();
     }
     // HBASE-4014: maintain list of loaded coprocessors for later crash analysis
-    // if server (master or regionserver) abort()s.
+    // if server (master or regionserver) aborts.
     coprocessorNames.add(implClass.getName());
     return env;
   }
@@ -610,7 +610,8 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
 
   /**
    * This is used by coprocessor hooks which are declared to throw IOException
-   * (or its subtypes).For such hooks, throwable objects which are instances of
+   * (or its subtypes). For such hooks, we should hanlde throwable objects
+   * depending on the Throwable's type. Those which are instances of
    * IOException should be passed on to the client. This is in conformance with
    * the HBase idiom regarding IOException: that it represents a circumstance
    * that should be passed along to the client for its own handling. For
@@ -618,10 +619,6 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
    * subclass of IOException, such as AccessDeniedException, in its preGet()
    * method to prevent an unauthorized client's performing a Get on a particular
    * table.
-   */
-  /**
-   * handle Throwable objects thrown by coprocessors depending on the Throwable
-   * object's type.
    * @param env Coprocessor Environment
    * @param e Throwable object thrown by coprocessor.
    * @exception IOException Exception
@@ -631,25 +628,25 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
       throws IOException {
     if (e instanceof IOException) {
       throw (IOException)e;
+    }
+    // If we got here, e is not an IOException. A loaded coprocessor has a
+    // fatal bug, and the server (master or regionserver) should remove the
+    // faulty coprocessor from its set of active coprocessors. Setting
+    // 'hbase.coprocessor.abort_on_error' to true will cause abortServer(),
+    // which may be useful in development and testing environments where
+    // 'failing fast' for error analysis is desired.
+    if (env.getConfiguration().get("hbase.coprocessor.abort_on_error").equals("true")) {
+      // server is configured to abort.
+      abortServer(env, e);
     } else {
-      // e is not an IOException. A loaded coprocessor has a fatal bug,
-      // and the server (master or regionserver) should remove the faulty
-      // coprocessor from its set of active coprocessors. Setting
-      // 'hbase.coprocessor.abort_on_error' to true will cause abortServer(),
-      // which may be useful in development and testing environments where
-      // 'failing fast' for error analysis is desired.
-      if (env.getConfiguration().get("hbase.coprocessor.abort_on_error").
-          equals("true")) {
-        // server is configured to abort.
-        abortServer(env, e);
-      } else {
-        LOG.error("Removing coprocessor '" + env.toString() + "' from " +
-            "environment because it threw:  " + e,e);
-        coprocessors.remove(env);
-        throw new DoNotRetryIOException("Coprocessor: '" + env.toString() +
-            "' threw: '" + e + "' and has been removed" +
-          "from the active coprocessor set.", e);
-      }
+      LOG.error("Removing coprocessor '" + env.toString() + "' from " +
+          "environment because it threw:  " + e,e);
+      coprocessors.remove(env);
+      throw new DoNotRetryIOException("Coprocessor: '" + env.toString() +
+          "' threw: '" + e + "' and has been removed" + "from the active " +
+          "coprocessor set.", e);
     }
   }
 }
+
+
