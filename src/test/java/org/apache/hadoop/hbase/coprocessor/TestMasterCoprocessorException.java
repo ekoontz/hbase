@@ -72,16 +72,23 @@ public class TestMasterCoprocessorException {
 
     @Override
     public void run() {
-      // create a table : master coprocessor will throw an exception and not catch it.
+      // create a table : master coprocessor will throw an exception and not
+      // catch it.
       HTableDescriptor htd = new HTableDescriptor(TEST_TABLE);
       htd.addFamily(new HColumnDescriptor(TEST_FAMILY));
+      boolean gotNPE = false;
       try {
         HBaseAdmin admin = UTIL.getHBaseAdmin();
         admin.createTable(htd);
-      } catch (Exception e) {
-        // it's ok that an exception occurs here, since the BuggyMasterObserver is
-        // intentionally written to cause an exception (namely a NPE).
+      } catch (NullPointerException e) {
+        // it's ok that an exception occurs here, since the BuggyMasterObserver
+        // is intentionally written to cause an exception (namely a NPE).
+        gotNPE = true;
+      } catch (IOException e) {
+        // this indicates that the buggy coprocessor did not throw a NPE as
+        // it should have. Test will fail in the assertTrue() below.
       }
+      assertTrue(gotNPE);
    }
   }
 
@@ -94,7 +101,8 @@ public class TestMasterCoprocessorException {
     @Override
     public void postCreateTable(ObserverContext<MasterCoprocessorEnvironment> env,
         HRegionInfo[] regions, boolean sync) throws IOException {
-      // cause a NullPointerException and don't catch it: this will cause the master to abort().
+      // cause a NullPointerException and don't catch it: this will cause the
+      // master to abort().
       Integer i;
       i = null;
       i = i++;
