@@ -1141,7 +1141,8 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
   public void abort(final String msg, final Throwable t) {
     if (cpHost != null) {
       // HBASE-4014: dump a list of loaded coprocessors.
-      LOG.fatal("Master server abort: loaded coprocessors are: " + CoprocessorHost.getLoadedCoprocessors());
+      LOG.fatal("Master server abort: loaded coprocessors are: " +
+          CoprocessorHost.getLoadedCoprocessors());
     }
 
     if (abortNow(msg, t)) {

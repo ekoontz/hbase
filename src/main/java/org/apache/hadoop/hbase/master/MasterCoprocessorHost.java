@@ -80,28 +80,34 @@ public class MasterCoprocessorHost
 
 
   /**
-   * HBASE-4014: This is used by coprocessor hooks whose signature restricts them to throw
-   * UnknownRegionException rather than the more general IOException.
+   * HBASE-4014: This is used by coprocessor hooks whose signature restricts
+   * them to throw UnknownRegionException rather than the more general
+   * IOException.
    *
-   * For example, {@link MasterCoprocessorHost#preMove} and {@link MasterCoprocessorHost#postMove}
-   * are declared to throw specifically a UnknownRegionException.
+   * For example, {@link MasterCoprocessorHost#preMove} and
+   * {@link MasterCoprocessorHost#postMove} are declared to throw specifically
+   * an UnknownRegionException.
    *
-   * See also {@link org.apache.hadoop.hbase.regionserver.RegionCoprocessorHost#handleCoprocessorThrowableNoRethrow()}.
+   * See also
+   * {@link org.apache.hadoop.hbase.regionserver.RegionCoprocessorHost#handleCoprocessorThrowableNoRethrow()}.
    */
-  private void handleCoprocessorThrowableUREOnly(final CoprocessorEnvironment env, final Throwable e)
+  private void handleCoprocessorThrowableUREOnly(
+      final CoprocessorEnvironment env, final Throwable e)
     throws UnknownRegionException {
     if (e instanceof UnknownRegionException) {
-      // The coprocessor threw an UnknownRegionException, which should be passed back to the client.
+      // The coprocessor threw an UnknownRegionException, which should be
+      // passed back to the client.
       throw (UnknownRegionException)e;
     } else {
       try {
         handleCoprocessorThrowable(env, e);
       } catch (IOException ioe) {
-        // We cannot throw this type of exception from the caller hook, so ignore.
-        // Alternatively, we could throw an UnknownRegionException and supply information about the
-        // real source of the problem (that handleCoprocessorThrowable threw an IOException).
-        LOG.warn("handleCoprocessorThrowable() threw an IOException while attempting to handle Throwable " + e
-          + ". Ignoring.", ioe);
+        // We cannot throw this type of exception from the caller hook, so
+        // ignore. Alternatively, we could throw an UnknownRegionException and
+        // supply information about the real source of the problem (that
+        // handleCoprocessorThrowable threw an IOException).
+        LOG.warn("handleCoprocessorThrowable() threw an IOException while " +
+            "attempting to handle Throwable " + e + ". Ignoring.", ioe);
 
       }
 
@@ -116,7 +122,8 @@ public class MasterCoprocessorHost
       if (env.getInstance() instanceof MasterObserver) {
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
-          ((MasterObserver)env.getInstance()).preCreateTable(ctx, desc, splitKeys);
+          ((MasterObserver)env.getInstance()).preCreateTable(ctx, desc,
+              splitKeys);
         } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
@@ -133,7 +140,8 @@ public class MasterCoprocessorHost
       if (env.getInstance() instanceof MasterObserver) {
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
-          ((MasterObserver)env.getInstance()).postCreateTable(ctx, regions, sync);
+          ((MasterObserver)env.getInstance()).postCreateTable(ctx, regions,
+              sync);
         } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
@@ -185,7 +193,8 @@ public class MasterCoprocessorHost
       if (env.getInstance() instanceof MasterObserver) {
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
-          ((MasterObserver)env.getInstance()).preModifyTable(ctx, tableName, htd);
+          ((MasterObserver)env.getInstance()).preModifyTable(ctx, tableName,
+              htd);
         } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
@@ -203,7 +212,8 @@ public class MasterCoprocessorHost
       if (env.getInstance() instanceof MasterObserver) {
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
-          ((MasterObserver)env.getInstance()).postModifyTable(ctx, tableName, htd);
+          ((MasterObserver)env.getInstance()).postModifyTable(ctx, tableName,
+              htd);
         } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
@@ -221,7 +231,8 @@ public class MasterCoprocessorHost
       if (env.getInstance() instanceof MasterObserver) {
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
-          ((MasterObserver)env.getInstance()).preAddColumn(ctx, tableName, column);
+          ((MasterObserver)env.getInstance()).preAddColumn(ctx, tableName,
+              column);
         } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
@@ -239,7 +250,8 @@ public class MasterCoprocessorHost
       if (env.getInstance() instanceof MasterObserver) {
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
-          ((MasterObserver)env.getInstance()).postAddColumn(ctx, tableName, column);
+          ((MasterObserver)env.getInstance()).postAddColumn(ctx, tableName,
+              column);
         } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
@@ -313,7 +325,8 @@ public class MasterCoprocessorHost
       if (env.getInstance() instanceof MasterObserver) {
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
-          ((MasterObserver)env.getInstance()).postDeleteColumn(ctx, tableName, c);
+          ((MasterObserver)env.getInstance()).postDeleteColumn(ctx, tableName,
+              c);
         } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
@@ -392,7 +405,8 @@ public class MasterCoprocessorHost
     }
   }
 
-  void preMove(final HRegionInfo region, final ServerName srcServer, final ServerName destServer)
+  void preMove(final HRegionInfo region, final ServerName srcServer,
+               final ServerName destServer)
       throws UnknownRegionException {
     ObserverContext<MasterCoprocessorEnvironment> ctx = null;
     for (MasterEnvironment env: coprocessors) {
@@ -411,7 +425,8 @@ public class MasterCoprocessorHost
     }
   }
 
-  void postMove(final HRegionInfo region, final ServerName srcServer, final ServerName destServer)
+  void postMove(final HRegionInfo region, final ServerName srcServer,
+                final ServerName destServer)
       throws UnknownRegionException {
     ObserverContext<MasterCoprocessorEnvironment> ctx = null;
     for (MasterEnvironment env: coprocessors) {

@@ -73,7 +73,8 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
     pathPrefix = UUID.randomUUID().toString();
   }
 
-  private static Set<String> coprocessorNames = Collections.synchronizedSet(new HashSet());
+  private static Set<String> coprocessorNames =
+      Collections.synchronizedSet(new HashSet());
   public static Set<String> getLoadedCoprocessors() {
       return coprocessorNames;
   }
@@ -101,7 +102,8 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
       Thread.currentThread().setContextClassLoader(cl);
       try {
         implClass = cl.loadClass(className);
-        configured.add(loadInstance(implClass, Coprocessor.PRIORITY_SYSTEM, conf));
+        configured.add(loadInstance(implClass, Coprocessor.PRIORITY_SYSTEM,
+            conf));
         LOG.info("System coprocessor " + className + " was loaded " +
             "successfully with priority (" + priority++ + ").");
       } catch (ClassNotFoundException e) {
@@ -597,30 +599,35 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
             + coprocessorName + " threw an exception.", e);
   }
 
-  protected void abortServer(final CoprocessorEnvironment environment, final Throwable e) {
+  protected void abortServer(final CoprocessorEnvironment environment,
+                             final Throwable e) {
     String coprocessorName = (environment.getInstance()).toString();
-    LOG.error("The coprocessor: " + coprocessorName + " threw an unexpected exception: "
-             + e + ", but there's no specific implementation of abortServer() for this "
-             + " coprocessor's environment.");
+    LOG.error("The coprocessor: " + coprocessorName + " threw an unexpected " +
+        "exception: " + e + ", but there's no specific implementation of " +
+        " abortServer() for this coprocessor's environment.");
   }
 
 
   /**
-   * This is used by coprocessor hooks which are declared to throw IOException (or its subtypes).
-   * For such hooks, throwable objects which are instances of IOException should be passed
-   * on to the client. This is in conformance with the HBase idiom regarding
-   * IOException: that it represents a circumstance that should be passed along to the client
-   * for its own handling. For example, a coprocessor that implements access controls would
-   * throw a subclass of IOException, such as AccessDeniedException, in its preGet() method
-   * to prevent an unauthorized client's performing a Get on a particular table.
+   * This is used by coprocessor hooks which are declared to throw IOException
+   * (or its subtypes).For such hooks, throwable objects which are instances of
+   * IOException should be passed on to the client. This is in conformance with
+   * the HBase idiom regarding IOException: that it represents a circumstance
+   * that should be passed along to the client for its own handling. For
+   * example, a coprocessor that implements access controls would throw a
+   * subclass of IOException, such as AccessDeniedException, in its preGet()
+   * method to prevent an unauthorized client's performing a Get on a particular
+   * table.
    */
   /**
-   * handle Throwable objects thrown by coprocessors depending on the Throwable object's type.
+   * handle Throwable objects thrown by coprocessors depending on the Throwable
+   * object's type.
    * @param env Coprocessor Environment
    * @param e Throwable object thrown by coprocessor.
    * @exception IOException Exception
    */
-  protected void handleCoprocessorThrowable(final CoprocessorEnvironment env, final Throwable e)
+  protected void handleCoprocessorThrowable(final CoprocessorEnvironment env,
+                                            final Throwable e)
       throws IOException {
     if (e instanceof IOException) {
       throw (IOException)e;
@@ -628,16 +635,19 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
       // e is not an IOException. A loaded coprocessor has a fatal bug,
       // and the server (master or regionserver) should remove the faulty
       // coprocessor from its set of active coprocessors. Setting
-      // 'hbase.coprocessor.abort_on_error' to true will cause abortServer(), which may be
-      // useful in development and testing environments where 'failing fast' for error analysis
-      // is desired.
-      if (env.getConfiguration().get("hbase.coprocessor.abort_on_error").equals("true")) {
+      // 'hbase.coprocessor.abort_on_error' to true will cause abortServer(),
+      // which may be useful in development and testing environments where
+      // 'failing fast' for error analysis is desired.
+      if (env.getConfiguration().get("hbase.coprocessor.abort_on_error").
+          equals("true")) {
         // server is configured to abort.
         abortServer(env, e);
       } else {
-        LOG.error("Removing coprocessor '" + env.toString() + "' from environment because it threw:  " + e,e);
+        LOG.error("Removing coprocessor '" + env.toString() + "' from " +
+            "environment because it threw:  " + e,e);
         coprocessors.remove(env);
-        throw new DoNotRetryIOException("Coprocessor: '" + env.toString() + "' threw: '" + e + "' and has been removed" +
+        throw new DoNotRetryIOException("Coprocessor: '" + env.toString() +
+            "' threw: '" + e + "' and has been removed" +
           "from the active coprocessor set.", e);
       }
     }
