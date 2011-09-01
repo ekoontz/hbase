@@ -78,7 +78,6 @@ public class MasterCoprocessorHost
     abortServer("master", masterServices, env, e);
   }
 
-
   /**
    * HBASE-4014: This is used by coprocessor hooks whose signature restricts
    * them to throw UnknownRegionException rather than the more general
@@ -110,7 +109,6 @@ public class MasterCoprocessorHost
             "attempting to handle Throwable " + e + ". Ignoring.", ioe);
 
       }
-
     }
   }
 
