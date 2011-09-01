@@ -624,8 +624,7 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
       throws IOException {
     if (e instanceof IOException) {
       throw (IOException)e;
-    }
-    else {
+    } else {
       // e is not an IOException. A loaded coprocessor has a fatal bug,
       // and the server (master or regionserver) should remove the faulty
       // coprocessor from its set of active coprocessors. Setting
@@ -635,8 +634,7 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
       if (env.getConfiguration().get("hbase.coprocessor.abort_on_error").equals("true")) {
         // server is configured to abort.
         abortServer(env, e);
-      }
-      else {
+      } else {
         LOG.error("Removing coprocessor '" + env.toString() + "' from environment because it threw:  " + e,e);
         coprocessors.remove(env);
         throw new DoNotRetryIOException("Coprocessor: '" + env.toString() + "' threw: '" + e + "' and has been removed" +

@@ -81,8 +81,7 @@ public class TestRegionServerCoprocessorException {
       put.add(TEST_FAMILY, ROW, ROW);
       try {
         table.put(put);
-      }
-      catch (IOException e) {
+      } catch (IOException e) {
         assertFalse("failed to put to table.",true);
       }
     }
@@ -153,8 +152,7 @@ public class TestRegionServerCoprocessorException {
       }
       try {
         Thread.sleep(1000);
-      }
-      catch (InterruptedException e) {
+      } catch (InterruptedException e) {
         assertFalse("InterruptedException while waiting for regionserver zk node to be deleted.",true);
       }
     }

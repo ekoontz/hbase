@@ -78,8 +78,7 @@ public class TestMasterCoprocessorException {
       try {
         HBaseAdmin admin = UTIL.getHBaseAdmin();
         admin.createTable(htd);
-      }
-      catch (Exception e) {
+      } catch (Exception e) {
         // it's ok that an exception occurs here, since the BuggyMasterObserver is
         // intentionally written to cause an exception (namely a NPE).
       }
@@ -209,8 +208,7 @@ public class TestMasterCoprocessorException {
       }
       try {
         Thread.sleep(1000);
-      }
-      catch (InterruptedException e) {
+      } catch (InterruptedException e) {
         assertFalse("InterruptedException while waiting for master zk node to be deleted.",true);
       }
     }
@@ -220,8 +218,7 @@ public class TestMasterCoprocessorException {
     createTableThread.interrupt();
     try {
       createTableThread.join(1000);
-    }
-    catch (InterruptedException e) {
+    } catch (InterruptedException e) {
       assertTrue("Ignoring InterruptedException while waiting for createTableThread.join().",true);
     }
   }

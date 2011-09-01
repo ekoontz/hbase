@@ -93,12 +93,10 @@ public class MasterCoprocessorHost
     if (e instanceof UnknownRegionException) {
       // The coprocessor threw an UnknownRegionException, which should be passed back to the client.
       throw (UnknownRegionException)e;
-    }
-    else {
+    } else {
       try {
         handleCoprocessorThrowable(env,e);
-      }
-      catch (IOException ioe) {
+      } catch (IOException ioe) {
         // We cannot throw this type of exception from the caller hook, so ignore.
         // Alternatively, we could throw an UnknownRegionException and supply information about the
         // real source of the problem (that handleCoprocessorThrowable threw an IOException).
@@ -119,8 +117,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).preCreateTable(ctx, desc, splitKeys);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -137,8 +134,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).postCreateTable(ctx, regions, sync);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -155,8 +151,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).preDeleteTable(ctx, tableName);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -173,8 +168,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).postDeleteTable(ctx, tableName);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -192,8 +186,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).preModifyTable(ctx, tableName, htd);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -211,8 +204,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).postModifyTable(ctx, tableName, htd);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -248,8 +240,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).postAddColumn(ctx, tableName, column);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -268,8 +259,7 @@ public class MasterCoprocessorHost
         try {
           ((MasterObserver)env.getInstance()).preModifyColumn(
             ctx, tableName, descriptor);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -288,8 +278,7 @@ public class MasterCoprocessorHost
         try {
           ((MasterObserver)env.getInstance()).postModifyColumn(
               ctx, tableName, descriptor);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -307,8 +296,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).preDeleteColumn(ctx, tableName, c);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -326,8 +314,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).postDeleteColumn(ctx, tableName, c);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -344,8 +331,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).preEnableTable(ctx, tableName);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -362,8 +348,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).postEnableTable(ctx, tableName);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -380,8 +365,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).preDisableTable(ctx, tableName);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -398,8 +382,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).postDisableTable(ctx, tableName);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -418,8 +401,7 @@ public class MasterCoprocessorHost
         try {
           ((MasterObserver)env.getInstance()).preMove(
               ctx, region, srcServer, destServer);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowableUREOnly(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -438,8 +420,7 @@ public class MasterCoprocessorHost
         try {
           ((MasterObserver)env.getInstance()).postMove(
               ctx, region, srcServer, destServer);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowableUREOnly(env,e);
         }
         if (ctx.shouldComplete()) {
@@ -458,8 +439,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).preAssign(ctx, regionName, force);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         bypass |= ctx.shouldBypass();
@@ -478,8 +458,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).postAssign(ctx, regionInfo);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -499,8 +478,7 @@ public class MasterCoprocessorHost
         try {
           ((MasterObserver)env.getInstance()).preUnassign(
               ctx, regionName, force);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         bypass |= ctx.shouldBypass();
@@ -521,8 +499,7 @@ public class MasterCoprocessorHost
         try {
           ((MasterObserver)env.getInstance()).postUnassign(
               ctx, regionInfo, force);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -540,8 +517,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).preBalance(ctx);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         bypass |= ctx.shouldBypass();
@@ -560,8 +536,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).postBalance(ctx);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -580,8 +555,7 @@ public class MasterCoprocessorHost
         try {
           balance = ((MasterObserver)env.getInstance()).preBalanceSwitch(
               ctx, balance);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -601,8 +575,7 @@ public class MasterCoprocessorHost
         try {
           ((MasterObserver)env.getInstance()).postBalanceSwitch(
               ctx, oldValue, newValue);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -619,8 +592,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).preShutdown(ctx);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -637,8 +609,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).preStopMaster(ctx);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
@@ -655,8 +626,7 @@ public class MasterCoprocessorHost
         ctx = ObserverContext.createAndPrepare(env, ctx);
         try {
           ((MasterObserver)env.getInstance()).postStartMaster(ctx);
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
           handleCoprocessorThrowable(env, e);
         }
         if (ctx.shouldComplete()) {
