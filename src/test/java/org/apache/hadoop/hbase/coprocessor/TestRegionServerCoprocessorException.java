@@ -99,7 +99,7 @@ public class TestRegionServerCoprocessorException {
     Configuration conf = TEST_UTIL.getConfiguration();
     conf.set(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY,
         BuggyRegionObserver.class.getName());
-    conf.set("hbase.coprocessor.abort_on_error", "true");
+    conf.set("hbase.coprocessor.abortonerror", "true");
     TEST_UTIL.startMiniCluster(2);
   }
 

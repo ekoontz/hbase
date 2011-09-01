@@ -632,10 +632,10 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
     // If we got here, e is not an IOException. A loaded coprocessor has a
     // fatal bug, and the server (master or regionserver) should remove the
     // faulty coprocessor from its set of active coprocessors. Setting
-    // 'hbase.coprocessor.abort_on_error' to true will cause abortServer(),
+    // 'hbase.coprocessor.abortonerror' to true will cause abortServer(),
     // which may be useful in development and testing environments where
     // 'failing fast' for error analysis is desired.
-    if (env.getConfiguration().get("hbase.coprocessor.abort_on_error").equals("true")) {
+    if (env.getConfiguration().get("hbase.coprocessor.abortonerror").equals("true")) {
       // server is configured to abort.
       abortServer(env, e);
     } else {

@@ -726,7 +726,7 @@
     </description>
   </property>
   <property>
-      <name>hbase.coprocessor.abort_on_error</name>
+      <name>hbase.coprocessor.abortonerror</name>
       <value>false</value>
       <description>
       Set to true to cause the hosting server (master or regionserver) to
