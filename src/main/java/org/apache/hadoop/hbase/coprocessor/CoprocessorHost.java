@@ -638,9 +638,6 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
     if (env.getConfiguration().get("hbase.coprocessor.abortonerror").equals("true")) {
       // server is configured to abort.
       abortServer(env, e);
-      throw new IOException("Coprocessor: '" + env.toString() + "'" +
-          " threw: '" + e + "'. This server has been configured to abort in " +
-          " this situation.",e);
     } else {
       LOG.error("Removing coprocessor '" + env.toString() + "' from " +
           "environment because it threw:  " + e,e);
