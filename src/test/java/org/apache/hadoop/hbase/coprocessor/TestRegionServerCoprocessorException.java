@@ -66,27 +66,8 @@ public class TestRegionServerCoprocessorException {
     }
   }
 
-  private class WriteToTableThread extends Thread {
-    public HTable table;
+  private void writeToTable(HTable table) throws IOException {
 
-    public WriteToTableThread(HTable table) throws IOException {
-      this.table = table;
-    }
-
-    @Override
-    public void run() {
-      // write to the table: regionserver coprocessor will throw an exception,
-      // causing the regionserver to abort.
-      final byte[] ROW = Bytes.toBytes("bbb");
-      final byte[] TEST_FAMILY = Bytes.toBytes("aaa");
-      Put put = new Put(ROW);
-      put.add(TEST_FAMILY, ROW, ROW);
-      try {
-        table.put(put);
-      } catch (IOException e) {
-        assertFalse("failed to put to table.", true);
-      }
-    }
   }
 
   private static HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
@@ -149,11 +130,14 @@ public class TestRegionServerCoprocessorException {
       zkw.registerListener(regionServerTracker);
     }
 
-    // Attempting to write TEST_TABLE will trigger BuggyRegionObserver's NPE.
-    // The hosting region server will then abort and the regionserver's
-    // ephemeral node in /hbase/rs will be deleted.
-    WriteToTableThread writeToTableThread = new WriteToTableThread(table);
-    writeToTableThread.start();
+    try {
+      final byte[] ROW = Bytes.toBytes("bbb");
+      Put put = new Put(ROW);
+      put.add(TEST_FAMILY, ROW, ROW);
+      table.put(put);
+    } catch (IOException e) {
+      assertFalse("put() failed: " + e,true);
+    }
 
     // Wait up to 30 seconds for regionserver's ephemeral node to go away after
     // the regionserver aborts.
@@ -168,10 +152,8 @@ public class TestRegionServerCoprocessorException {
             "zk node to be deleted.", true);
       }
     }
-
     assertTrue("RegionServer aborted on coprocessor exception, as expected.",
         rsZKNodeWasDeleted);
-    writeToTableThread.interrupt();
     TEST_UTIL.shutdownMiniCluster();
   }
 
