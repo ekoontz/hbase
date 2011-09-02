@@ -610,7 +610,7 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
 
   /**
    * This is used by coprocessor hooks which are declared to throw IOException
-   * (or its subtypes). For such hooks, we should hanlde throwable objects
+   * (or its subtypes). For such hooks, we should handle throwable objects
    * depending on the Throwable's type. Those which are instances of
    * IOException should be passed on to the client. This is in conformance with
    * the HBase idiom regarding IOException: that it represents a circumstance
