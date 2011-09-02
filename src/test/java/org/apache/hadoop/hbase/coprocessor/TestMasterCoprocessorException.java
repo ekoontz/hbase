@@ -76,19 +76,19 @@ public class TestMasterCoprocessorException {
       // catch it.
       HTableDescriptor htd = new HTableDescriptor(TEST_TABLE);
       htd.addFamily(new HColumnDescriptor(TEST_FAMILY));
-      boolean gotNPE = false;
       try {
         HBaseAdmin admin = UTIL.getHBaseAdmin();
         admin.createTable(htd);
+        assertFalse("BuggyMasterObserver failed to throw an NPE as expected.",
+            true);
       } catch (NullPointerException e) {
-        // it's ok that an exception occurs here, since the BuggyMasterObserver
-        // is intentionally written to cause an exception (namely a NPE).
-        gotNPE = true;
+        // as expected BuggyMasterObserver threw a NPE.
       } catch (IOException e) {
         // this indicates that the buggy coprocessor did not throw a NPE as
         // it should have. Test will fail in the assertTrue() below.
+        assertFalse("BuggyMasterObserver failed to throw an NPE as expected " +
+            " - it threw an IOException instead.",true);
       }
-      assertTrue(gotNPE);
    }
   }
 
