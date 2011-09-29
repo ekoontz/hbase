@@ -758,7 +758,7 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
 
   void tryRegionServerReport()
   throws IOException {
-    HServerLoad hsl = buildServerLoad(CoprocessorHost.getLoadedCoprocessors().toString());
+    HServerLoad hsl = buildServerLoad();
     // Why we do this?
     this.requestCount.set(0);
     try {
@@ -777,7 +777,7 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
     }
   }
 
-  HServerLoad buildServerLoad(final String loadedCoprocessors) {
+  HServerLoad buildServerLoad() {
     Collection<HRegion> regions = getOnlineRegionsLocalContext();
     TreeMap<byte [], HServerLoad.RegionLoad> regionLoads =
       new TreeMap<byte [], HServerLoad.RegionLoad>(Bytes.BYTES_COMPARATOR);
@@ -3242,6 +3242,13 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
   }
 
   public String generateCoprocessorString() {
-    return "coprocessors go here..";
+    HServerLoad hsl = buildServerLoad();
+    if (hsl != null) {
+      return hsl.getLoadedCoprocessors();
+    } else {
+      LOG.error("Could not get a HServerLoad for this regionserver: returning " +
+      "an empty string.");
+    }
+    return "";
   }
 }

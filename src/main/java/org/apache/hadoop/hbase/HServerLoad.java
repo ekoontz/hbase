@@ -62,11 +62,6 @@ implements WritableComparable<HServerLoad> {
   // region server level coprocessors, i.e., WALObserver implementation
   private Set<? extends CoprocessorEnvironment> coprocessors = null;
 
-  // this string is not only for the region server level coprocessors, but
-  // also region level ones. It's set once at construction-time using the
-  // generateCoprocessorString() method.
-  // TODO: make it the union of all loaded coprocessors
-  // at this region server, updated dynamically.
   private String coprocessorString;
 
   /** per-region load metrics */
@@ -133,6 +128,10 @@ implements WritableComparable<HServerLoad> {
      * of the same members in HServerLoad.
      */
     private Set<? extends CoprocessorEnvironment> coprocessors;
+
+    /**
+     * Set with the return value of {@link setCoprocessorString()}.
+     */
     private String coprocessorString;
 
     /**
@@ -180,7 +179,7 @@ implements WritableComparable<HServerLoad> {
       this.totalCompactingKVs = totalCompactingKVs;
       this.currentCompactedKVs = currentCompactedKVs;
       this.coprocessors = coprocessors;
-      coprocessorString = getLoadedCoprocessors();
+      this.coprocessorString = getLoadedCoprocessors();
     }
 
     private String getLoadedCoprocessors() {
@@ -471,15 +470,15 @@ implements WritableComparable<HServerLoad> {
   public HServerLoad(final int totalNumberOfRequests,
       final int numberOfRequests, final int usedHeapMB, final int maxHeapMB,
       final Map<byte[], RegionLoad> regionLoad,
-      final Set<? extends CoprocessorEnvironment> coprocessors) {
+      final Set<? extends CoprocessorEnvironment> walCoprocessors) {
     this.numberOfRequests = numberOfRequests;
     this.usedHeapMB = usedHeapMB;
     this.maxHeapMB = maxHeapMB;
     this.regionLoad = regionLoad;
     this.totalNumberOfRequests = totalNumberOfRequests;
-    this.coprocessors = coprocessors;
+    this.coprocessors = walCoprocessors;
     this.coprocessorString =
-        generateCoprocessorString(this.regionLoad, this.coprocessors);
+        setCoprocessorString(this.regionLoad, this.coprocessors);
   }
 
   /**
@@ -497,9 +496,9 @@ implements WritableComparable<HServerLoad> {
   /**
    * @return list of comma-separated coprocessors, enclosed in
    * square brackets.
-   * (cf. {@link HMaster::generateCoprocessorString()}).
+   * (cf. {@link HMaster::setCoprocessorString()}).
    */
-  private String generateCoprocessorString(
+  private String setCoprocessorString(
       final Map<byte[], RegionLoad> rls,
       Set<? extends CoprocessorEnvironment> rsCoprocessors) {
     StringBuilder sb = new StringBuilder();

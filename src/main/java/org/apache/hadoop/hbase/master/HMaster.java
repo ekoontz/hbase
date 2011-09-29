@@ -1509,7 +1509,7 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
   /**
    * @return list of comma-separated coprocessors, enclosed in
    * square brackets.
-   * (cf. {@link HServerLoad::generateCoprocessorString()}).
+   * (cf. {@link HServerLoad::setCoprocessorString()}).
    */
   public String generateCoprocessorString() {
     Set<MasterCoprocessorHost.MasterEnvironment> coprocessors =
