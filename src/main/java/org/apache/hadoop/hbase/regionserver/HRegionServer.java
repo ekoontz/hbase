@@ -3240,4 +3240,8 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
     HLog wal = this.getWAL();
     return wal.rollWriter(true);
   }
+
+  public String getLoadedCoprocessors() {
+    return "coprocessors go here..";
+  }
 }
