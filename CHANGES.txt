@@ -313,10 +313,13 @@ Release 0.92.0 - Unreleased
    HBASE-4472  MiniHBaseCluster.shutdown() doesn't work if no active master
    HBASE-4455  Rolling restart RSs scenario, -ROOT-, .META. regions are lost in
                AssignmentManager (Ming Ma)
+   HBASE-4513  NOTICES.txt refers to Facebook for Thrift
 
   TESTS
    HBASE-4450  test for number of blocks read: to serve as baseline for expected
                blocks read and for catching regressions (Kannan)
+   HBASE-4492  TestRollingRestart fails intermittently (Ted Yu and Ram)
+   HBASE-4512  JVMClusterUtil throwing wrong exception when master thread cannot be created (Ram)
 
   IMPROVEMENTS
    HBASE-3290  Max Compaction Size (Nicolas Spiegelberg via Stack)  
