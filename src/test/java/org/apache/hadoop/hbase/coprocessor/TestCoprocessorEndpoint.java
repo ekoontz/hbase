@@ -62,6 +62,7 @@ public class TestCoprocessorEndpoint {
 
   private static Class coprocessor1 = ColumnAggregationEndpoint.class;
   private static Class coprocessor2 = GenericEndpoint.class;
+  private static Class masterCoprocessor = BaseMasterObserver.class;
 
   @BeforeClass
   public static void setupBeforeClass() throws Exception {
@@ -70,7 +71,9 @@ public class TestCoprocessorEndpoint {
     conf.setStrings(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY,
         coprocessor1.getName(), coprocessor2.getName());
 
-    String foo = conf.get(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY);
+    conf.setStrings(CoprocessorHost.MASTER_COPROCESSOR_CONF_KEY,
+        masterCoprocessor.getName());
+
     util.startMiniCluster(2);
     cluster = util.getMiniHBaseCluster();
 
@@ -173,7 +176,7 @@ public class TestCoprocessorEndpoint {
   }
 
   @Test
-  public void testServerManagerCoprocessorReport() {
+  public void testRegionServerCoprocessorReported() {
     // HBASE 4070: Improve region server metrics to report loaded coprocessors
     // to master: verify that each regionserver is reporting the correct set of
     // loaded coprocessors.
@@ -191,6 +194,18 @@ public class TestCoprocessorEndpoint {
       assertTrue(regionServerCoprocessors.equals(loadedCoprocessorsOrder1) ||
           regionServerCoprocessors.equals(loadedCoprocessorsOrder2));
     }
+  }
+
+  @Test
+  public void testMasterCoprocessorsReported() {
+    // HBASE 4070: Improve region server metrics to report loaded coprocessors
+    // to master: verify that the master is reporting the correct set of
+    // loaded coprocessors.
+    final String loadedMasterCoprocessorsVerify =
+        "[" + masterCoprocessor.getSimpleName() + "]";
+    String loadedMasterCoprocessors =
+        util.getMiniHBaseCluster().getMaster().getCoprocessors();
+    assertEquals(loadedMasterCoprocessorsVerify, loadedMasterCoprocessors);
   }
 
   private static byte[][] makeN(byte[] base, int n) {
