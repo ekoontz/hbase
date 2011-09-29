@@ -28,8 +28,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.SortedSet;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -1506,8 +1506,15 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
     }
   }
 
+  /**
+   * @param Set of master-hosted coprocessors.
+   * @return list of comma-separated coprocessor SimpleNames, enclosed in
+   * square brackets
+   * (cf. HServerLoad::generateCoprocessorString()).
+   */
+
   public String getCoprocessors() {
-    SortedSet<MasterCoprocessorHost.MasterEnvironment> coprocessors =
+    Set<MasterCoprocessorHost.MasterEnvironment> coprocessors =
         this.getCoprocessorHost().getCoprocessors();
     StringBuilder sb = new StringBuilder();
     sb.append("[");
