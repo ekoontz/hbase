@@ -23,8 +23,12 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Strings;
@@ -54,6 +58,16 @@ implements WritableComparable<HServerLoad> {
 
   /** the maximum allowable size of the heap, in MB */
   private int maxHeapMB = 0;
+
+  // region server level coprocessors, i.e., WALObserver implementation
+  private Set<? extends CoprocessorEnvironment> coprocessors = null;
+
+  // this string is not only for the region server level coprocessors, but
+  // also region level ones. It's set once at construction-time using the
+  // generateCoprocessorString() method.
+  // TODO: make it the union of all loaded coprocessors
+  // at this region server, updated dynamically.
+  private String coprocessorString;
 
   /** per-region load metrics */
   private Map<byte[], RegionLoad> regionLoad =
@@ -115,6 +129,13 @@ implements WritableComparable<HServerLoad> {
     private int totalStaticBloomSizeKB;
 
     /**
+     * coprocessors and coprocessorString are region-level counterparts
+     * of the same members in HServerLoad.
+     */
+    private Set<? extends CoprocessorEnvironment> coprocessors;
+    private String coprocessorString;
+
+    /**
      * Constructor, for Writable
      */
     public RegionLoad() {
@@ -133,6 +154,7 @@ implements WritableComparable<HServerLoad> {
      * @param writeRequestsCount
      * @param totalCompactingKVs
      * @param currentCompactedKVs
+     * @param coprocessors
      */
     public RegionLoad(final byte[] name, final int stores,
         final int storefiles, final int storeUncompressedSizeMB,
@@ -141,7 +163,8 @@ implements WritableComparable<HServerLoad> {
         final int rootIndexSizeKB, final int totalStaticIndexSizeKB,
         final int totalStaticBloomSizeKB,
         final int readRequestsCount, final int writeRequestsCount,
-        final long totalCompactingKVs, final long currentCompactedKVs) {
+        final long totalCompactingKVs, final long currentCompactedKVs,
+        final Set<? extends CoprocessorEnvironment> coprocessors) {
       this.name = name;
       this.stores = stores;
       this.storefiles = storefiles;
@@ -156,10 +179,27 @@ implements WritableComparable<HServerLoad> {
       this.writeRequestsCount = writeRequestsCount;
       this.totalCompactingKVs = totalCompactingKVs;
       this.currentCompactedKVs = currentCompactedKVs;
+      this.coprocessors = coprocessors;
+      coprocessorString = getLoadedCoprocessors();
+    }
+
+    private String getLoadedCoprocessors() {
+      StringBuilder sb = new StringBuilder();
+      sb.append("[");
+      Iterator<? extends CoprocessorEnvironment> i = coprocessors.iterator();
+      if (i.hasNext()) {
+        for (;;) {
+          CoprocessorEnvironment ce = i.next();
+          sb.append(ce.getInstance().getClass().getSimpleName());
+          if (! i.hasNext()) break;
+          sb.append(", ");
+        }
+      }
+      sb.append("]");
+          return sb.toString();
     }
 
     // Getters
-
     /**
      * @return the region name
      */
@@ -332,6 +372,7 @@ implements WritableComparable<HServerLoad> {
       this.totalStaticBloomSizeKB = in.readInt();
       this.totalCompactingKVs = in.readLong();
       this.currentCompactedKVs = in.readLong();
+      this.coprocessorString = in.readUTF();
     }
 
     public void write(DataOutput out) throws IOException {
@@ -352,6 +393,7 @@ implements WritableComparable<HServerLoad> {
       out.writeInt(totalStaticBloomSizeKB);
       out.writeLong(totalCompactingKVs);
       out.writeLong(currentCompactedKVs);
+      out.writeUTF(coprocessorString);
     }
 
     /**
@@ -397,6 +439,7 @@ implements WritableComparable<HServerLoad> {
       }
       sb = Strings.appendKeyValue(sb, "compactionProgressPct",
           compactionProgressPct);
+      sb = Strings.appendKeyValue(sb, "coprocessors", this.coprocessorString);
       return sb.toString();
     }
   }
@@ -427,12 +470,16 @@ implements WritableComparable<HServerLoad> {
    */
   public HServerLoad(final int totalNumberOfRequests,
       final int numberOfRequests, final int usedHeapMB, final int maxHeapMB,
-      final Map<byte[], RegionLoad> regionLoad) {
+      final Map<byte[], RegionLoad> regionLoad,
+      final Set<? extends CoprocessorEnvironment> coprocessors) {
     this.numberOfRequests = numberOfRequests;
     this.usedHeapMB = usedHeapMB;
     this.maxHeapMB = maxHeapMB;
     this.regionLoad = regionLoad;
     this.totalNumberOfRequests = totalNumberOfRequests;
+    this.coprocessors = coprocessors;
+    this.coprocessorString =
+        generateCoprocessorString(this.regionLoad, this.coprocessors);
   }
 
   /**
@@ -441,10 +488,44 @@ implements WritableComparable<HServerLoad> {
    */
   public HServerLoad(final HServerLoad hsl) {
     this(hsl.totalNumberOfRequests, hsl.numberOfRequests, hsl.usedHeapMB,
-        hsl.maxHeapMB, hsl.getRegionsLoad());
+        hsl.maxHeapMB, hsl.getRegionsLoad(), hsl.coprocessors);
     for (Map.Entry<byte[], RegionLoad> e : hsl.regionLoad.entrySet()) {
       this.regionLoad.put(e.getKey(), e.getValue());
     }
+  }
+
+  private String generateCoprocessorString(
+      final Map<byte[], RegionLoad> rls,
+      Set<? extends CoprocessorEnvironment> rsCoprocessors) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("[");
+    Comparator<CoprocessorEnvironment>  classNameComparator =
+        new Comparator<CoprocessorEnvironment>() {
+      @Override
+      public int compare(CoprocessorEnvironment o1, CoprocessorEnvironment o2) {
+        return o1.getInstance().getClass().getSimpleName().compareTo(
+            o2.getInstance().getClass().getSimpleName());
+      }
+    };
+    Set<CoprocessorEnvironment> allCoprocessors =
+        new TreeSet<CoprocessorEnvironment>(classNameComparator);
+    for (Map.Entry<byte[], RegionLoad> rl : rls.entrySet()) {
+      allCoprocessors.addAll(rl.getValue().coprocessors);
+    }
+    allCoprocessors.addAll(rsCoprocessors);
+
+    Iterator<CoprocessorEnvironment> i =
+          allCoprocessors.iterator();
+    if (i.hasNext()) {
+      for (;;) {
+        CoprocessorEnvironment ce = i.next();
+        sb.append(ce.getInstance().getClass().getSimpleName());
+        if (! i.hasNext()) break;
+        sb.append(", ");
+      }
+    }
+    sb.append("]");
+    return sb.toString();
   }
 
   /**
@@ -457,9 +538,6 @@ implements WritableComparable<HServerLoad> {
    * @return load factor for this server
    */
   public int getLoad() {
-    // int load = numberOfRequests == 0 ? 1 : numberOfRequests;
-    // load *= numberOfRegions == 0 ? 1 : numberOfRegions;
-    // return load;
     return this.regionLoad.size();
   }
 
@@ -487,6 +565,7 @@ implements WritableComparable<HServerLoad> {
     sb = Strings.appendKeyValue(sb, "usedHeapMB",
       Integer.valueOf(this.usedHeapMB));
     sb = Strings.appendKeyValue(sb, "maxHeapMB", Integer.valueOf(maxHeapMB));
+    sb = Strings.appendKeyValue(sb, "coprocessors", getLoadedCoprocessors());
     return sb.toString();
   }
 
@@ -591,6 +670,10 @@ implements WritableComparable<HServerLoad> {
     return count;
   }
 
+  public String getLoadedCoprocessors() {
+    return coprocessorString;
+  }
+
   // Writable
 
   public void readFields(DataInput in) throws IOException {
@@ -607,6 +690,7 @@ implements WritableComparable<HServerLoad> {
       regionLoad.put(rl.getName(), rl);
     }
     totalNumberOfRequests = in.readInt();
+    coprocessorString = in.readUTF();
   }
 
   public void write(DataOutput out) throws IOException {
@@ -619,6 +703,7 @@ implements WritableComparable<HServerLoad> {
     for (RegionLoad rl: regionLoad.values())
       rl.write(out);
     out.writeInt(totalNumberOfRequests);
+    out.writeUTF(coprocessorString);
   }
 
   // Comparable

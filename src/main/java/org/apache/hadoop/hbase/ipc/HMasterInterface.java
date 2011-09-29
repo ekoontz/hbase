@@ -258,4 +258,6 @@ public interface HMasterInterface extends VersionedProtocol {
    */
   public HTableDescriptor[] getHTableDescriptors(List<String> tableNames);
 
+  public String getCoprocessors();
+
 }

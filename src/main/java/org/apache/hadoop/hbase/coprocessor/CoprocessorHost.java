@@ -73,10 +73,22 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
     pathPrefix = UUID.randomUUID().toString();
   }
 
+  /**
+   * Not to be confused with the per-object _coprocessors_ (above),
+   * coprocessorNames is static and stores the set of all coprocessors ever
+   * loaded by any thread in this JVM. It is strictly additive: coprocessors are
+   * added to coprocessorNames, by loadInstance() but are never removed, since
+   * the intention is to preserve a history of all loaded coprocessors for
+   * diagnosis in case of server crash (HBASE-4014).
+   */
   private static Set<String> coprocessorNames =
       Collections.synchronizedSet(new HashSet<String>());
   public static Set<String> getLoadedCoprocessors() {
       return coprocessorNames;
+  }
+
+  public SortedSet<E> getCoprocessors() {
+    return coprocessors;
   }
 
   /**

@@ -25,16 +25,18 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.SortedSet;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Chore;
 import org.apache.hadoop.hbase.ClusterStatus;
+import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HRegionInfo;
@@ -352,7 +354,7 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
   }
 
   /**
-   * Initilize all ZK based system trackers.
+   * Initialize all ZK based system trackers.
    * @throws IOException
    * @throws InterruptedException
    */
@@ -1504,6 +1506,24 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
     }
   }
 
+  public String getCoprocessors() {
+    SortedSet<MasterCoprocessorHost.MasterEnvironment> coprocessors =
+        this.getCoprocessorHost().getCoprocessors();
+    StringBuilder sb = new StringBuilder();
+    sb.append("[");
+    Iterator<? extends CoprocessorEnvironment> i = coprocessors.iterator();
+    if (i.hasNext()) {
+      for (;;) {
+        CoprocessorEnvironment ce = i.next();
+        sb.append(ce.getInstance().getClass().getSimpleName());
+        if (! i.hasNext()) break;
+        sb.append(", ");
+      }
+    }
+    sb.append("]");
+    return sb.toString();
+  }
+
   /**
    * @see org.apache.hadoop.hbase.master.HMasterCommandLine
    */
@@ -1511,4 +1531,5 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
 	VersionInfo.logVersion();
     new HMasterCommandLine(HMaster.class).doMain(args);
   }
+
 }

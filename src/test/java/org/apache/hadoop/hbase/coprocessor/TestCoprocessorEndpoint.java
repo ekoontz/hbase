@@ -21,6 +21,7 @@ package org.apache.hadoop.hbase.coprocessor;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.Map;
@@ -28,11 +29,13 @@ import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HConstants;
+import org.apache.hadoop.hbase.HServerLoad;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.coprocessor.Batch;
+import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.Text;
 import org.junit.AfterClass;
@@ -57,14 +60,17 @@ public class TestCoprocessorEndpoint {
   private static HBaseTestingUtility util = new HBaseTestingUtility();
   private static MiniHBaseCluster cluster = null;
 
+  private static Class coprocessor1 = ColumnAggregationEndpoint.class;
+  private static Class coprocessor2 = GenericEndpoint.class;
+
   @BeforeClass
   public static void setupBeforeClass() throws Exception {
     // set configure to indicate which cp should be loaded
     Configuration conf = util.getConfiguration();
     conf.setStrings(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY,
-        "org.apache.hadoop.hbase.coprocessor.ColumnAggregationEndpoint",
-        "org.apache.hadoop.hbase.coprocessor.GenericEndpoint");
+        coprocessor1.getName(), coprocessor2.getName());
 
+    String foo = conf.get(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY);
     util.startMiniCluster(2);
     cluster = util.getMiniHBaseCluster();
 
@@ -164,6 +170,27 @@ public class TestCoprocessorEndpoint {
       expectedResult += i;
     }
     assertEquals("Invalid result", sumResult, expectedResult);
+  }
+
+  @Test
+  public void testServerManagerCoprocessorReport() {
+    // HBASE 4070: Improve region server metrics to report loaded coprocessors
+    // to master: verify that each regionserver is reporting the correct set of
+    // loaded coprocessors.
+
+    // Allow either ordering: since this is a set, either order is ok.
+    // Note the space [ ] after the comma in both constant strings:
+    // must be present for success of this test.
+    final String loadedCoprocessorsOrder1 =
+      "[" + coprocessor1.getSimpleName() + ", " + coprocessor2.getSimpleName() + "]";
+    final String loadedCoprocessorsOrder2 =
+        "[" + coprocessor2.getSimpleName() + ", " + coprocessor1.getSimpleName() + "]";
+    for(Map.Entry<ServerName,HServerLoad> server :
+        util.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers().entrySet()) {
+      String regionServerCoprocessors = server.getValue().getLoadedCoprocessors();
+      assertTrue(regionServerCoprocessors.equals(loadedCoprocessorsOrder1) ||
+          regionServerCoprocessors.equals(loadedCoprocessorsOrder2));
+    }
   }
 
   private static byte[][] makeN(byte[] base, int n) {
