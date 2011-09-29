@@ -123,15 +123,7 @@ implements WritableComparable<HServerLoad> {
      */
     private int totalStaticBloomSizeKB;
 
-    /**
-     * coprocessors and coprocessorString are region-level counterparts
-     * of the same members in HServerLoad.
-     */
     private Set<? extends CoprocessorEnvironment> coprocessors;
-
-    /**
-     * Set with the return value of {@link setCoprocessorString()}.
-     */
     private String coprocessorString;
 
     /**
@@ -477,8 +469,7 @@ implements WritableComparable<HServerLoad> {
     this.regionLoad = regionLoad;
     this.totalNumberOfRequests = totalNumberOfRequests;
     this.coprocessors = walCoprocessors;
-    this.coprocessorString =
-        setCoprocessorString(this.regionLoad, this.coprocessors);
+    setCoprocessorString(this.regionLoad, this.coprocessors);
   }
 
   /**
@@ -493,12 +484,16 @@ implements WritableComparable<HServerLoad> {
     }
   }
 
+  public String getCoprocessorString() {
+    return coprocessorString;
+  }
+
   /**
-   * @return list of comma-separated coprocessors, enclosed in
+   * Set coprocessorsString to a list of comma-separated coprocessors, enclosed in
    * square brackets.
    * (cf. {@link HMaster::setCoprocessorString()}).
    */
-  private String setCoprocessorString(
+  private void setCoprocessorString(
       final Map<byte[], RegionLoad> rls,
       Set<? extends CoprocessorEnvironment> rsCoprocessors) {
     StringBuilder sb = new StringBuilder();
@@ -529,7 +524,7 @@ implements WritableComparable<HServerLoad> {
       }
     }
     sb.append("]");
-    return sb.toString();
+    coprocessorString = sb.toString();
   }
 
   /**
@@ -569,7 +564,7 @@ implements WritableComparable<HServerLoad> {
     sb = Strings.appendKeyValue(sb, "usedHeapMB",
       Integer.valueOf(this.usedHeapMB));
     sb = Strings.appendKeyValue(sb, "maxHeapMB", Integer.valueOf(maxHeapMB));
-    sb = Strings.appendKeyValue(sb, "coprocessors", getLoadedCoprocessors());
+    sb = Strings.appendKeyValue(sb, "coprocessors", getCoprocessorString());
     return sb.toString();
   }
 
