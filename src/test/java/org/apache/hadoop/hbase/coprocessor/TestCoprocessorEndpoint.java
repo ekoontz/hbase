@@ -180,6 +180,13 @@ public class TestCoprocessorEndpoint {
     // HBASE 4070: Improve region server metrics to report loaded coprocessors
     // to master: verify that each regionserver is reporting the correct set of
     // loaded coprocessors.
+    // TODO: test display of regionserver-level coprocessors
+    // (e.g. SampleRegionWALObserver) versus region-level coprocessors
+    // (e.g. GenericEndpoint), and
+    // test CoprocessorHost.REGION_COPROCESSOR_CONF_KEY versus
+    // CoprocessorHost.USER_REGION_COPROCESSOR_CONF_KEY.
+    // Enabling and disabling user tables to see if coprocessor display changes
+    // as coprocessors are loaded and enabled consequently.
 
     // Allow either ordering: since this is a set, either order is ok.
     // Note the space [ ] after the comma in both constant strings:
