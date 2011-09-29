@@ -381,7 +381,6 @@ module Hbase
         for k, v in status.getRegionsInTransition()
           puts("    %s" % [v])
         end
-        puts("master coprocessors: %s" % [@admin.getMasterCoprocessors() ])
         puts("%d live servers" % [ status.getServersSize() ])
         for server in status.getServers()
           puts("    %s:%d %d" % \

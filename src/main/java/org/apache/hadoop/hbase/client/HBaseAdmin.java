@@ -82,7 +82,7 @@ public class HBaseAdmin implements Abortable, Closeable {
   private final long pause;
   private final int numRetries;
   // Some operations can take a long time such as disable of big table.
-  // numRetries is for 'normal' stuff... Multiply by this factor when
+  // numRetries is for 'normal' stuff... Mutliply by this factor when
   // want to wait a long time.
   private final int retryLongerMultiplier;
   private boolean aborted;
@@ -1649,15 +1649,4 @@ public class HBaseAdmin implements Abortable, Closeable {
         sn.getHostname(), sn.getPort());
     return rs.rollHLogWriter();
   }
-
-  public String getMasterCoprocessors() {
-    try {
-      return getMaster().generateCoprocessorString();
-    } catch (MasterNotRunningException e) {
-      return "master not running.";
-    } catch (ZooKeeperConnectionException e) {
-      return "could not connect to Zookeeper.";
-    }
-  }
-
 }
