@@ -1507,13 +1507,11 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
   }
 
   /**
-   * @param Set of master-hosted coprocessors.
-   * @return list of comma-separated coprocessor SimpleNames, enclosed in
-   * square brackets
-   * (cf. HServerLoad::generateCoprocessorString()).
+   * @return list of comma-separated coprocessors, enclosed in
+   * square brackets.
+   * (cf. {@link HServerLoad::generateCoprocessorString()}).
    */
-
-  public String getCoprocessors() {
+  public String generateCoprocessorString() {
     Set<MasterCoprocessorHost.MasterEnvironment> coprocessors =
         this.getCoprocessorHost().getCoprocessors();
     StringBuilder sb = new StringBuilder();

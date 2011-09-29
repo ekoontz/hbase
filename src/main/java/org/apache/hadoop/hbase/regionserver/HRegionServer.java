@@ -3241,7 +3241,7 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
     return wal.rollWriter(true);
   }
 
-  public String getLoadedCoprocessors() {
+  public String generateCoprocessorString() {
     return "coprocessors go here..";
   }
 }

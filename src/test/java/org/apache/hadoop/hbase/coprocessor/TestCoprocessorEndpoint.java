@@ -204,7 +204,7 @@ public class TestCoprocessorEndpoint {
     final String loadedMasterCoprocessorsVerify =
         "[" + masterCoprocessor.getSimpleName() + "]";
     String loadedMasterCoprocessors =
-        util.getMiniHBaseCluster().getMaster().getCoprocessors();
+        util.getMiniHBaseCluster().getMaster().generateCoprocessorString();
     assertEquals(loadedMasterCoprocessorsVerify, loadedMasterCoprocessors);
   }
 

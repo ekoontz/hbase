@@ -494,6 +494,11 @@ implements WritableComparable<HServerLoad> {
     }
   }
 
+  /**
+   * @return list of comma-separated coprocessors, enclosed in
+   * square brackets.
+   * (cf. {@link HMaster::generateCoprocessorString()}).
+   */
   private String generateCoprocessorString(
       final Map<byte[], RegionLoad> rls,
       Set<? extends CoprocessorEnvironment> rsCoprocessors) {

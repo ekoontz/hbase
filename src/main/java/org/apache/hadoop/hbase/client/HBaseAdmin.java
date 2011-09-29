@@ -1652,7 +1652,7 @@ public class HBaseAdmin implements Abortable, Closeable {
 
   public String getMasterCoprocessors() {
     try {
-      return getMaster().getCoprocessors();
+      return getMaster().generateCoprocessorString();
     } catch (MasterNotRunningException e) {
       return "master not running.";
     } catch (ZooKeeperConnectionException e) {
