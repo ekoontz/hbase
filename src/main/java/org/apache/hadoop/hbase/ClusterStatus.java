@@ -208,6 +208,10 @@ public class ClusterStatus extends VersionedWritable {
     return clusterId;
   }
 
+   public String getMasterCoprocessors() {
+    return masterCoprocessors;
+  }
+
   //
   // Writable
   //
@@ -259,8 +263,8 @@ public class ClusterStatus extends VersionedWritable {
     this.clusterId = in.readUTF();
   }
 
-  public String getMasterCoprocessors() {
-    return masterCoprocessors;
+  public void setMasterCoprocessors(final String masterCoprocessors) {
+    this.masterCoprocessors = masterCoprocessors;
   }
 
 }
