@@ -467,7 +467,7 @@ implements WritableComparable<HServerLoad> {
    * @param maxHeapMB
    * @param rsCoprocessors : coprocessors loaded at the regionserver-level
    *  (as opposed to the region-level: the latter are combined with the
-   *   former by setCoprocessorString()).
+   *   former by unionCoprocessors()).
    */
   public HServerLoad(final int totalNumberOfRequests,
       final int numberOfRequests, final int usedHeapMB, final int maxHeapMB,
@@ -479,7 +479,7 @@ implements WritableComparable<HServerLoad> {
     this.regionLoad = regionLoad;
     this.totalNumberOfRequests = totalNumberOfRequests;
     this.coprocessors = rsCoprocessors;
-    setCoprocessorString(this.regionLoad, this.coprocessors);
+    unionCoprocessors(this.regionLoad, this.coprocessors);
   }
 
   /**
@@ -511,11 +511,11 @@ implements WritableComparable<HServerLoad> {
       new TreeSet<CoprocessorEnvironment>(classNameComparator);
 
   /**
-   * Set coprocessorsString to a list of comma-separated coprocessors, enclosed in
+   * Set coprocessorString to a list of comma-separated coprocessors, enclosed in
    * square brackets.
    * (cf. {@link HMaster::getCoprocessors()}).
    */
-  private void setCoprocessorString(
+  private void unionCoprocessors(
       final Map<byte[], RegionLoad> rls,
       Set<? extends CoprocessorEnvironment> rsCoprocessors) {
     StringBuilder sb = new StringBuilder();
