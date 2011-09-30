@@ -43,9 +43,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- * TestEndpoint: test cases to verify coprocessor Endpoint
+ * TestCoprocessorReporting: test cases to verify that loaded coprocessors on
+ * master and regionservers are reported correctly.
  */
-public class TestCoprocessorEndpoint {
+public class TestCoprocessorReporting {
 
   private static final byte[] TEST_TABLE = Bytes.toBytes("TestTable");
   private static final byte[] TEST_FAMILY = Bytes.toBytes("TestFamily");
@@ -98,81 +99,43 @@ public class TestCoprocessorEndpoint {
   }
 
   @Test
-  public void testGeneric() throws Throwable {
-    HTable table = new HTable(util.getConfiguration(), TEST_TABLE);
-    GenericProtocol protocol = table.coprocessorProxy(GenericProtocol.class,
-                                                      Bytes.toBytes("testRow"));
-    String workResult1 = protocol.doWork("foo");
-    assertEquals("foo", workResult1);
-    byte[] workResult2 = protocol.doWork(new byte[]{1});
-    assertArrayEquals(new byte[]{1}, workResult2);
-    byte workResult3 = protocol.doWork((byte)1);
-    assertEquals((byte)1, workResult3);
-    char workResult4 = protocol.doWork('c');
-    assertEquals('c', workResult4);
-    boolean workResult5 = protocol.doWork(true);
-    assertEquals(true, workResult5);
-    short workResult6 = protocol.doWork((short)1);
-    assertEquals((short)1, workResult6);
-    int workResult7 = protocol.doWork(5);
-    assertEquals(5, workResult7);
-    long workResult8 = protocol.doWork(5l);
-    assertEquals(5l, workResult8);
-    double workResult9 = protocol.doWork(6d);
-    assertEquals(6d, workResult9, 0.01);
-    float workResult10 = protocol.doWork(6f);
-    assertEquals(6f, workResult10, 0.01);
-    Text workResult11 = protocol.doWork(new Text("foo"));
-    assertEquals(new Text("foo"), workResult11);
+  public void testRegionServerCoprocessorsReported() {
+    // HBASE 4070: Improve region server metrics to report loaded coprocessors
+    // to master: verify that each regionserver is reporting the correct set of
+    // loaded coprocessors.
+    // TODO: test display of regionserver-level coprocessors
+    // (e.g. SampleRegionWALObserver) versus region-level coprocessors
+    // (e.g. GenericEndpoint), and
+    // test CoprocessorHost.REGION_COPROCESSOR_CONF_KEY versus
+    // CoprocessorHost.USER_REGION_COPROCESSOR_CONF_KEY.
+    // Test enabling and disabling user tables to see if coprocessor display
+    // changes as coprocessors are consequently loaded and unloaded.
+
+    // Allow either ordering: since this is a set, either order is ok.
+    // Note the space [ ] after the comma in both constant strings:
+    // must be present for success of this test.
+    final String loadedCoprocessorsOrder1 =
+      "[" + coprocessor1.getSimpleName() + ", " + coprocessor2.getSimpleName() + "]";
+    final String loadedCoprocessorsOrder2 =
+        "[" + coprocessor2.getSimpleName() + ", " + coprocessor1.getSimpleName() + "]";
+    for(Map.Entry<ServerName,HServerLoad> server :
+        util.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers().entrySet()) {
+      String regionServerCoprocessors = server.getValue().getLoadedCoprocessors();
+      assertTrue(regionServerCoprocessors.equals(loadedCoprocessorsOrder1) ||
+          regionServerCoprocessors.equals(loadedCoprocessorsOrder2));
+    }
   }
 
   @Test
-  public void testAggregation() throws Throwable {
-    HTable table = new HTable(util.getConfiguration(), TEST_TABLE);
-    Scan scan;
-    Map<byte[], Long> results;
-
-    // scan: for all regions
-    results = table
-        .coprocessorExec(ColumnAggregationProtocol.class,
-                         ROWS[rowSeparator1 - 1], ROWS[rowSeparator2 + 1],
-                         new Batch.Call<ColumnAggregationProtocol, Long>() {
-                           public Long call(ColumnAggregationProtocol instance)
-                               throws IOException {
-                             return instance.sum(TEST_FAMILY, TEST_QUALIFIER);
-                           }
-                         });
-    int sumResult = 0;
-    int expectedResult = 0;
-    for (Map.Entry<byte[], Long> e : results.entrySet()) {
-      sumResult += e.getValue();
-    }
-    for (int i = 0; i < ROWSIZE; i++) {
-      expectedResult += i;
-    }
-    assertEquals("Invalid result", sumResult, expectedResult);
-
-    results.clear();
-
-    // scan: for region 2 and region 3
-    results = table
-        .coprocessorExec(ColumnAggregationProtocol.class,
-                         ROWS[rowSeparator1 + 1], ROWS[rowSeparator2 + 1],
-                         new Batch.Call<ColumnAggregationProtocol, Long>() {
-                           public Long call(ColumnAggregationProtocol instance)
-                               throws IOException {
-                             return instance.sum(TEST_FAMILY, TEST_QUALIFIER);
-                           }
-                         });
-    sumResult = 0;
-    expectedResult = 0;
-    for (Map.Entry<byte[], Long> e : results.entrySet()) {
-      sumResult += e.getValue();
-    }
-    for (int i = rowSeparator1; i < ROWSIZE; i++) {
-      expectedResult += i;
-    }
-    assertEquals("Invalid result", sumResult, expectedResult);
+  public void testMasterCoprocessorsReported() {
+    // HBASE 4070: Improve region server metrics to report loaded coprocessors
+    // to master: verify that the master is reporting the correct set of
+    // loaded coprocessors.
+    final String loadedMasterCoprocessorsVerify =
+        "[" + masterCoprocessor.getSimpleName() + "]";
+    String loadedMasterCoprocessors =
+        util.getHBaseCluster().getMaster().getCoprocessors();
+    assertEquals(loadedMasterCoprocessorsVerify, loadedMasterCoprocessors);
   }
 
   private static byte[][] makeN(byte[] base, int n) {
