@@ -64,6 +64,22 @@ implements WritableComparable<HServerLoad> {
 
   private String coprocessorString;
 
+  public String getCoprocessors() {
+    return coprocessorString;
+  }
+
+  static Comparator<CoprocessorEnvironment>  classNameComparator =
+      new Comparator<CoprocessorEnvironment>() {
+        @Override
+        public int compare(CoprocessorEnvironment o1, CoprocessorEnvironment o2) {
+          return o1.getInstance().getClass().getSimpleName().compareTo(
+              o2.getInstance().getClass().getSimpleName());
+        }
+      };
+
+  private Set<CoprocessorEnvironment> allCoprocessors =
+      new TreeSet<CoprocessorEnvironment>(classNameComparator);
+
   /** per-region load metrics */
   private Map<byte[], RegionLoad> regionLoad =
     new TreeMap<byte[], RegionLoad>(Bytes.BYTES_COMPARATOR);
@@ -493,22 +509,6 @@ implements WritableComparable<HServerLoad> {
       this.regionLoad.put(e.getKey(), e.getValue());
     }
   }
-
-  public String getCoprocessors() {
-    return coprocessorString;
-  }
-
-  static Comparator<CoprocessorEnvironment>  classNameComparator =
-      new Comparator<CoprocessorEnvironment>() {
-        @Override
-        public int compare(CoprocessorEnvironment o1, CoprocessorEnvironment o2) {
-          return o1.getInstance().getClass().getSimpleName().compareTo(
-              o2.getInstance().getClass().getSimpleName());
-        }
-      };
-
-  private Set<CoprocessorEnvironment> allCoprocessors =
-      new TreeSet<CoprocessorEnvironment>(classNameComparator);
 
   /**
    * Set coprocessorString to a list of comma-separated coprocessors, enclosed in
