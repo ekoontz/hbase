@@ -59,7 +59,7 @@ implements WritableComparable<HServerLoad> {
   /** the maximum allowable size of the heap, in MB */
   private int maxHeapMB = 0;
 
-  // region server level coprocessors, i.e., WALObserver implementation
+  // region server level coprocessors, e.g., WALObserver implementations.
   private Set<? extends CoprocessorEnvironment> coprocessors = null;
 
   private String coprocessorString;
@@ -124,6 +124,7 @@ implements WritableComparable<HServerLoad> {
     private int totalStaticBloomSizeKB;
 
     private Set<? extends CoprocessorEnvironment> coprocessors;
+    // TODO: remove
     private String coprocessorString;
 
     /**
@@ -171,10 +172,16 @@ implements WritableComparable<HServerLoad> {
       this.totalCompactingKVs = totalCompactingKVs;
       this.currentCompactedKVs = currentCompactedKVs;
       this.coprocessors = coprocessors;
-      this.coprocessorString = getLoadedCoprocessors();
+      this.coprocessorString = serializeCoprocessors(this.coprocessors);
     }
 
-    private String getLoadedCoprocessors() {
+    // TODO: change name to getCoprocessors().
+    private Set getLoadedCoprocessors() {
+      return coprocessors;
+    }
+
+    private String serializeCoprocessors(Set<? extends CoprocessorEnvironment>
+                                             coprocessorEnvironments) {
       StringBuilder sb = new StringBuilder();
       sb.append("[");
       Iterator<? extends CoprocessorEnvironment> i = coprocessors.iterator();
