@@ -458,17 +458,20 @@ implements WritableComparable<HServerLoad> {
    * @param numberOfRequests
    * @param usedHeapMB
    * @param maxHeapMB
+   * @param rsCoprocessors : coprocessors loaded at the regionserver-level
+   *  (as opposed to the region-level: the latter are combined with the
+   *   former by setCoprocessorString()).
    */
   public HServerLoad(final int totalNumberOfRequests,
       final int numberOfRequests, final int usedHeapMB, final int maxHeapMB,
       final Map<byte[], RegionLoad> regionLoad,
-      final Set<? extends CoprocessorEnvironment> walCoprocessors) {
+      final Set<? extends CoprocessorEnvironment> rsCoprocessors) {
     this.numberOfRequests = numberOfRequests;
     this.usedHeapMB = usedHeapMB;
     this.maxHeapMB = maxHeapMB;
     this.regionLoad = regionLoad;
     this.totalNumberOfRequests = totalNumberOfRequests;
-    this.coprocessors = walCoprocessors;
+    this.coprocessors = rsCoprocessors;
     setCoprocessorString(this.regionLoad, this.coprocessors);
   }
 
