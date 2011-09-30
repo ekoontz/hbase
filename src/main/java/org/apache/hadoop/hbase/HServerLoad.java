@@ -540,6 +540,9 @@ implements WritableComparable<HServerLoad> {
    * @return load factor for this server
    */
   public int getLoad() {
+    // int load = numberOfRequests == 0 ? 1 : numberOfRequests;
+    // load *= numberOfRegions == 0 ? 1 : numberOfRegions;
+    // return load;
     return this.regionLoad.size();
   }
 
