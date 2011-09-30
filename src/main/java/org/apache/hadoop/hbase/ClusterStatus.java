@@ -263,8 +263,4 @@ public class ClusterStatus extends VersionedWritable {
     this.clusterId = in.readUTF();
   }
 
-  public void setMasterCoprocessors(final String masterCoprocessors) {
-    this.masterCoprocessors = masterCoprocessors;
-  }
-
 }
