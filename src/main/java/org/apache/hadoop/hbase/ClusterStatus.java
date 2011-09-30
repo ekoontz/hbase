@@ -158,7 +158,8 @@ public class ClusterStatus extends VersionedWritable {
     return (getVersion() == ((ClusterStatus)o).getVersion()) &&
       getHBaseVersion().equals(((ClusterStatus)o).getHBaseVersion()) &&
       this.liveServers.equals(((ClusterStatus)o).liveServers) &&
-      deadServers.equals(((ClusterStatus)o).deadServers);
+      deadServers.equals(((ClusterStatus)o).deadServers) &&
+      this.masterCoprocessors.equals(((ClusterStatus)o).masterCoprocessors);
   }
 
   /**
@@ -209,7 +210,7 @@ public class ClusterStatus extends VersionedWritable {
   }
 
    public String getMasterCoprocessors() {
-    return masterCoprocessors;
+     return masterCoprocessors;
   }
 
   //
@@ -234,6 +235,7 @@ public class ClusterStatus extends VersionedWritable {
       e.getValue().write(out);
     }
     out.writeUTF(clusterId);
+    out.writeUTF(masterCoprocessors);
   }
 
   public void readFields(DataInput in) throws IOException {
@@ -261,6 +263,7 @@ public class ClusterStatus extends VersionedWritable {
       this.intransition.put(key, regionState);
     }
     this.clusterId = in.readUTF();
+    this.masterCoprocessors = in.readUTF();
   }
 }
 
