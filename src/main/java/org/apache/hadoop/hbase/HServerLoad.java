@@ -73,7 +73,7 @@ implements WritableComparable<HServerLoad> {
     return VERSION;
   }
 
-  /**
+   /*
    * Encapsulates per-region loading metrics.
    */
   public static class RegionLoad extends VersionedWritable {
@@ -498,6 +498,18 @@ implements WritableComparable<HServerLoad> {
     return coprocessorString;
   }
 
+  static Comparator<CoprocessorEnvironment>  classNameComparator =
+      new Comparator<CoprocessorEnvironment>() {
+        @Override
+        public int compare(CoprocessorEnvironment o1, CoprocessorEnvironment o2) {
+          return o1.getInstance().getClass().getSimpleName().compareTo(
+              o2.getInstance().getClass().getSimpleName());
+        }
+      };
+
+  private Set<CoprocessorEnvironment> allCoprocessors =
+      new TreeSet<CoprocessorEnvironment>(classNameComparator);
+
   /**
    * Set coprocessorsString to a list of comma-separated coprocessors, enclosed in
    * square brackets.
@@ -508,16 +520,7 @@ implements WritableComparable<HServerLoad> {
       Set<? extends CoprocessorEnvironment> rsCoprocessors) {
     StringBuilder sb = new StringBuilder();
     sb.append("[");
-    Comparator<CoprocessorEnvironment>  classNameComparator =
-        new Comparator<CoprocessorEnvironment>() {
-      @Override
-      public int compare(CoprocessorEnvironment o1, CoprocessorEnvironment o2) {
-        return o1.getInstance().getClass().getSimpleName().compareTo(
-            o2.getInstance().getClass().getSimpleName());
-      }
-    };
-    Set<CoprocessorEnvironment> allCoprocessors =
-        new TreeSet<CoprocessorEnvironment>(classNameComparator);
+
     for (Map.Entry<byte[], RegionLoad> rl : rls.entrySet()) {
       allCoprocessors.addAll(rl.getValue().coprocessors);
     }
