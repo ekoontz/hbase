@@ -21,7 +21,6 @@ package org.apache.hadoop.hbase.coprocessor;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.Map;
@@ -29,13 +28,11 @@ import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HConstants;
-import org.apache.hadoop.hbase.HServerLoad;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.coprocessor.Batch;
-import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.Text;
 import org.junit.AfterClass;
@@ -53,26 +50,20 @@ public class TestCoprocessorEndpoint {
   private static byte[] ROW = Bytes.toBytes("testRow");
 
   private static final int ROWSIZE = 20;
-  private static final int rowSeparator1 = 5;
-  private static final int rowSeparator2 = 12;
+  private static final int rowSeperator1 = 5;
+  private static final int rowSeperator2 = 12;
   private static byte[][] ROWS = makeN(ROW, ROWSIZE);
 
   private static HBaseTestingUtility util = new HBaseTestingUtility();
   private static MiniHBaseCluster cluster = null;
-
-  private static Class coprocessor1 = ColumnAggregationEndpoint.class;
-  private static Class coprocessor2 = GenericEndpoint.class;
-  private static Class masterCoprocessor = BaseMasterObserver.class;
 
   @BeforeClass
   public static void setupBeforeClass() throws Exception {
     // set configure to indicate which cp should be loaded
     Configuration conf = util.getConfiguration();
     conf.setStrings(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY,
-        coprocessor1.getName(), coprocessor2.getName());
-
-    conf.setStrings(CoprocessorHost.MASTER_COPROCESSOR_CONF_KEY,
-        masterCoprocessor.getName());
+        "org.apache.hadoop.hbase.coprocessor.ColumnAggregationEndpoint",
+        "org.apache.hadoop.hbase.coprocessor.GenericEndpoint");
 
     util.startMiniCluster(2);
     cluster = util.getMiniHBaseCluster();
@@ -80,7 +71,7 @@ public class TestCoprocessorEndpoint {
     HTable table = util.createTable(TEST_TABLE, TEST_FAMILY);
     util.createMultiRegions(util.getConfiguration(), table, TEST_FAMILY,
                             new byte[][] { HConstants.EMPTY_BYTE_ARRAY,
-                                ROWS[rowSeparator1], ROWS[rowSeparator2] });
+                                ROWS[rowSeperator1], ROWS[rowSeperator2] });
 
     for (int i = 0; i < ROWSIZE; i++) {
       Put put = new Put(ROWS[i]);
@@ -135,7 +126,7 @@ public class TestCoprocessorEndpoint {
     // scan: for all regions
     results = table
         .coprocessorExec(ColumnAggregationProtocol.class,
-                         ROWS[rowSeparator1 - 1], ROWS[rowSeparator2 + 1],
+                         ROWS[rowSeperator1 - 1], ROWS[rowSeperator2 + 1],
                          new Batch.Call<ColumnAggregationProtocol, Long>() {
                            public Long call(ColumnAggregationProtocol instance)
                                throws IOException {
@@ -157,7 +148,7 @@ public class TestCoprocessorEndpoint {
     // scan: for region 2 and region 3
     results = table
         .coprocessorExec(ColumnAggregationProtocol.class,
-                         ROWS[rowSeparator1 + 1], ROWS[rowSeparator2 + 1],
+                         ROWS[rowSeperator1 + 1], ROWS[rowSeperator2 + 1],
                          new Batch.Call<ColumnAggregationProtocol, Long>() {
                            public Long call(ColumnAggregationProtocol instance)
                                throws IOException {
@@ -169,7 +160,7 @@ public class TestCoprocessorEndpoint {
     for (Map.Entry<byte[], Long> e : results.entrySet()) {
       sumResult += e.getValue();
     }
-    for (int i = rowSeparator1; i < ROWSIZE; i++) {
+    for (int i = rowSeperator1; i < ROWSIZE; i++) {
       expectedResult += i;
     }
     assertEquals("Invalid result", sumResult, expectedResult);
