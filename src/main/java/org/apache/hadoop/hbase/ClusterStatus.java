@@ -262,5 +262,5 @@ public class ClusterStatus extends VersionedWritable {
     }
     this.clusterId = in.readUTF();
   }
-
 }
+
