@@ -141,6 +141,7 @@ implements WritableComparable<HServerLoad> {
     private int totalStaticBloomSizeKB;
 
     private Set<? extends CoprocessorEnvironment> coprocessors;
+    private String[] coprocessorNames;
 
     /**
      * Constructor, for Writable
@@ -187,6 +188,7 @@ implements WritableComparable<HServerLoad> {
       this.totalCompactingKVs = totalCompactingKVs;
       this.currentCompactedKVs = currentCompactedKVs;
       this.coprocessors = coprocessors;
+      this.coprocessorNames = getLoadedCoprocessors();
     }
 
     private String[] getLoadedCoprocessors() {
@@ -377,6 +379,11 @@ implements WritableComparable<HServerLoad> {
       this.totalStaticBloomSizeKB = in.readInt();
       this.totalCompactingKVs = in.readLong();
       this.currentCompactedKVs = in.readLong();
+      int coprocessorSetSize = in.readInt();
+      this.coprocessorNames = new String[coprocessorSetSize];
+      for(int i = 0; i < coprocessorSetSize; i++) {
+        this.coprocessorNames[i] = in.readUTF();
+      }
     }
 
     public void write(DataOutput out) throws IOException {
@@ -397,6 +404,11 @@ implements WritableComparable<HServerLoad> {
       out.writeInt(totalStaticBloomSizeKB);
       out.writeLong(totalCompactingKVs);
       out.writeLong(currentCompactedKVs);
+      String[] tmpCoprocessorNames = getLoadedCoprocessors();
+      out.writeInt(tmpCoprocessorNames.length);
+      for(String s: tmpCoprocessorNames) {
+        out.writeUTF(s);
+      }
     }
 
     /**
