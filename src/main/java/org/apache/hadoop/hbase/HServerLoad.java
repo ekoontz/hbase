@@ -22,6 +22,7 @@ package org.apache.hadoop.hbase;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -188,22 +189,19 @@ implements WritableComparable<HServerLoad> {
       this.coprocessors = coprocessors;
     }
 
-    // TODO: remove.
-    private String serializeCoprocessors(Set<? extends CoprocessorEnvironment>
-                                             coprocessorEnvironments) {
-      StringBuilder sb = new StringBuilder();
-      sb.append("[");
-      Iterator<? extends CoprocessorEnvironment> i = coprocessors.iterator();
-      if (i.hasNext()) {
-        for (;;) {
-          CoprocessorEnvironment ce = i.next();
-          sb.append(ce.getInstance().getClass().getSimpleName());
-          if (! i.hasNext()) break;
-          sb.append(", ");
+    private String[] getLoadedCoprocessors() {
+      if (coprocessors != null) {
+        ArrayList<String> coprocessorStrings = new ArrayList<String>();
+        for (CoprocessorEnvironment environment: coprocessors) {
+          coprocessorStrings.add(environment.getClass().getSimpleName());
         }
+        return coprocessorStrings.toArray(new String[0]);
       }
-      sb.append("]");
-      return sb.toString();
+      else {
+        String [] returnValue = new String[1];
+        returnValue[0] = "";
+        return returnValue;
+      }
     }
 
     // Getters
@@ -379,9 +377,6 @@ implements WritableComparable<HServerLoad> {
       this.totalStaticBloomSizeKB = in.readInt();
       this.totalCompactingKVs = in.readLong();
       this.currentCompactedKVs = in.readLong();
-
-      // deserialize set of coprocessors for this region.
-      // this.coprocessorString = in.readUTF();
     }
 
     public void write(DataOutput out) throws IOException {
@@ -402,9 +397,6 @@ implements WritableComparable<HServerLoad> {
       out.writeInt(totalStaticBloomSizeKB);
       out.writeLong(totalCompactingKVs);
       out.writeLong(currentCompactedKVs);
-
-      // serialize set of coprocessors for this region.
-      //out.writeUTF(coprocessorString);
     }
 
     /**
@@ -450,8 +442,7 @@ implements WritableComparable<HServerLoad> {
       }
       sb = Strings.appendKeyValue(sb, "compactionProgressPct",
           compactionProgressPct);
-      // serialize this.coprocessors.
-      //      sb = Strings.appendKeyValue(sb, "coprocessors", this.coprocessorString);
+      sb = Strings.appendKeyValue(sb, "coprocessors", java.util.Arrays.deepToString(getLoadedCoprocessors()));
       return sb.toString();
     }
   }
@@ -511,7 +502,7 @@ implements WritableComparable<HServerLoad> {
   /**
    * Set coprocessorString to a list of comma-separated coprocessors, enclosed in
    * square brackets.
-   * (cf. {@link HMaster::getCoprocessors()}).
+   * (@see HMaster::getCoprocessors()}).
    */
   private void unionCoprocessors(
       final Map<byte[], RegionLoad> rls,
