@@ -191,11 +191,7 @@ implements WritableComparable<HServerLoad> {
       this.coprocessorString = serializeCoprocessors(this.coprocessors);
     }
 
-    // TODO: change name to getCoprocessors().
-    private Set getLoadedCoprocessors() {
-      return coprocessors;
-    }
-
+    // TODO: remove.
     private String serializeCoprocessors(Set<? extends CoprocessorEnvironment>
                                              coprocessorEnvironments) {
       StringBuilder sb = new StringBuilder();
