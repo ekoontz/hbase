@@ -111,18 +111,18 @@ public class TestCoprocessorReporting {
     // Test enabling and disabling user tables to see if coprocessor display
     // changes as coprocessors are consequently loaded and unloaded.
 
-    // Allow either ordering: since this is a set, either order is ok.
+    // We rely on the fact that getLoadedCoprocessors() will return a sorted
+    // display of the coprocessors' names, so coprocessor1's name
+    // "ColumnAggregationEndpoint" will appear before coprocessor2's name
+    // "GenericEndpoint" because "C" is before "G" lexicographically.
     // Note the space [ ] after the comma in both constant strings:
     // must be present for success of this test.
-    final String loadedCoprocessorsOrder1 =
+    final String loadedCoprocessorsExpected =
       "[" + coprocessor1.getSimpleName() + ", " + coprocessor2.getSimpleName() + "]";
-    final String loadedCoprocessorsOrder2 =
-        "[" + coprocessor2.getSimpleName() + ", " + coprocessor1.getSimpleName() + "]";
     for(Map.Entry<ServerName,HServerLoad> server :
         util.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers().entrySet()) {
       String regionServerCoprocessors = server.getValue().getLoadedCoprocessors();
-      assertTrue(regionServerCoprocessors.equals(loadedCoprocessorsOrder1) ||
-          regionServerCoprocessors.equals(loadedCoprocessorsOrder2));
+      assertTrue(regionServerCoprocessors.equals(loadedCoprocessorsExpected));
     }
   }
 
