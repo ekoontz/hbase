@@ -140,8 +140,6 @@ implements WritableComparable<HServerLoad> {
     private int totalStaticBloomSizeKB;
 
     private Set<? extends CoprocessorEnvironment> coprocessors;
-    // TODO: remove
-    private String coprocessorString;
 
     /**
      * Constructor, for Writable
@@ -188,7 +186,6 @@ implements WritableComparable<HServerLoad> {
       this.totalCompactingKVs = totalCompactingKVs;
       this.currentCompactedKVs = currentCompactedKVs;
       this.coprocessors = coprocessors;
-      this.coprocessorString = serializeCoprocessors(this.coprocessors);
     }
 
     // TODO: remove.
@@ -382,7 +379,9 @@ implements WritableComparable<HServerLoad> {
       this.totalStaticBloomSizeKB = in.readInt();
       this.totalCompactingKVs = in.readLong();
       this.currentCompactedKVs = in.readLong();
-      this.coprocessorString = in.readUTF();
+
+      // deserialize set of coprocessors for this region.
+      // this.coprocessorString = in.readUTF();
     }
 
     public void write(DataOutput out) throws IOException {
@@ -403,7 +402,9 @@ implements WritableComparable<HServerLoad> {
       out.writeInt(totalStaticBloomSizeKB);
       out.writeLong(totalCompactingKVs);
       out.writeLong(currentCompactedKVs);
-      out.writeUTF(coprocessorString);
+
+      // serialize set of coprocessors for this region.
+      //out.writeUTF(coprocessorString);
     }
 
     /**
@@ -449,7 +450,8 @@ implements WritableComparable<HServerLoad> {
       }
       sb = Strings.appendKeyValue(sb, "compactionProgressPct",
           compactionProgressPct);
-      sb = Strings.appendKeyValue(sb, "coprocessors", this.coprocessorString);
+      // serialize this.coprocessors.
+      //      sb = Strings.appendKeyValue(sb, "coprocessors", this.coprocessorString);
       return sb.toString();
     }
   }
