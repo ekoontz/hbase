@@ -187,7 +187,7 @@ implements WritableComparable<HServerLoad> {
         }
       }
       sb.append("]");
-          return sb.toString();
+      return sb.toString();
     }
 
     // Getters
@@ -484,14 +484,14 @@ implements WritableComparable<HServerLoad> {
     }
   }
 
-  public String getCoprocessorString() {
+  public String getCoprocessors() {
     return coprocessorString;
   }
 
   /**
    * Set coprocessorsString to a list of comma-separated coprocessors, enclosed in
    * square brackets.
-   * (cf. {@link HMaster::setCoprocessorString()}).
+   * (cf. {@link HMaster::getCoprocessors()}).
    */
   private void setCoprocessorString(
       final Map<byte[], RegionLoad> rls,
@@ -564,7 +564,7 @@ implements WritableComparable<HServerLoad> {
     sb = Strings.appendKeyValue(sb, "usedHeapMB",
       Integer.valueOf(this.usedHeapMB));
     sb = Strings.appendKeyValue(sb, "maxHeapMB", Integer.valueOf(maxHeapMB));
-    sb = Strings.appendKeyValue(sb, "coprocessors", getCoprocessorString());
+    sb = Strings.appendKeyValue(sb, "coprocessors", getCoprocessors());
     return sb.toString();
   }
 

@@ -176,7 +176,7 @@ public class TestCoprocessorEndpoint {
   }
 
   @Test
-  public void testRegionServerCoprocessorReported() {
+  public void testRegionServerCoprocessorsReported() {
     // HBASE 4070: Improve region server metrics to report loaded coprocessors
     // to master: verify that each regionserver is reporting the correct set of
     // loaded coprocessors.
@@ -185,8 +185,8 @@ public class TestCoprocessorEndpoint {
     // (e.g. GenericEndpoint), and
     // test CoprocessorHost.REGION_COPROCESSOR_CONF_KEY versus
     // CoprocessorHost.USER_REGION_COPROCESSOR_CONF_KEY.
-    // Enabling and disabling user tables to see if coprocessor display changes
-    // as coprocessors are loaded and enabled consequently.
+    // Test enabling and disabling user tables to see if coprocessor display
+    // changes as coprocessors are consequently loaded and unloaded.
 
     // Allow either ordering: since this is a set, either order is ok.
     // Note the space [ ] after the comma in both constant strings:
@@ -211,7 +211,7 @@ public class TestCoprocessorEndpoint {
     final String loadedMasterCoprocessorsVerify =
         "[" + masterCoprocessor.getSimpleName() + "]";
     String loadedMasterCoprocessors =
-        util.getMiniHBaseCluster().getMaster().generateCoprocessorString();
+        util.getHBaseCluster().getMaster().getCoprocessors();
     assertEquals(loadedMasterCoprocessorsVerify, loadedMasterCoprocessors);
   }
 

@@ -82,6 +82,7 @@ import org.apache.hadoop.hbase.monitoring.TaskMonitor;
 import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.regionserver.wal.HLog;
 import org.apache.hadoop.hbase.replication.regionserver.Replication;
+import org.apache.hadoop.hbase.rest.client.Cluster;
 import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.FSTableDescriptors;
@@ -1183,7 +1184,8 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
       this.fileSystemManager.getClusterId(),
       this.serverManager.getOnlineServers(),
       this.serverManager.getDeadServers(),
-      this.assignmentManager.getRegionsInTransition());
+      this.assignmentManager.getRegionsInTransition(),
+      this.getCoprocessors());
   }
 
   public String getClusterId() {
@@ -1511,12 +1513,11 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
    * square brackets.
    * (cf. {@link HServerLoad::setCoprocessorString()}).
    */
-  public String generateCoprocessorString() {
-    Set<MasterCoprocessorHost.MasterEnvironment> coprocessors =
-        this.getCoprocessorHost().getCoprocessors();
+  public String getCoprocessors() {
     StringBuilder sb = new StringBuilder();
     sb.append("[");
-    Iterator<? extends CoprocessorEnvironment> i = coprocessors.iterator();
+    Iterator<? extends CoprocessorEnvironment> i =
+        getCoprocessorHost().getCoprocessors().iterator();
     if (i.hasNext()) {
       for (;;) {
         CoprocessorEnvironment ce = i.next();

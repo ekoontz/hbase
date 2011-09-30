@@ -3241,10 +3241,10 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
     return wal.rollWriter(true);
   }
 
-  public String generateCoprocessorString() {
+  public String getCoprocessors() {
     HServerLoad hsl = buildServerLoad();
     if (hsl != null) {
-      return hsl.getCoprocessorString();
+      return hsl.getCoprocessors();
     } else {
       LOG.error("Could not get a HServerLoad for this regionserver: returning " +
       "an empty string.");

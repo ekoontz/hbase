@@ -66,6 +66,7 @@ public class ClusterStatus extends VersionedWritable {
   private Collection<ServerName> deadServers;
   private Map<String, RegionState> intransition;
   private String clusterId;
+  private String masterCoprocessors;
 
   /**
    * Constructor, for Writable
@@ -76,12 +77,14 @@ public class ClusterStatus extends VersionedWritable {
 
   public ClusterStatus(final String hbaseVersion, final String clusterid,
       final Map<ServerName, HServerLoad> servers,
-      final Collection<ServerName> deadServers, final Map<String, RegionState> rit) {
+      final Collection<ServerName> deadServers, final Map<String, RegionState> rit,
+      final String masterCoprocessors) {
     this.hbaseVersion = hbaseVersion;
     this.liveServers = servers;
     this.deadServers = deadServers;
     this.intransition = rit;
     this.clusterId = clusterid;
+    this.masterCoprocessors = masterCoprocessors;
   }
 
   /**
@@ -255,4 +258,9 @@ public class ClusterStatus extends VersionedWritable {
     }
     this.clusterId = in.readUTF();
   }
+
+  public String getMasterCoprocessors() {
+    return masterCoprocessors;
+  }
+
 }
