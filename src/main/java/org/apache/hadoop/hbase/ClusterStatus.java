@@ -84,6 +84,7 @@ public class ClusterStatus extends VersionedWritable {
     this.deadServers = deadServers;
     this.intransition = rit;
     this.clusterId = clusterid;
+    // TODO: Make this a String[] (both this.masterCoprocessors and param masterCoprocessors).
     this.masterCoprocessors = masterCoprocessors;
   }
 
