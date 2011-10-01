@@ -708,7 +708,7 @@ implements WritableComparable<HServerLoad> {
     for (RegionLoad rl: regionLoad.values())
       rl.write(out);
     out.writeInt(totalNumberOfRequests);
-    // write out (regionserver-specific (WALObservers)) coprocessor strings
+    // serialize either coprocessors or allCoprocessorNames (but not both).
     if (coprocessors != null) {
       out.writeInt(coprocessors.size());
       for(CoprocessorEnvironment environment: coprocessors) {
