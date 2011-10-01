@@ -715,7 +715,14 @@ implements WritableComparable<HServerLoad> {
         out.writeUTF(environment.getInstance().getClass().getSimpleName());
       }
     } else {
-      out.writeInt(0);
+      if (allCoprocessorNames != null) {
+        out.writeInt(allCoprocessorNames.size());
+        for(String coprocessorName: allCoprocessorNames) {
+          out.writeUTF(coprocessorName);
+        }
+      } else {
+        out.writeInt(0);
+      }
     }
   }
 
