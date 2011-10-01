@@ -87,6 +87,9 @@ implements WritableComparable<HServerLoad> {
       new TreeSet<String>(stringComparator);
 
   public String[] getLoadedCoprocessors() {
+    for (CoprocessorEnvironment environment: coprocessors) {
+      allCoprocessorNames.add(environment.getInstance().getClass().getSimpleName());
+    }
     for (Map.Entry<byte[], RegionLoad> rls: getRegionsLoad().entrySet()) {
       for (String coprocessorName: rls.getValue().getLoadedCoprocessors()) {
         allCoprocessorNames.add(coprocessorName);
@@ -202,7 +205,6 @@ implements WritableComparable<HServerLoad> {
       this.totalCompactingKVs = totalCompactingKVs;
       this.currentCompactedKVs = currentCompactedKVs;
       this.regionCoprocessors = coprocessors;
-      this.regionCoprocessorNames = getLoadedCoprocessors();
     }
 
     private String[] getLoadedCoprocessors() {
@@ -393,6 +395,11 @@ implements WritableComparable<HServerLoad> {
       this.totalStaticBloomSizeKB = in.readInt();
       this.totalCompactingKVs = in.readLong();
       this.currentCompactedKVs = in.readLong();
+      int regionCoprocessorsSize = in.readInt();
+      regionCoprocessorNames = new String[regionCoprocessorsSize];
+      for (int i = 0; i < regionCoprocessorsSize; i++) {
+        regionCoprocessorNames[i] = in.readUTF();
+      }
     }
 
     public void write(DataOutput out) throws IOException {
@@ -413,6 +420,14 @@ implements WritableComparable<HServerLoad> {
       out.writeInt(totalStaticBloomSizeKB);
       out.writeLong(totalCompactingKVs);
       out.writeLong(currentCompactedKVs);
+      if (regionCoprocessors != null) {
+        out.writeInt(regionCoprocessors.size());
+        for (CoprocessorEnvironment env: regionCoprocessors) {
+          out.writeUTF(env.getInstance().getClass().getSimpleName());
+        }
+      } else {
+        out.writeInt(0);
+      }
     }
 
     /**
@@ -458,7 +473,7 @@ implements WritableComparable<HServerLoad> {
       }
       sb = Strings.appendKeyValue(sb, "compactionProgressPct",
           compactionProgressPct);
-      sb = Strings.appendKeyValue(sb, "coprocessors", java.util.Arrays.deepToString(regionCoprocessorNames));
+      sb = Strings.appendKeyValue(sb, "coprocessors", java.util.Arrays.deepToString(getLoadedCoprocessors()));
       return sb.toString();
     }
   }
@@ -500,7 +515,6 @@ implements WritableComparable<HServerLoad> {
     this.regionLoad = regionLoad;
     this.totalNumberOfRequests = totalNumberOfRequests;
     this.coprocessors = coprocessors;
-    unionCoprocessors(this.regionLoad, this.coprocessors);
   }
 
   /**
@@ -513,23 +527,6 @@ implements WritableComparable<HServerLoad> {
     for (Map.Entry<byte[], RegionLoad> e : hsl.regionLoad.entrySet()) {
       this.regionLoad.put(e.getKey(), e.getValue());
     }
-  }
-
-  /**
-   * Set coprocessorString to a list of comma-separated coprocessors, enclosed in
-   * square brackets.
-   * (@see HMaster::getCoprocessors()}).
-   */
-  private void unionCoprocessors(
-      final Map<byte[], RegionLoad> rls,
-      Set<? extends CoprocessorEnvironment> rsCoprocessors) {
-    StringBuilder sb = new StringBuilder();
-    sb.append("[");
-
-    for (Map.Entry<byte[], RegionLoad> rl : rls.entrySet()) {
-      allCoprocessors.addAll(rl.getValue().regionCoprocessors);
-    }
-    allCoprocessors.addAll(rsCoprocessors);
   }
 
   /**
