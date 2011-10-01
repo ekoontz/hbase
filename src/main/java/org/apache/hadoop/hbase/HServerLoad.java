@@ -98,7 +98,7 @@ implements WritableComparable<HServerLoad> {
     return VERSION;
   }
 
-   /*
+  /*
    * Encapsulates per-region loading metrics.
    */
   public static class RegionLoad extends VersionedWritable {
