@@ -77,9 +77,13 @@ implements WritableComparable<HServerLoad> {
 
   public String[] getLoadedCoprocessors() {
     if (coprocessors != null) {
+      allCoprocessorNames.add("non-empty-coprocessors-set");
       for (CoprocessorEnvironment environment: coprocessors) {
         allCoprocessorNames.add(environment.getInstance().getClass().getSimpleName());
       }
+    }
+    else {
+      allCoprocessorNames.add("empty-coprocessors-set");
     }
     for (Map.Entry<byte[], RegionLoad> rls: getRegionsLoad().entrySet()) {
       for (String coprocessorName: rls.getValue().getLoadedCoprocessors()) {
@@ -201,6 +205,7 @@ implements WritableComparable<HServerLoad> {
     private String[] getLoadedCoprocessors() {
       if (regionCoprocessors != null) {
         ArrayList<String> coprocessorStrings = new ArrayList<String>();
+        coprocessorStrings.add("non-empty-regionCoprocessors-set");
         for (CoprocessorEnvironment environment: regionCoprocessors) {
           coprocessorStrings.add(environment.getInstance().getClass().getSimpleName());
         }
@@ -208,9 +213,13 @@ implements WritableComparable<HServerLoad> {
       }
       else {
         if (this.regionCoprocessorNames != null) {
+//          String[] returnValue = new String[1];
+//          returnValue[0] = "non-null-region-coprocessor-names.";
+//          return returnValue;
           return this.regionCoprocessorNames;
         }
-        String [] returnValue = new String[0];
+        String[] returnValue = new String[1];
+        returnValue[0] = "null-region-coprocessor-names.";
         return returnValue;
       }
     }
@@ -419,7 +428,14 @@ implements WritableComparable<HServerLoad> {
           out.writeUTF(env.getInstance().getClass().getSimpleName());
         }
       } else {
-        out.writeInt(0);
+        if (regionCoprocessorNames != null) {
+          out.writeInt(regionCoprocessorNames.length);
+          for (String regionCoprocessorName: regionCoprocessorNames) {
+            out.writeUTF(regionCoprocessorName);
+          }
+        } else {
+          out.writeInt(0);
+        }
       }
     }
 
