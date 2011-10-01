@@ -150,7 +150,7 @@ implements WritableComparable<HServerLoad> {
     private int totalStaticBloomSizeKB;
 
     private Set<? extends CoprocessorEnvironment> coprocessors;
-    private String[] coprocessorNames;
+    private String[] coprocessorNames = new String[0];
 
     /**
      * Constructor, for Writable
@@ -205,15 +205,11 @@ implements WritableComparable<HServerLoad> {
         for (CoprocessorEnvironment environment: coprocessors) {
           coprocessorStrings.add(environment.getInstance().getClass().getSimpleName());
         }
-        return coprocessorStrings.toArray(new String[0]);
+        coprocessorNames = coprocessorStrings.toArray(new String[0]);
+        return coprocessorNames;
       }
       else {
-        if (this.coprocessorNames != null) {
-          return this.coprocessorNames;
-        }
-        String[] returnValue = new String[1];
-        returnValue[0] = "";
-        return returnValue;
+        return coprocessorNames;
       }
     }
 
