@@ -1515,6 +1515,7 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
    * square brackets.
    * (cf. {@link HServerLoad::setCoprocessorString()}).
    */
+  // TODO: use an array of strings per Andy's review.
   public String getCoprocessors() {
     StringBuilder sb = new StringBuilder();
     sb.append("[");

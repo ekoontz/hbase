@@ -87,6 +87,11 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
       return coprocessorNames;
   }
 
+  /**
+   * Used by @see{HRegionServer::buildServerLoad() and ::createRegionLoad()
+   * to report loaded coprocessors.}
+   * @return set of coprocessor environments.
+   */
   public SortedSet<E> getCoprocessors() {
     return coprocessors;
   }
