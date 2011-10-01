@@ -690,7 +690,6 @@ implements WritableComparable<HServerLoad> {
       regionLoad.put(rl.getName(), rl);
     }
     totalNumberOfRequests = in.readInt();
-    // read (regionserver-specific (WALObservers)) coprocessor strings.
     allCoprocessorNames.clear();
     int coprocessorsSize = in.readInt();
     for(int i = 0; i < coprocessorsSize; i++) {
@@ -709,20 +708,10 @@ implements WritableComparable<HServerLoad> {
       rl.write(out);
     out.writeInt(totalNumberOfRequests);
     // serialize either coprocessors or allCoprocessorNames (but not both).
-    if (coprocessors != null) {
-      out.writeInt(coprocessors.size());
-      for(CoprocessorEnvironment environment: coprocessors) {
-        out.writeUTF(environment.getInstance().getClass().getSimpleName());
-      }
-    } else {
-      if (allCoprocessorNames != null) {
-        out.writeInt(allCoprocessorNames.size());
-        for(String coprocessorName: allCoprocessorNames) {
-          out.writeUTF(coprocessorName);
-        }
-      } else {
-        out.writeInt(0);
-      }
+    String[] loadedCoprocessors = getLoadedCoprocessors();
+    out.writeInt(loadedCoprocessors.length);
+    for (String coprocessorName: loadedCoprocessors) {
+      out.writeUTF(coprocessorName);
     }
   }
 
