@@ -77,6 +77,7 @@ implements WritableComparable<HServerLoad> {
 
   public String[] getLoadedCoprocessors() {
     if (coprocessors != null) {
+      allCoprocessorNames.clear();
       for (CoprocessorEnvironment environment: coprocessors) {
         allCoprocessorNames.add(environment.getInstance().getClass().getSimpleName());
       }
