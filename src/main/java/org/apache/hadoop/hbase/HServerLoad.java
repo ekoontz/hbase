@@ -72,22 +72,22 @@ implements WritableComparable<HServerLoad> {
         }
       };
 
-  Set<String> allCoprocessorNames =
+  Set<String> coprocessorNames =
       new TreeSet<String>(stringComparator);
 
   public String[] getLoadedCoprocessors() {
     if (coprocessors != null) {
-      allCoprocessorNames.clear();
+      coprocessorNames.clear();
       for (CoprocessorEnvironment environment: coprocessors) {
-        allCoprocessorNames.add(environment.getInstance().getClass().getSimpleName());
+        coprocessorNames.add(environment.getInstance().getClass().getSimpleName());
       }
     }
     for (Map.Entry<byte[], RegionLoad> rls: getRegionsLoad().entrySet()) {
       for (String coprocessorName: rls.getValue().getLoadedCoprocessors()) {
-        allCoprocessorNames.add(coprocessorName);
+        coprocessorNames.add(coprocessorName);
       }
     }
-    return allCoprocessorNames.toArray(new String[0]);
+    return coprocessorNames.toArray(new String[0]);
   }
 
   /** per-region load metrics */
@@ -691,10 +691,10 @@ implements WritableComparable<HServerLoad> {
       regionLoad.put(rl.getName(), rl);
     }
     totalNumberOfRequests = in.readInt();
-    allCoprocessorNames.clear();
+    coprocessorNames.clear();
     int coprocessorsSize = in.readInt();
     for(int i = 0; i < coprocessorsSize; i++) {
-      allCoprocessorNames.add(in.readUTF());
+      coprocessorNames.add(in.readUTF());
     }
   }
 
@@ -708,7 +708,6 @@ implements WritableComparable<HServerLoad> {
     for (RegionLoad rl: regionLoad.values())
       rl.write(out);
     out.writeInt(totalNumberOfRequests);
-    // serialize either coprocessors or allCoprocessorNames (but not both).
     String[] loadedCoprocessors = getLoadedCoprocessors();
     out.writeInt(loadedCoprocessors.length);
     for (String coprocessorName: loadedCoprocessors) {
