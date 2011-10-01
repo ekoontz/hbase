@@ -2816,6 +2816,10 @@ public class HRegion implements HeapSize { // , Writable{
       }
       this.filterClosed = true;
     }
+
+    KeyValueHeap getStoreHeapForTesting() {
+      return storeHeap;
+    }
   }
 
   // Utility methods
@@ -3522,6 +3526,7 @@ public class HRegion implements HeapSize { // , Writable{
     List<KeyValue> kvs = new ArrayList<KeyValue>(increment.numColumns());
     long now = EnvironmentEdgeManager.currentTimeMillis();
     long size = 0;
+    long txid = 0;
 
     // Lock row
     startRegionOperation();
@@ -3580,7 +3585,7 @@ public class HRegion implements HeapSize { // , Writable{
           // Using default cluster id, as this can only happen in the orginating
           // cluster. A slave cluster receives the final value (not the delta)
           // as a Put.
-          this.log.append(regionInfo, this.htableDescriptor.getName(),
+          txid = this.log.appendNoSync(regionInfo, this.htableDescriptor.getName(),
               walEdits, HConstants.DEFAULT_CLUSTER_ID, now,
               this.htableDescriptor);
         }
@@ -3590,6 +3595,9 @@ public class HRegion implements HeapSize { // , Writable{
       } finally {
         this.updatesLock.readLock().unlock();
         releaseRowLock(lid);
+      }
+      if (writeToWAL) {
+        this.log.sync(txid); // sync the transaction log outside the rowlock
       }
     } finally {
       closeRegionOperation();
@@ -3618,6 +3626,7 @@ public class HRegion implements HeapSize { // , Writable{
     checkRow(row, "increment");
     boolean flush = false;
     boolean wrongLength = false;
+    long txid = 0;
     // Lock row
     long result = amount;
     startRegionOperation();
@@ -3661,7 +3670,7 @@ public class HRegion implements HeapSize { // , Writable{
             // Using default cluster id, as this can only happen in the
             // orginating cluster. A slave cluster receives the final value (not
             // the delta) as a Put.
-            this.log.append(regionInfo, this.htableDescriptor.getName(),
+            txid = this.log.appendNoSync(regionInfo, this.htableDescriptor.getName(),
                 walEdit, HConstants.DEFAULT_CLUSTER_ID, now,
                 this.htableDescriptor);
           }
@@ -3677,6 +3686,9 @@ public class HRegion implements HeapSize { // , Writable{
       } finally {
         this.updatesLock.readLock().unlock();
         releaseRowLock(lid);
+      }
+      if (writeToWAL) {
+        this.log.sync(txid); // sync the transaction log outside the rowlock
       }
     } finally {
       closeRegionOperation();

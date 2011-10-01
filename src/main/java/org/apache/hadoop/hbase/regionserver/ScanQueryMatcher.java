@@ -28,6 +28,7 @@ import org.apache.hadoop.hbase.filter.Filter.ReturnCode;
 import org.apache.hadoop.hbase.io.TimeRange;
 import org.apache.hadoop.hbase.util.Bytes;
 
+import java.io.IOException;
 import java.util.NavigableSet;
 
 /**
@@ -58,6 +59,12 @@ public class ScanQueryMatcher {
 
   /** Row the query is on */
   protected byte [] row;
+  
+  /** 
+   * True if we are only interested in the given exact set of columns. In that
+   * case we can use Bloom filters to avoid unnecessary disk seeks.
+   */
+  private boolean exactColumnQuery;
 
   /**
    * Constructs a ScanQueryMatcher for a Scan.
@@ -88,8 +95,10 @@ public class ScanQueryMatcher {
       // between rows, not between storefiles.
       this.columns = new ExplicitColumnTracker(columns, minVersions, maxVersions,
           ttl);
+      exactColumnQuery = true;
     }
   }
+
   public ScanQueryMatcher(Scan scan, byte [] family,
       NavigableSet<byte[]> columns, long ttl,
       KeyValue.KeyComparator rowComparator, int minVersions, int maxVersions) {
@@ -114,8 +123,10 @@ public class ScanQueryMatcher {
    *
    * @param kv KeyValue to check
    * @return The match code instance.
+   * @throws IOException in case there is an internal consistency problem
+   *      caused by a data corruption.
    */
-  public MatchCode match(KeyValue kv) {
+  public MatchCode match(KeyValue kv) throws IOException {
     if (filter != null && filter.filterAllRemaining()) {
       return MatchCode.DONE_SCAN;
     }
@@ -300,6 +311,10 @@ public class ScanQueryMatcher {
         kv.getBuffer(), kv.getRowOffset(), kv.getRowLength(),
         null, 0, 0,
         null, 0, 0);
+  }
+
+  public boolean isExactColumnQuery() {
+    return exactColumnQuery;
   }
 
   /**

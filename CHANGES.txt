@@ -38,6 +38,7 @@ Release 0.92.0 - Unreleased
    HBASE-4369  Deprecate HConnection#getZookeeperWatcher in prep for HBASE-1762
    HBASE-4247  Add isAborted method to the Abortable interface
                (Akash Ashok)
+   HBASE-4503  Purge deprecated HBaseClusterTestCase
 
   BUG FIXES
    HBASE-3280  YouAreDeadException being swallowed in HRS getMaster
@@ -322,6 +323,10 @@ Release 0.92.0 - Unreleased
    HBASE-4212  TestMasterFailover fails occasionally (Gao Jinchao)
    HBASE-4412  No need to retry scan operation on the same server in case of
                RegionServerStoppedException (Ming Ma)
+   HBASE-4476  Compactions must fail if column tracker gets columns out of order
+               (Mikhail Bautin)
+   HBASE-4209  The HBase hbase-daemon.sh SIGKILLs master when stopping it
+               (Roman Shaposhnik)
 
   TESTS
    HBASE-4450  test for number of blocks read: to serve as baseline for expected
@@ -566,6 +571,10 @@ Release 0.92.0 - Unreleased
                (Jesse Yates)
    HBASE-4499  [replication] Source shouldn't update ZK if it didn't progress
                (Chris Trezzo via JD)
+   HBASE-2794  Utilize ROWCOL bloom filter if multiple columns within same family
+               are requested in a Get (Mikhail Bautin)
+   HBASE-4487  The increment operation can release the rowlock before sync-ing
+               the Hlog (dhruba borthakur)
 
   TASKS
    HBASE-3559  Move report of split to master OFF the heartbeat channel
@@ -673,6 +682,7 @@ Release 0.90.5 - Unreleased
                (Lars Hofhansl)
    HBASE-4295  rowcounter does not return the correct number of rows in
                certain circumstances (David Revell)
+   HBASE-4515  User.getCurrent() can fail to initialize the current user
 
   IMPROVEMENT
    HBASE-4205  Enhance HTable javadoc (Eric Charles)
@@ -692,6 +702,10 @@ Release 0.90.5 - Unreleased
    HBASE-4384  Hard to tell what causes failure in CloseRegionHandler#getCurrentVersion
                (Harsh J)
    HBASE-4375  [hbck] Add region coverage visualization to hbck
+               (Jonathan Hsieh)
+   HBASE-4506  [hbck] Allow HBaseFsck to be instantiated without connecting
+               (Jonathan Hsieh)
+   HBASE-4509  [hbck] Improve region map output
                (Jonathan Hsieh)
 
 Release 0.90.4 - August 10, 2011
