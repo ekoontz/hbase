@@ -19,7 +19,6 @@
  */
 package org.apache.hadoop.hbase.coprocessor;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -61,8 +60,9 @@ public class TestCoprocessorReporting {
   private static HBaseTestingUtility util = new HBaseTestingUtility();
   private static MiniHBaseCluster cluster = null;
 
-  private static Class coprocessor1 = ColumnAggregationEndpoint.class;
-  private static Class coprocessor2 = GenericEndpoint.class;
+  private static Class regionCoprocessor1 = ColumnAggregationEndpoint.class;
+  private static Class regionCoprocessor2 = GenericEndpoint.class;
+  private static Class regionServerCoprocessor = SampleRegionWALObserver.class;
   private static Class masterCoprocessor = BaseMasterObserver.class;
 
   @BeforeClass
@@ -70,7 +70,9 @@ public class TestCoprocessorReporting {
     // set configure to indicate which cp should be loaded
     Configuration conf = util.getConfiguration();
     conf.setStrings(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY,
-        coprocessor1.getName(), coprocessor2.getName());
+        regionCoprocessor1.getName(), regionCoprocessor2.getName());
+    conf.setStrings(CoprocessorHost.WAL_COPROCESSOR_CONF_KEY,
+        regionServerCoprocessor.getName());
 
     conf.setStrings(CoprocessorHost.MASTER_COPROCESSOR_CONF_KEY,
         masterCoprocessor.getName());
@@ -118,10 +120,12 @@ public class TestCoprocessorReporting {
     // Note the space [ ] after the comma in both constant strings:
     // must be present for success of this test.
     final String loadedCoprocessorsExpected =
-      "[" + coprocessor1.getSimpleName() + ", " + coprocessor2.getSimpleName() + "]";
+      "[" + regionCoprocessor1.getSimpleName() + ", " +
+          regionCoprocessor2.getSimpleName() +  ", " +
+          regionServerCoprocessor.getSimpleName() + "]";
     for(Map.Entry<ServerName,HServerLoad> server :
         util.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers().entrySet()) {
-      String[] regionServerCoprocessors = server.getValue().getLoadedCoprocessors();
+      String regionServerCoprocessors = java.util.Arrays.deepToString(server.getValue().getLoadedCoprocessors());
       assertTrue(regionServerCoprocessors.equals(loadedCoprocessorsExpected));
     }
   }
