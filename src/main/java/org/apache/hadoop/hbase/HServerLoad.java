@@ -64,7 +64,7 @@ implements WritableComparable<HServerLoad> {
   // region-level coprocessors are stored inside RegionLoad objects.
   private Set<? extends CoprocessorEnvironment> coprocessors = null;
 
-  static Comparator<String>  stringComparator =
+  static Comparator<String> stringComparator =
       new Comparator<String>() {
         @Override
         public int compare(String o1, String o2) {
@@ -99,7 +99,7 @@ implements WritableComparable<HServerLoad> {
     return VERSION;
   }
 
-  /*
+  /**
    * Encapsulates per-region loading metrics.
    */
   public static class RegionLoad extends VersionedWritable {
@@ -500,8 +500,6 @@ implements WritableComparable<HServerLoad> {
    * @param usedHeapMB
    * @param maxHeapMB
    * @param coprocessors : coprocessors loaded at the regionserver-level
-   *  (as opposed to the region-level: the latter are combined with the
-   *   former by unionCoprocessors()).
    */
   public HServerLoad(final int totalNumberOfRequests,
       final int numberOfRequests, final int usedHeapMB, final int maxHeapMB,
