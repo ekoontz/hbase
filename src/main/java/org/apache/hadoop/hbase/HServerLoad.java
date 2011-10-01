@@ -701,11 +701,14 @@ implements WritableComparable<HServerLoad> {
       rl.write(out);
     out.writeInt(totalNumberOfRequests);
     // write out (regionserver-specific (WALObservers)) coprocessor strings
-    out.writeInt(coprocessors.size());
-    for(CoprocessorEnvironment environment: coprocessors) {
-      out.writeUTF(environment.getInstance().getClass().getSimpleName());
+    if (coprocessors != null) {
+      out.writeInt(coprocessors.size());
+      for(CoprocessorEnvironment environment: coprocessors) {
+        out.writeUTF(environment.getInstance().getClass().getSimpleName());
+      }
+    } else {
+      out.writeInt(0);
     }
-
   }
 
   // Comparable
