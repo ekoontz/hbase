@@ -149,8 +149,8 @@ implements WritableComparable<HServerLoad> {
      */
     private int totalStaticBloomSizeKB;
 
-    private Set<? extends CoprocessorEnvironment> regionCoprocessors;
-    private String[] regionCoprocessorNames;
+    private Set<? extends CoprocessorEnvironment> coprocessors;
+    private String[] coprocessorNames;
 
     /**
      * Constructor, for Writable
@@ -196,20 +196,20 @@ implements WritableComparable<HServerLoad> {
       this.writeRequestsCount = writeRequestsCount;
       this.totalCompactingKVs = totalCompactingKVs;
       this.currentCompactedKVs = currentCompactedKVs;
-      this.regionCoprocessors = coprocessors;
+      this.coprocessors = coprocessors;
     }
 
     private String[] getLoadedCoprocessors() {
-      if (regionCoprocessors != null) {
+      if (coprocessors != null) {
         ArrayList<String> coprocessorStrings = new ArrayList<String>();
-        for (CoprocessorEnvironment environment: regionCoprocessors) {
+        for (CoprocessorEnvironment environment: coprocessors) {
           coprocessorStrings.add(environment.getInstance().getClass().getSimpleName());
         }
         return coprocessorStrings.toArray(new String[0]);
       }
       else {
-        if (this.regionCoprocessorNames != null) {
-          return this.regionCoprocessorNames;
+        if (this.coprocessorNames != null) {
+          return this.coprocessorNames;
         }
         String[] returnValue = new String[1];
         returnValue[0] = "";
@@ -390,10 +390,10 @@ implements WritableComparable<HServerLoad> {
       this.totalStaticBloomSizeKB = in.readInt();
       this.totalCompactingKVs = in.readLong();
       this.currentCompactedKVs = in.readLong();
-      int regionCoprocessorsSize = in.readInt();
-      regionCoprocessorNames = new String[regionCoprocessorsSize];
-      for (int i = 0; i < regionCoprocessorsSize; i++) {
-        regionCoprocessorNames[i] = in.readUTF();
+      int coprocessorsSize = in.readInt();
+      coprocessorNames = new String[coprocessorsSize];
+      for (int i = 0; i < coprocessorsSize; i++) {
+        coprocessorNames[i] = in.readUTF();
       }
     }
 
@@ -415,16 +415,16 @@ implements WritableComparable<HServerLoad> {
       out.writeInt(totalStaticBloomSizeKB);
       out.writeLong(totalCompactingKVs);
       out.writeLong(currentCompactedKVs);
-      if (regionCoprocessors != null) {
-        out.writeInt(regionCoprocessors.size());
-        for (CoprocessorEnvironment env: regionCoprocessors) {
+      if (coprocessors != null) {
+        out.writeInt(coprocessors.size());
+        for (CoprocessorEnvironment env: coprocessors) {
           out.writeUTF(env.getInstance().getClass().getSimpleName());
         }
       } else {
-        if (regionCoprocessorNames != null) {
-          out.writeInt(regionCoprocessorNames.length);
-          for (String regionCoprocessorName: regionCoprocessorNames) {
-            out.writeUTF(regionCoprocessorName);
+        if (coprocessorNames != null) {
+          out.writeInt(coprocessorNames.length);
+          for (String coprocessorName: coprocessorNames) {
+            out.writeUTF(coprocessorName);
           }
         } else {
           out.writeInt(0);
