@@ -155,7 +155,6 @@ public class ClusterStatus extends VersionedWritable {
     if (!(o instanceof ClusterStatus)) {
       return false;
     }
-    // TODO: (how) does .equals work with arrays?
     return (getVersion() == ((ClusterStatus)o).getVersion()) &&
       getHBaseVersion().equals(((ClusterStatus)o).getHBaseVersion()) &&
       this.liveServers.equals(((ClusterStatus)o).liveServers) &&
