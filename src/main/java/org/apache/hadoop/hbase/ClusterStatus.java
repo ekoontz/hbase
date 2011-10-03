@@ -66,7 +66,7 @@ public class ClusterStatus extends VersionedWritable {
   private Collection<ServerName> deadServers;
   private Map<String, RegionState> intransition;
   private String clusterId;
-  private String[] masterCoprocessors;
+  private String[] masterCoprocessorNames;
 
   /**
    * Constructor, for Writable
@@ -78,13 +78,13 @@ public class ClusterStatus extends VersionedWritable {
   public ClusterStatus(final String hbaseVersion, final String clusterid,
       final Map<ServerName, HServerLoad> servers,
       final Collection<ServerName> deadServers, final Map<String, RegionState> rit,
-      final String[] masterCoprocessors) {
+      final String[] masterCoprocessorNames) {
     this.hbaseVersion = hbaseVersion;
     this.liveServers = servers;
     this.deadServers = deadServers;
     this.intransition = rit;
     this.clusterId = clusterid;
-    this.masterCoprocessors = masterCoprocessors;
+    this.masterCoprocessorNames = masterCoprocessorNames;
   }
 
   /**
@@ -159,7 +159,7 @@ public class ClusterStatus extends VersionedWritable {
       getHBaseVersion().equals(((ClusterStatus)o).getHBaseVersion()) &&
       this.liveServers.equals(((ClusterStatus)o).liveServers) &&
       deadServers.equals(((ClusterStatus)o).deadServers) &&
-      this.masterCoprocessors.equals(((ClusterStatus)o).masterCoprocessors);
+      this.masterCoprocessorNames.equals(((ClusterStatus)o).masterCoprocessorNames);
   }
 
   /**
@@ -210,7 +210,7 @@ public class ClusterStatus extends VersionedWritable {
   }
 
    public String[] getMasterCoprocessorNames() {
-     return masterCoprocessors;
+     return masterCoprocessorNames;
   }
 
   //
@@ -235,8 +235,8 @@ public class ClusterStatus extends VersionedWritable {
       e.getValue().write(out);
     }
     out.writeUTF(clusterId);
-    out.writeInt(masterCoprocessors.length);
-    for(String masterCoprocessor: masterCoprocessors) {
+    out.writeInt(masterCoprocessorNames.length);
+    for(String masterCoprocessor: masterCoprocessorNames) {
       out.writeUTF(masterCoprocessor);
     }
   }
@@ -266,10 +266,10 @@ public class ClusterStatus extends VersionedWritable {
       this.intransition.put(key, regionState);
     }
     this.clusterId = in.readUTF();
-    int masterCoprocessorsLength = in.readInt();
-    masterCoprocessors = new String[masterCoprocessorsLength];
-    for(int i = 0; i < masterCoprocessorsLength; i++) {
-      masterCoprocessors[i] = in.readUTF();
+    int masterCoprocessorNamesLength = in.readInt();
+    masterCoprocessorNames = new String[masterCoprocessorNamesLength];
+    for(int i = 0; i < masterCoprocessorNamesLength; i++) {
+      masterCoprocessorNames[i] = in.readUTF();
     }
   }
 }
