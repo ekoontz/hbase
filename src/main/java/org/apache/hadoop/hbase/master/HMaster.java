@@ -30,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -59,6 +60,7 @@ import org.apache.hadoop.hbase.client.MetaScanner;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.MetaScanner.MetaScannerVisitor;
 import org.apache.hadoop.hbase.coprocessor.CoprocessorHost;
+import org.apache.hadoop.hbase.coprocessor.MasterCoprocessorEnvironment;
 import org.apache.hadoop.hbase.executor.ExecutorService;
 import org.apache.hadoop.hbase.executor.ExecutorService.ExecutorType;
 import org.apache.hadoop.hbase.ipc.HBaseRPC;
@@ -1515,22 +1517,14 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
    * square brackets.
    * (cf. {@link HServerLoad::setCoprocessorString()}).
    */
-  // TODO: use an array of strings per Andy's review.
-  public String getCoprocessors() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("[");
-    Iterator<? extends CoprocessorEnvironment> i =
-        getCoprocessorHost().getCoprocessors().iterator();
-    if (i.hasNext()) {
-      for (;;) {
-        CoprocessorEnvironment ce = i.next();
-        sb.append(ce.getInstance().getClass().getSimpleName());
-        if (! i.hasNext()) break;
-        sb.append(", ");
-      }
+  public String[] getCoprocessors() {
+    Set<MasterCoprocessorHost.MasterEnvironment> masterCoprocessors = getCoprocessorHost().getCoprocessors();
+    String[] returnValue = new String[masterCoprocessors.size()];
+    int i = 0;
+    for (MasterCoprocessorHost.MasterEnvironment e: getCoprocessorHost().getCoprocessors()) {
+      returnValue[i++] = e.getInstance().getClass().getSimpleName();
     }
-    sb.append("]");
-    return sb.toString();
+    return returnValue;
   }
 
   /**

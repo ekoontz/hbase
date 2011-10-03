@@ -66,7 +66,7 @@ public class ClusterStatus extends VersionedWritable {
   private Collection<ServerName> deadServers;
   private Map<String, RegionState> intransition;
   private String clusterId;
-  private String masterCoprocessors;
+  private String[] masterCoprocessors;
 
   /**
    * Constructor, for Writable
@@ -78,7 +78,7 @@ public class ClusterStatus extends VersionedWritable {
   public ClusterStatus(final String hbaseVersion, final String clusterid,
       final Map<ServerName, HServerLoad> servers,
       final Collection<ServerName> deadServers, final Map<String, RegionState> rit,
-      final String masterCoprocessors) {
+      final String[] masterCoprocessors) {
     this.hbaseVersion = hbaseVersion;
     this.liveServers = servers;
     this.deadServers = deadServers;
@@ -156,6 +156,7 @@ public class ClusterStatus extends VersionedWritable {
     if (!(o instanceof ClusterStatus)) {
       return false;
     }
+    // TODO: (how) does .equals work with arrays?
     return (getVersion() == ((ClusterStatus)o).getVersion()) &&
       getHBaseVersion().equals(((ClusterStatus)o).getHBaseVersion()) &&
       this.liveServers.equals(((ClusterStatus)o).liveServers) &&
@@ -210,7 +211,7 @@ public class ClusterStatus extends VersionedWritable {
     return clusterId;
   }
 
-   public String getMasterCoprocessors() {
+   public String[] getMasterCoprocessors() {
      return masterCoprocessors;
   }
 
@@ -236,7 +237,10 @@ public class ClusterStatus extends VersionedWritable {
       e.getValue().write(out);
     }
     out.writeUTF(clusterId);
-    out.writeUTF(masterCoprocessors);
+    out.writeInt(masterCoprocessors.length);
+    for(String masterCoprocessor: masterCoprocessors) {
+      out.writeUTF(masterCoprocessor);
+    }
   }
 
   public void readFields(DataInput in) throws IOException {
@@ -264,7 +268,11 @@ public class ClusterStatus extends VersionedWritable {
       this.intransition.put(key, regionState);
     }
     this.clusterId = in.readUTF();
-    this.masterCoprocessors = in.readUTF();
+    int masterCoprocessorsLength = in.readInt();
+    masterCoprocessors = new String[masterCoprocessorsLength];
+    for(int i = 0; i < masterCoprocessorsLength; i++) {
+      masterCoprocessors[i] = in.readUTF();
+    }
   }
 }
 

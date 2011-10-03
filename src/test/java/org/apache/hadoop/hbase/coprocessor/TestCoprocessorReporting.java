@@ -138,7 +138,7 @@ public class TestCoprocessorReporting {
     final String loadedMasterCoprocessorsVerify =
         "[" + masterCoprocessor.getSimpleName() + "]";
     String loadedMasterCoprocessors =
-        util.getHBaseCluster().getMaster().getCoprocessors();
+        java.util.Arrays.deepToString(util.getHBaseCluster().getMaster().getCoprocessors());
     assertEquals(loadedMasterCoprocessorsVerify, loadedMasterCoprocessors);
   }
 
