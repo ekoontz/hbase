@@ -126,7 +126,7 @@ public class TestCoprocessorReporting {
     for(Map.Entry<ServerName,HServerLoad> server :
         util.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers().entrySet()) {
       String regionServerCoprocessors =
-          java.util.Arrays.deepToString(server.getValue().getLoadedCoprocessors());
+          java.util.Arrays.deepToString(server.getValue().getCoprocessorNames());
       assertTrue(regionServerCoprocessors.equals(loadedCoprocessorsExpected));
     }
   }

@@ -3245,7 +3245,7 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
   public String[] getCoprocessorNames() {
     HServerLoad hsl = buildServerLoad();
     if (hsl != null) {
-      return hsl.getLoadedCoprocessors();
+      return hsl.getCoprocessorNames();
     } else {
       return null;
     }
