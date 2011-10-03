@@ -1211,8 +1211,7 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
         getCoprocessorHost().getCoprocessors();
     String[] returnValue = new String[masterCoprocessors.size()];
     int i = 0;
-    for (MasterCoprocessorHost.MasterEnvironment e:
-        getCoprocessorHost().getCoprocessors()) {
+    for (MasterCoprocessorHost.MasterEnvironment e: masterCoprocessors) {
       returnValue[i++] = e.getInstance().getClass().getSimpleName();
     }
     return returnValue;
