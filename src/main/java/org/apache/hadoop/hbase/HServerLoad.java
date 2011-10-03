@@ -669,6 +669,7 @@ implements WritableComparable<HServerLoad> {
   }
 
   // Writable
+
   public void readFields(DataInput in) throws IOException {
     super.readFields(in);
     int version = in.readByte();
