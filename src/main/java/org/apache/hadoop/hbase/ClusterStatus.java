@@ -210,7 +210,7 @@ public class ClusterStatus extends VersionedWritable {
     return clusterId;
   }
 
-   public String[] getMasterCoprocessors() {
+   public String[] getMasterCoprocessorNames() {
      return masterCoprocessors;
   }
 
