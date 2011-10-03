@@ -25,8 +25,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -37,7 +35,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Chore;
 import org.apache.hadoop.hbase.ClusterStatus;
-import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HRegionInfo;
@@ -1189,7 +1186,7 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
       this.serverManager.getOnlineServers(),
       this.serverManager.getDeadServers(),
       this.assignmentManager.getRegionsInTransition(),
-      this.getCoprocessors());
+      this.getCoprocessorNames());
   }
 
   public String getClusterId() {
@@ -1205,6 +1202,21 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
    */
   public static String getLoadedCoprocessors() {
     return CoprocessorHost.getLoadedCoprocessors().toString();
+  }
+
+  /**
+   * @return array of coprocessor SimpleNames.
+   */
+  public String[] getCoprocessorNames() {
+    Set<MasterCoprocessorHost.MasterEnvironment> masterCoprocessors =
+        getCoprocessorHost().getCoprocessors();
+    String[] returnValue = new String[masterCoprocessors.size()];
+    int i = 0;
+    for (MasterCoprocessorHost.MasterEnvironment e:
+        getCoprocessorHost().getCoprocessors()) {
+      returnValue[i++] = e.getInstance().getClass().getSimpleName();
+    }
+    return returnValue;
   }
 
   @Override
@@ -1510,21 +1522,6 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
         masterClass.toString() + ((e.getCause() != null)?
           e.getCause().getMessage(): ""), e);
     }
-  }
-
-  /**
-   * @return list of comma-separated coprocessors, enclosed in
-   * square brackets.
-   * (cf. {@link HServerLoad::setCoprocessorString()}).
-   */
-  public String[] getCoprocessors() {
-    Set<MasterCoprocessorHost.MasterEnvironment> masterCoprocessors = getCoprocessorHost().getCoprocessors();
-    String[] returnValue = new String[masterCoprocessors.size()];
-    int i = 0;
-    for (MasterCoprocessorHost.MasterEnvironment e: getCoprocessorHost().getCoprocessors()) {
-      returnValue[i++] = e.getInstance().getClass().getSimpleName();
-    }
-    return returnValue;
   }
 
   /**
