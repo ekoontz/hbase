@@ -76,7 +76,6 @@ implements WritableComparable<HServerLoad> {
 
   public String[] getCoprocessorNames() {
     if (coprocessors != null) {
-      coprocessorNames.clear();
       for (CoprocessorEnvironment environment: coprocessors) {
         coprocessorNames.add(environment.getInstance().getClass().getSimpleName());
       }
@@ -85,7 +84,7 @@ implements WritableComparable<HServerLoad> {
       for (String coprocessorName: rls.getValue().getCoprocessorNames()) {
         coprocessorNames.add(coprocessorName);
       }
-      }
+    }
     return coprocessorNames.toArray(new String[0]);
   }
 
@@ -684,7 +683,6 @@ implements WritableComparable<HServerLoad> {
       regionLoad.put(rl.getName(), rl);
     }
     totalNumberOfRequests = in.readInt();
-    coprocessorNames.clear();
     int coprocessorsSize = in.readInt();
     for(int i = 0; i < coprocessorsSize; i++) {
       coprocessorNames.add(in.readUTF());
