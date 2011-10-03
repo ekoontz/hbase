@@ -88,8 +88,9 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
   }
 
   /**
-   * Used by @see{HRegionServer::buildServerLoad() and ::createRegionLoad()
-   * to report loaded coprocessors.}
+   * Used by @see{HRegionServer#buildServerLoad()} and
+   * @see{HRegionServer#createRegionLoad()}
+   * to report loaded coprocessors.
    * @return set of coprocessor environments.
    */
   public SortedSet<E> getCoprocessors() {
