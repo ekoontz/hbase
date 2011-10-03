@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -199,6 +198,7 @@ implements WritableComparable<HServerLoad> {
       this.coprocessors = coprocessors;
     }
 
+    // Getters
     private String[] getCoprocessorNames() {
       if (coprocessors != null) {
         ArrayList<String> coprocessorStrings = new ArrayList<String>();
@@ -213,7 +213,6 @@ implements WritableComparable<HServerLoad> {
       }
     }
 
-    // Getters
     /**
      * @return the region name
      */
