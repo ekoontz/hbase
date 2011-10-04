@@ -2040,6 +2040,7 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
     requestCount.incrementAndGet();
     try {
       HRegion r = getRegion(regionName);
+      r.checkRow(scan.getStartRow(), "Scan");
       r.prepareScanner(scan);
       RegionScanner s = null;
       if (r.getCoprocessorHost() != null) {
