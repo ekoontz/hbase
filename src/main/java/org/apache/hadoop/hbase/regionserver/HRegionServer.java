@@ -789,7 +789,7 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
     return new HServerLoad(requestCount.get(),(int)metrics.getRequests(),
       (int)(memory.getUsed() / 1024 / 1024),
       (int) (memory.getMax() / 1024 / 1024), regionLoads,
-      this.hlog.getCoprocessorHost().getCoprocessors());
+      this.hlog.getCoprocessorHost().getCoprocessorStrings());
   }
 
   String getOnlineRegionsAsPrintableString() {
@@ -989,7 +989,7 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
         totalStaticIndexSizeKB, totalStaticBloomSizeKB,
         (int) r.readRequestsCount.get(), (int) r.writeRequestsCount.get(),
         totalCompactingKVs, currentCompactedKVs,
-        r.getCoprocessorHost().getCoprocessors());
+        r.getCoprocessorHost().getCoprocessorStrings());
   }
 
   /**
@@ -3245,7 +3245,7 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
   public String[] getCoprocessorNames() {
     HServerLoad hsl = buildServerLoad();
     if (hsl != null) {
-      return hsl.getCoprocessorNames();
+      return hsl.getCoprocessors();
     } else {
       return null;
     }

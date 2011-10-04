@@ -1185,7 +1185,7 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
       this.serverManager.getOnlineServers(),
       this.serverManager.getDeadServers(),
       this.assignmentManager.getRegionsInTransition(),
-      this.getCoprocessorNames());
+      this.getCoprocessors());
   }
 
   public String getClusterId() {
@@ -1206,7 +1206,7 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
   /**
    * @return array of coprocessor SimpleNames.
    */
-  public String[] getCoprocessorNames() {
+  public String[] getCoprocessors() {
     Set<MasterCoprocessorHost.MasterEnvironment> masterCoprocessors =
         getCoprocessorHost().getCoprocessors();
     String[] returnValue = new String[masterCoprocessors.size()];

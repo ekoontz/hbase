@@ -59,9 +59,6 @@ implements WritableComparable<HServerLoad> {
   /** the maximum allowable size of the heap, in MB */
   private int maxHeapMB = 0;
 
-  // region server level coprocessors, e.g., WALObserver implementations.
-  // region-level coprocessors are stored inside RegionLoad objects.
-  private Set<? extends CoprocessorEnvironment> coprocessors = null;
 
   static Comparator<String> stringComparator =
       new Comparator<String>() {
@@ -71,21 +68,19 @@ implements WritableComparable<HServerLoad> {
         }
       };
 
-  Set<String> coprocessorNames =
+  // Regionserver-level coprocessors, e.g., WALObserver implementations.
+  // Region-level coprocessors, on the other hand, are stored inside RegionLoad
+  // objects.
+  Set<String> coprocessors =
       new TreeSet<String>(stringComparator);
 
-  public String[] getCoprocessorNames() {
-    if (coprocessors != null) {
-      for (CoprocessorEnvironment environment: coprocessors) {
-        coprocessorNames.add(environment.getInstance().getClass().getSimpleName());
-      }
-    }
+  public String[] getCoprocessors() {
     for (Map.Entry<byte[], RegionLoad> rls: getRegionsLoad().entrySet()) {
-      for (String coprocessorName: rls.getValue().getCoprocessorNames()) {
-        coprocessorNames.add(coprocessorName);
+      for (String coprocessorName: rls.getValue().getCoprocessors()) {
+        coprocessors.add(coprocessorName);
       }
     }
-    return coprocessorNames.toArray(new String[0]);
+    return coprocessors.toArray(new String[0]);
   }
 
   /** per-region load metrics */
@@ -147,8 +142,9 @@ implements WritableComparable<HServerLoad> {
      */
     private int totalStaticBloomSizeKB;
 
-    private Set<? extends CoprocessorEnvironment> coprocessors;
-    private String[] coprocessorNames = new String[0];
+    // Region-level coprocessors.
+    Set<String> coprocessors =
+        new TreeSet<String>(stringComparator);
 
     /**
      * Constructor, for Writable
@@ -179,7 +175,7 @@ implements WritableComparable<HServerLoad> {
         final int totalStaticBloomSizeKB,
         final int readRequestsCount, final int writeRequestsCount,
         final long totalCompactingKVs, final long currentCompactedKVs,
-        final Set<? extends CoprocessorEnvironment> coprocessors) {
+        final Set<String> coprocessors) {
       this.name = name;
       this.stores = stores;
       this.storefiles = storefiles;
@@ -198,18 +194,8 @@ implements WritableComparable<HServerLoad> {
     }
 
     // Getters
-    private String[] getCoprocessorNames() {
-      if (coprocessors != null) {
-        ArrayList<String> coprocessorStrings = new ArrayList<String>();
-        for (CoprocessorEnvironment environment: coprocessors) {
-          coprocessorStrings.add(environment.getInstance().getClass().getSimpleName());
-        }
-        coprocessorNames = coprocessorStrings.toArray(new String[0]);
-        return coprocessorNames;
-      }
-      else {
-        return coprocessorNames;
-      }
+    private String[] getCoprocessors() {
+      return coprocessors.toArray(new String[0]);
     }
 
     /**
@@ -385,9 +371,9 @@ implements WritableComparable<HServerLoad> {
       this.totalCompactingKVs = in.readLong();
       this.currentCompactedKVs = in.readLong();
       int coprocessorsSize = in.readInt();
-      coprocessorNames = new String[coprocessorsSize];
+      coprocessors = new TreeSet<String>();
       for (int i = 0; i < coprocessorsSize; i++) {
-        coprocessorNames[i] = in.readUTF();
+        coprocessors.add(in.readUTF());
       }
     }
 
@@ -409,20 +395,9 @@ implements WritableComparable<HServerLoad> {
       out.writeInt(totalStaticBloomSizeKB);
       out.writeLong(totalCompactingKVs);
       out.writeLong(currentCompactedKVs);
-      if (coprocessors != null) {
-        out.writeInt(coprocessors.size());
-        for (CoprocessorEnvironment env: coprocessors) {
-          out.writeUTF(env.getInstance().getClass().getSimpleName());
-        }
-      } else {
-        if (coprocessorNames != null) {
-          out.writeInt(coprocessorNames.length);
-          for (String coprocessorName: coprocessorNames) {
-            out.writeUTF(coprocessorName);
-          }
-        } else {
-          out.writeInt(0);
-        }
+      out.writeInt(coprocessors.size());
+      for (String coprocessor: coprocessors) {
+        out.writeUTF(coprocessor);
       }
     }
 
@@ -469,7 +444,7 @@ implements WritableComparable<HServerLoad> {
       }
       sb = Strings.appendKeyValue(sb, "compactionProgressPct",
           compactionProgressPct);
-      sb = Strings.appendKeyValue(sb, "coprocessors", java.util.Arrays.toString(getCoprocessorNames()));
+      sb = Strings.appendKeyValue(sb, "coprocessors", java.util.Arrays.toString(getCoprocessors()));
       return sb.toString();
     }
   }
@@ -502,7 +477,7 @@ implements WritableComparable<HServerLoad> {
   public HServerLoad(final int totalNumberOfRequests,
       final int numberOfRequests, final int usedHeapMB, final int maxHeapMB,
       final Map<byte[], RegionLoad> regionLoad,
-      final Set<? extends CoprocessorEnvironment> coprocessors) {
+      final Set<String> coprocessors) {
     this.numberOfRequests = numberOfRequests;
     this.usedHeapMB = usedHeapMB;
     this.maxHeapMB = maxHeapMB;
@@ -563,7 +538,7 @@ implements WritableComparable<HServerLoad> {
     sb = Strings.appendKeyValue(sb, "usedHeapMB",
       Integer.valueOf(this.usedHeapMB));
     sb = Strings.appendKeyValue(sb, "maxHeapMB", Integer.valueOf(maxHeapMB));
-    sb = Strings.appendKeyValue(sb, "coprocessors", java.util.Arrays.toString(getCoprocessorNames()));
+    sb = Strings.appendKeyValue(sb, "coprocessors", java.util.Arrays.toString(getCoprocessors()));
     return sb.toString();
   }
 
@@ -686,7 +661,7 @@ implements WritableComparable<HServerLoad> {
     totalNumberOfRequests = in.readInt();
     int coprocessorsSize = in.readInt();
     for(int i = 0; i < coprocessorsSize; i++) {
-      coprocessorNames.add(in.readUTF());
+      coprocessors.add(in.readUTF());
     }
   }
 
@@ -700,9 +675,8 @@ implements WritableComparable<HServerLoad> {
     for (RegionLoad rl: regionLoad.values())
       rl.write(out);
     out.writeInt(totalNumberOfRequests);
-    String[] loadedCoprocessors = getCoprocessorNames();
-    out.writeInt(loadedCoprocessors.length);
-    for (String coprocessorName: loadedCoprocessors) {
+    out.writeInt(coprocessors.size());
+    for (String coprocessorName: coprocessors) {
       out.writeUTF(coprocessorName);
     }
   }

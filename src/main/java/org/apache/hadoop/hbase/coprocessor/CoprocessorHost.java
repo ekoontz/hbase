@@ -97,6 +97,15 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
     return coprocessors;
   }
 
+  // TODO: replace getCoprocessors() with this.
+  public Set<String> getCoprocessorStrings() {
+    Set<String> returnValue = new TreeSet<String>();
+    for(CoprocessorEnvironment e: getCoprocessors()) {
+      returnValue.add(e.getInstance().getClass().getSimpleName());
+    }
+    return returnValue;
+  }
+
   /**
    * Load system coprocessors. Read the class names from configuration.
    * Called by constructor.
