@@ -76,8 +76,8 @@ implements WritableComparable<HServerLoad> {
 
   public String[] getCoprocessors() {
     for (Map.Entry<byte[], RegionLoad> rls: getRegionsLoad().entrySet()) {
-      for (String coprocessorName: rls.getValue().getCoprocessors()) {
-        coprocessors.add(coprocessorName);
+      for (String coprocessor: rls.getValue().getCoprocessors()) {
+        coprocessors.add(coprocessor);
       }
     }
     return coprocessors.toArray(new String[0]);
@@ -676,8 +676,8 @@ implements WritableComparable<HServerLoad> {
       rl.write(out);
     out.writeInt(totalNumberOfRequests);
     out.writeInt(coprocessors.size());
-    for (String coprocessorName: coprocessors) {
-      out.writeUTF(coprocessorName);
+    for (String coprocessor: coprocessors) {
+      out.writeUTF(coprocessor);
     }
   }
 
