@@ -22,4 +22,24 @@
  */
 -->
 <configuration>
+  <property>
+    <name>hbase.coprocessor.region.classes</name>
+    <value>org.apache.hadoop.hbase.coprocessor.GenericEndpoint</value>
+  </property>
+  <property>
+    <name>hbase.coprocessor.user.region.classes</name>
+    <value>org.apache.hadoop.hbase.coprocessor.SimpleRegionObserver</value>
+  </property>
+  <property>
+    <name>hbase.coprocessor.wal.classes</name>
+    <value>org.apache.hadoop.hbase.coprocessor.SampleRegionWALObserver</value>
+  </property>
+  <property>
+    <name>hbase.coprocessor.master.classes</name>
+    <value>org.apache.hadoop.hbase.coprocessor.BaseMasterObserver</value>
+  </property>
+  <property>
+    <name>hbase.defaults.for.version.skip</name>
+    <value>true</value>
+  </property>
 </configuration>
