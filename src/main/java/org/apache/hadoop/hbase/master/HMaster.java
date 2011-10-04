@@ -1207,12 +1207,12 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
    * @return array of coprocessor SimpleNames.
    */
   public String[] getCoprocessors() {
-    Set<MasterCoprocessorHost.MasterEnvironment> masterCoprocessors =
+    Set<String> masterCoprocessors =
         getCoprocessorHost().getCoprocessors();
     String[] returnValue = new String[masterCoprocessors.size()];
     int i = 0;
-    for (MasterCoprocessorHost.MasterEnvironment e: masterCoprocessors) {
-      returnValue[i++] = e.getInstance().getClass().getSimpleName();
+    for (String coprocessor: masterCoprocessors) {
+      returnValue[i++] = coprocessor;
     }
     return returnValue;
   }

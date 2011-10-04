@@ -1650,9 +1650,9 @@ public class HBaseAdmin implements Abortable, Closeable {
     return rs.rollHLogWriter();
   }
 
-  public String[] getMasterCoprocessorNames() {
+  public String[] getMasterCoprocessors() {
     try {
-      return getClusterStatus().getMasterCoprocessorNames();
+      return getClusterStatus().getMasterCoprocessors();
     } catch (IOException e) {
       LOG.error("Could not getClusterStatus()",e);
       return null;

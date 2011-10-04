@@ -789,7 +789,7 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
     return new HServerLoad(requestCount.get(),(int)metrics.getRequests(),
       (int)(memory.getUsed() / 1024 / 1024),
       (int) (memory.getMax() / 1024 / 1024), regionLoads,
-      this.hlog.getCoprocessorHost().getCoprocessorStrings());
+      this.hlog.getCoprocessorHost().getCoprocessors());
   }
 
   String getOnlineRegionsAsPrintableString() {
@@ -989,7 +989,7 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
         totalStaticIndexSizeKB, totalStaticBloomSizeKB,
         (int) r.readRequestsCount.get(), (int) r.writeRequestsCount.get(),
         totalCompactingKVs, currentCompactedKVs,
-        r.getCoprocessorHost().getCoprocessorStrings());
+        r.getCoprocessorHost().getCoprocessors());
   }
 
   /**
@@ -3242,7 +3242,7 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
   }
 
   // used by org/apache/hbase/tmpl/regionserver/RSStatusTmpl.jamon (HBASE-4070).
-  public String[] getCoprocessorNames() {
+  public String[] getCoprocessors() {
     HServerLoad hsl = buildServerLoad();
     if (hsl != null) {
       return hsl.getCoprocessors();

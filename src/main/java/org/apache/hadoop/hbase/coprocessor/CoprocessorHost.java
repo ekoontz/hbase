@@ -87,20 +87,9 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
       return coprocessorNames;
   }
 
-  /**
-   * Used by @see{HRegionServer#buildServerLoad()} and
-   * @see{HRegionServer#createRegionLoad()}
-   * to report loaded coprocessors.
-   * @return set of coprocessor environments.
-   */
-  public SortedSet<E> getCoprocessors() {
-    return coprocessors;
-  }
-
-  // TODO: replace getCoprocessors() with this.
-  public Set<String> getCoprocessorStrings() {
+  public Set<String> getCoprocessors() {
     Set<String> returnValue = new TreeSet<String>();
-    for(CoprocessorEnvironment e: getCoprocessors()) {
+    for(CoprocessorEnvironment e: coprocessors) {
       returnValue.add(e.getInstance().getClass().getSimpleName());
     }
     return returnValue;
