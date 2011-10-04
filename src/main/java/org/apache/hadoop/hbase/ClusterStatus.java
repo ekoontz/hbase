@@ -273,4 +273,3 @@ public class ClusterStatus extends VersionedWritable {
     }
   }
 }
-
