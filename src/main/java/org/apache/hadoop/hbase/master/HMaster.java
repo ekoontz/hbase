@@ -1209,12 +1209,7 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
   public String[] getCoprocessors() {
     Set<String> masterCoprocessors =
         getCoprocessorHost().getCoprocessors();
-    String[] returnValue = new String[masterCoprocessors.size()];
-    int i = 0;
-    for (String coprocessor: masterCoprocessors) {
-      returnValue[i++] = coprocessor;
-    }
-    return returnValue;
+    return masterCoprocessors.toArray(new String[0]);
   }
 
   @Override
