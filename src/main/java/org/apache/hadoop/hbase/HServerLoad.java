@@ -75,7 +75,7 @@ implements WritableComparable<HServerLoad> {
   Set<String> coprocessorNames =
       new TreeSet<String>(stringComparator);
 
-  public String[] getLoadedCoprocessors() {
+  public String[] getCoprocessors() {
     if (coprocessors != null) {
       coprocessorNames.clear();
       for (CoprocessorEnvironment environment: coprocessors) {
@@ -83,7 +83,7 @@ implements WritableComparable<HServerLoad> {
       }
     }
     for (Map.Entry<byte[], RegionLoad> rls: getRegionsLoad().entrySet()) {
-      for (String coprocessorName: rls.getValue().getLoadedCoprocessors()) {
+      for (String coprocessorName: rls.getValue().getCoprocessors()) {
         coprocessorNames.add(coprocessorName);
       }
     }
@@ -199,7 +199,7 @@ implements WritableComparable<HServerLoad> {
       this.coprocessors = coprocessors;
     }
 
-    private String[] getLoadedCoprocessors() {
+    private String[] getCoprocessors() {
       if (coprocessors != null) {
         ArrayList<String> coprocessorStrings = new ArrayList<String>();
         for (CoprocessorEnvironment environment: coprocessors) {
@@ -471,7 +471,7 @@ implements WritableComparable<HServerLoad> {
       }
       sb = Strings.appendKeyValue(sb, "compactionProgressPct",
           compactionProgressPct);
-      sb = Strings.appendKeyValue(sb, "coprocessors", java.util.Arrays.deepToString(getLoadedCoprocessors()));
+      sb = Strings.appendKeyValue(sb, "coprocessors", java.util.Arrays.deepToString(getCoprocessors()));
       return sb.toString();
     }
   }
@@ -567,7 +567,7 @@ implements WritableComparable<HServerLoad> {
     sb = Strings.appendKeyValue(sb, "usedHeapMB",
       Integer.valueOf(this.usedHeapMB));
     sb = Strings.appendKeyValue(sb, "maxHeapMB", Integer.valueOf(maxHeapMB));
-    sb = Strings.appendKeyValue(sb, "coprocessors", java.util.Arrays.deepToString(getLoadedCoprocessors()));
+    sb = Strings.appendKeyValue(sb, "coprocessors", java.util.Arrays.deepToString(getCoprocessors()));
     return sb.toString();
   }
 
@@ -704,7 +704,7 @@ implements WritableComparable<HServerLoad> {
     for (RegionLoad rl: regionLoad.values())
       rl.write(out);
     out.writeInt(totalNumberOfRequests);
-    String[] loadedCoprocessors = getLoadedCoprocessors();
+    String[] loadedCoprocessors = getCoprocessors();
     out.writeInt(loadedCoprocessors.length);
     for (String coprocessorName: loadedCoprocessors) {
       out.writeUTF(coprocessorName);
