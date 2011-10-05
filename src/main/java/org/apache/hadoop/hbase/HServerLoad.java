@@ -64,6 +64,8 @@ implements WritableComparable<HServerLoad> {
       new TreeSet<String>();
 
   /**
+   * HBASE-4070: Improve region server metrics to report loaded coprocessors.
+   *
    * @return Returns the set of all coprocessors on this
    * regionserver, where this set is the union of the
    * regionserver-level coprocessors on one hand, and all of the region-level
@@ -75,7 +77,9 @@ implements WritableComparable<HServerLoad> {
   public String[] getCoprocessors() {
     TreeSet<String> returnValue = new TreeSet<String>(coprocessors);
     for (Map.Entry<byte[], RegionLoad> rls: getRegionsLoad().entrySet()) {
-      returnValue.addAll(rls.getValue().getCoprocessors();
+      for (String coprocessor: rls.getValue().getCoprocessors()) {
+        returnValue.add(coprocessor);
+      }
     }
     return returnValue.toArray(new String[0]);
   }
