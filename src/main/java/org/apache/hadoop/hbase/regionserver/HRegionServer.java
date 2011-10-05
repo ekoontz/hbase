@@ -3245,7 +3245,6 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
   // used by org/apache/hbase/tmpl/regionserver/RSStatusTmpl.jamon (HBASE-4070).
   public String[] getLoadedCoprocessors() {
     HServerLoad hsl = buildServerLoad();
-    return hsl.getCoprocessors();
-
+    return hsl == null? null: hsl.getCoprocessors();
   }
 }
