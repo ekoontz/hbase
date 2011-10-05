@@ -87,6 +87,13 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
       return coprocessorNames;
   }
 
+  /**
+   * Used to create a parameter to the HServerLoad constructor so that
+   * HServerLoad can provide information about the coprocessors loaded by this
+   * regionserver.
+   * (HBASE-4070: Improve region server metrics to report loaded coprocessors
+   * to master).
+   */
   public Set<String> getCoprocessors() {
     Set<String> returnValue = new TreeSet<String>();
     for(CoprocessorEnvironment e: coprocessors) {
