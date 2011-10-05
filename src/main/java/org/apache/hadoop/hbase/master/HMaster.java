@@ -26,17 +26,16 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Chore;
 import org.apache.hadoop.hbase.ClusterStatus;
-import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HRegionInfo;
@@ -82,7 +81,6 @@ import org.apache.hadoop.hbase.monitoring.TaskMonitor;
 import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.regionserver.wal.HLog;
 import org.apache.hadoop.hbase.replication.regionserver.Replication;
-import org.apache.hadoop.hbase.rest.client.Cluster;
 import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.FSTableDescriptors;
@@ -1205,6 +1203,20 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
     return CoprocessorHost.getLoadedCoprocessors().toString();
   }
 
+  /**
+   * @return array of coprocessor SimpleNames.
+   */
+  public String[] getCoprocessors() {
+    Set<String> masterCoprocessors =
+        getCoprocessorHost().getCoprocessors();
+    String[] returnValue = new String[masterCoprocessors.size()];
+    int i = 0;
+    for (String coprocessor: masterCoprocessors) {
+      returnValue[i++] = coprocessor;
+    }
+    return returnValue;
+  }
+
   @Override
   public void abort(final String msg, final Throwable t) {
     if (cpHost != null) {
@@ -1511,33 +1523,10 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
   }
 
   /**
-   * @return list of comma-separated coprocessors, enclosed in
-   * square brackets.
-   * (cf. {@link HServerLoad::setCoprocessorString()}).
-   */
-  public String getCoprocessors() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("[");
-    Iterator<? extends CoprocessorEnvironment> i =
-        getCoprocessorHost().getCoprocessors().iterator();
-    if (i.hasNext()) {
-      for (;;) {
-        CoprocessorEnvironment ce = i.next();
-        sb.append(ce.getInstance().getClass().getSimpleName());
-        if (! i.hasNext()) break;
-        sb.append(", ");
-      }
-    }
-    sb.append("]");
-    return sb.toString();
-  }
-
-  /**
    * @see org.apache.hadoop.hbase.master.HMasterCommandLine
    */
   public static void main(String [] args) throws Exception {
 	VersionInfo.logVersion();
     new HMasterCommandLine(HMaster.class).doMain(args);
   }
-
 }

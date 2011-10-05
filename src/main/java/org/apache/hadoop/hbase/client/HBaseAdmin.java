@@ -1649,4 +1649,13 @@ public class HBaseAdmin implements Abortable, Closeable {
         sn.getHostname(), sn.getPort());
     return rs.rollHLogWriter();
   }
+
+  public String[] getMasterCoprocessors() {
+    try {
+      return getClusterStatus().getMasterCoprocessors();
+    } catch (IOException e) {
+      LOG.error("Could not getClusterStatus()",e);
+      return null;
+    }
+  }
 }

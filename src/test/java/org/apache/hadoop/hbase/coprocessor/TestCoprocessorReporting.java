@@ -125,7 +125,8 @@ public class TestCoprocessorReporting {
           regionServerCoprocessor.getSimpleName() + "]";
     for(Map.Entry<ServerName,HServerLoad> server :
         util.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers().entrySet()) {
-      String regionServerCoprocessors = java.util.Arrays.deepToString(server.getValue().getCoprocessors());
+      String regionServerCoprocessors =
+          java.util.Arrays.toString(server.getValue().getCoprocessors());
       assertTrue(regionServerCoprocessors.equals(loadedCoprocessorsExpected));
     }
   }
@@ -138,7 +139,7 @@ public class TestCoprocessorReporting {
     final String loadedMasterCoprocessorsVerify =
         "[" + masterCoprocessor.getSimpleName() + "]";
     String loadedMasterCoprocessors =
-        util.getHBaseCluster().getMaster().getCoprocessors();
+        java.util.Arrays.toString(util.getHBaseCluster().getMaster().getCoprocessors());
     assertEquals(loadedMasterCoprocessorsVerify, loadedMasterCoprocessors);
   }
 

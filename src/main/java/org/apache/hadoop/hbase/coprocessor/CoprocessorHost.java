@@ -87,8 +87,12 @@ public abstract class CoprocessorHost<E extends CoprocessorEnvironment> {
       return coprocessorNames;
   }
 
-  public SortedSet<E> getCoprocessors() {
-    return coprocessors;
+  public Set<String> getCoprocessors() {
+    Set<String> returnValue = new TreeSet<String>();
+    for(CoprocessorEnvironment e: coprocessors) {
+      returnValue.add(e.getInstance().getClass().getSimpleName());
+    }
+    return returnValue;
   }
 
   /**
