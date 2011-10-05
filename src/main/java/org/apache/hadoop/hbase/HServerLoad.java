@@ -63,13 +63,21 @@ implements WritableComparable<HServerLoad> {
   private Set<String> coprocessors =
       new TreeSet<String>();
 
+  /**
+   * @return Returns the set of all coprocessors on this
+   * regionserver, where this set is the union of the
+   * regionserver-level coprocessors on one hand, and all of the region-level
+   * coprocessors, on the other.
+   *
+   * We must iterate through all regions loaded on this regionserver to
+   * obtain all of the region-level coprocessors.
+   */
   public String[] getCoprocessors() {
+    TreeSet<String> returnValue = new TreeSet<String>(coprocessors);
     for (Map.Entry<byte[], RegionLoad> rls: getRegionsLoad().entrySet()) {
-      for (String coprocessor: rls.getValue().getCoprocessors()) {
-        coprocessors.add(coprocessor);
-      }
+      returnValue.addAll(rls.getValue().getCoprocessors();
     }
-    return coprocessors.toArray(new String[0]);
+    return returnValue.toArray(new String[0]);
   }
 
   /** per-region load metrics */
