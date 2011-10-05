@@ -49,4 +49,12 @@
     The port at which the clients will connect.
     </description>
   </property>
+  <property>
+    <name>hbase.master.info.port</name>
+    <value>60010</value>
+  </property>
+  <property>
+    <name>hbase.master.info.bindAddress</name>
+    <value>127.0.0.1</value>
+  </property>
 </configuration>
