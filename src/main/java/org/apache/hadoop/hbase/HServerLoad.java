@@ -22,9 +22,7 @@ package org.apache.hadoop.hbase;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -59,20 +57,11 @@ implements WritableComparable<HServerLoad> {
   /** the maximum allowable size of the heap, in MB */
   private int maxHeapMB = 0;
 
-
-  static Comparator<String> stringComparator =
-      new Comparator<String>() {
-        @Override
-        public int compare(String o1, String o2) {
-          return o1.compareTo(o2);
-        }
-      };
-
   // Regionserver-level coprocessors, e.g., WALObserver implementations.
   // Region-level coprocessors, on the other hand, are stored inside RegionLoad
   // objects.
   Set<String> coprocessors =
-      new TreeSet<String>(stringComparator);
+      new TreeSet<String>();
 
   public String[] getCoprocessors() {
     for (Map.Entry<byte[], RegionLoad> rls: getRegionsLoad().entrySet()) {
@@ -144,7 +133,7 @@ implements WritableComparable<HServerLoad> {
 
     // Region-level coprocessors.
     Set<String> coprocessors =
-        new TreeSet<String>(stringComparator);
+        new TreeSet<String>();
 
     /**
      * Constructor, for Writable
