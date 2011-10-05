@@ -60,7 +60,7 @@ implements WritableComparable<HServerLoad> {
   // Regionserver-level coprocessors, e.g., WALObserver implementations.
   // Region-level coprocessors, on the other hand, are stored inside RegionLoad
   // objects.
-  Set<String> coprocessors =
+  private Set<String> coprocessors =
       new TreeSet<String>();
 
   public String[] getCoprocessors() {
