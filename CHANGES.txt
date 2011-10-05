@@ -15,6 +15,10 @@ Release 0.93.0 - Unreleased
   BUG FIXES
    HBASE-4488  Store could miss rows during flush (Lars H via jgray)
 
+  TESTS
+   HBASE-4534  A new unit test for lazy seek and StoreScanner in general
+               (mikhail via jgray)
+
 
 Release 0.92.0 - Unreleased
   INCOMPATIBLE CHANGES
@@ -327,12 +331,20 @@ Release 0.92.0 - Unreleased
                (Mikhail Bautin)
    HBASE-4209  The HBase hbase-daemon.sh SIGKILLs master when stopping it
                (Roman Shaposhnik)
+   HBASE-4496  HFile V2 does not honor setCacheBlocks when scanning (Lars and Mikhail)
+   HBASE-4531  hbase-4454 failsafe broke mvn site; back it out or fix
+               (Akash Ashok)
+   HBASE-4334  HRegion.get never validates row (Lars Hofhansl)
+   HBASE-4494  AvroServer:: get fails with NPE on a non-existent row
+               (Kay Kay)
+   HBASE-4481  TestMergeTool failed in 0.92 build 20
 
   TESTS
    HBASE-4450  test for number of blocks read: to serve as baseline for expected
                blocks read and for catching regressions (Kannan)
    HBASE-4492  TestRollingRestart fails intermittently (Ted Yu and Ram)
    HBASE-4512  JVMClusterUtil throwing wrong exception when master thread cannot be created (Ram)
+   HBASE-4479  TestMasterFailover failure in Hbase-0.92#17(Ram)
 
   IMPROVEMENTS
    HBASE-3290  Max Compaction Size (Nicolas Spiegelberg via Stack)  
@@ -575,6 +587,11 @@ Release 0.92.0 - Unreleased
                are requested in a Get (Mikhail Bautin)
    HBASE-4487  The increment operation can release the rowlock before sync-ing
                the Hlog (dhruba borthakur)
+   HBASE-4526  special case for stopping master in hbase-daemon.sh is no longer
+               required (Roman Shaposhnik)
+   HBASE-4520  Better handling of Bloom filter type discrepancy between HFile
+               and CF config (Mikhail Bautin)
+       
 
   TASKS
    HBASE-3559  Move report of split to master OFF the heartbeat channel
@@ -683,6 +700,10 @@ Release 0.90.5 - Unreleased
    HBASE-4295  rowcounter does not return the correct number of rows in
                certain circumstances (David Revell)
    HBASE-4515  User.getCurrent() can fail to initialize the current user
+   HBASE-4473  NPE when executors are down but events are still coming in
+   HBASE-4537  TestUser imports breaking build against secure Hadoop
+   HBASE-4501  [replication] Shutting down a stream leaves recovered
+               sources running
 
   IMPROVEMENT
    HBASE-4205  Enhance HTable javadoc (Eric Charles)
