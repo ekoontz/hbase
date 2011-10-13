@@ -24,6 +24,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -159,7 +160,7 @@ public class ClusterStatus extends VersionedWritable {
       getHBaseVersion().equals(((ClusterStatus)o).getHBaseVersion()) &&
       this.liveServers.equals(((ClusterStatus)o).liveServers) &&
       deadServers.equals(((ClusterStatus)o).deadServers) &&
-      this.masterCoprocessors.equals(((ClusterStatus)o).masterCoprocessors);
+      Arrays.equals(this.masterCoprocessors, ((ClusterStatus)o).masterCoprocessors);
   }
 
   /**

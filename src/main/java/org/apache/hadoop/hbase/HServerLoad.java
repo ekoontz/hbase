@@ -445,7 +445,11 @@ implements WritableComparable<HServerLoad> {
       }
       sb = Strings.appendKeyValue(sb, "compactionProgressPct",
           compactionProgressPct);
-      sb = Strings.appendKeyValue(sb, "coprocessors", java.util.Arrays.toString(getCoprocessors()));
+      String coprocessors = java.util.Arrays.toString(getCoprocessors());
+      if (coprocessors != null) {
+        sb = Strings.appendKeyValue(sb, "coprocessors",
+            java.util.Arrays.toString(getCoprocessors()));
+      }
       return sb.toString();
     }
   }
@@ -539,7 +543,10 @@ implements WritableComparable<HServerLoad> {
     sb = Strings.appendKeyValue(sb, "usedHeapMB",
       Integer.valueOf(this.usedHeapMB));
     sb = Strings.appendKeyValue(sb, "maxHeapMB", Integer.valueOf(maxHeapMB));
-    sb = Strings.appendKeyValue(sb, "coprocessors", java.util.Arrays.toString(getCoprocessors()));
+    String coprocessors = java.util.Arrays.toString(getCoprocessors());
+    if (coprocessors != null) {
+      sb = Strings.appendKeyValue(sb, "coprocessors", coprocessors);
+    }
     return sb.toString();
   }
 
