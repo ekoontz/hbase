@@ -22,6 +22,7 @@ package org.apache.hadoop.hbase;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -445,10 +446,10 @@ implements WritableComparable<HServerLoad> {
       }
       sb = Strings.appendKeyValue(sb, "compactionProgressPct",
           compactionProgressPct);
-      String coprocessors = java.util.Arrays.toString(getCoprocessors());
+      String coprocessors = Arrays.toString(getCoprocessors());
       if (coprocessors != null) {
         sb = Strings.appendKeyValue(sb, "coprocessors",
-            java.util.Arrays.toString(getCoprocessors()));
+            Arrays.toString(getCoprocessors()));
       }
       return sb.toString();
     }
@@ -543,7 +544,7 @@ implements WritableComparable<HServerLoad> {
     sb = Strings.appendKeyValue(sb, "usedHeapMB",
       Integer.valueOf(this.usedHeapMB));
     sb = Strings.appendKeyValue(sb, "maxHeapMB", Integer.valueOf(maxHeapMB));
-    String coprocessors = java.util.Arrays.toString(getCoprocessors());
+    String coprocessors = Arrays.toString(getCoprocessors());
     if (coprocessors != null) {
       sb = Strings.appendKeyValue(sb, "coprocessors", coprocessors);
     }
