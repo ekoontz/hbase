@@ -40,6 +40,7 @@ import org.apache.hadoop.fs.Path;
 import javax.tools.*;
 import java.io.*;
 import java.util.*;
+import java.util.Arrays;
 import java.util.jar.*;
 
 import org.junit.*;
@@ -370,18 +371,7 @@ public class TestClassLoading {
   }
 
   @Test
-  public void testRegionServerCoprocessorsReported() {
-    // HBASE 4070: Improve region server metrics to report loaded coprocessors
-    // to master: verify that each regionserver is reporting the correct set of
-    // loaded coprocessors.
-    // TODO: test display of regionserver-level coprocessors
-    // (e.g. SampleRegionWALObserver) versus region-level coprocessors
-    // (e.g. GenericEndpoint), and
-    // test CoprocessorHost.REGION_COPROCESSOR_CONF_KEY versus
-    // CoprocessorHost.USER_REGION_COPROCESSOR_CONF_KEY.
-    // Test enabling and disabling user tables to see if coprocessor display
-    // changes as coprocessors are consequently loaded and unloaded.
-    //
+  public void testRegionServerCoprocessorsReported() throws Exception {
     // We rely on the fact that getCoprocessors() will return a sorted
     // display of the coprocessors' names, so coprocessor1's name
     // "ColumnAggregationEndpoint" will appear before coprocessor2's name
@@ -392,13 +382,72 @@ public class TestClassLoading {
       "[" + regionCoprocessor1.getSimpleName() + ", " +
           regionCoprocessor2.getSimpleName() +  ", " +
           regionServerCoprocessor.getSimpleName() + "]";
+    final String[] loadedCoprocessorsExpectedNew = assertedCoprocessors();
 
-    for(Map.Entry<ServerName,HServerLoad> server :
-        TEST_UTIL.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers().entrySet()) {
-      String regionServerCoprocessors =
-          java.util.Arrays.toString(server.getValue().getCoprocessors());
-      assertTrue(regionServerCoprocessors.equals(loadedCoprocessorsExpected));
+    HBaseAdmin admin = new HBaseAdmin(this.conf);
+    if (admin.tableExists(tableName)) {
+      admin.disableTable(tableName);
+      admin.deleteTable(tableName);
     }
+
+    HTableDescriptor htd = new HTableDescriptor(tableName);
+    htd.addFamily(new HColumnDescriptor("test"));
+
+    admin.createTable(htd);
+
+    assertAllRegionServers();
+
+    admin.disableTable(tableName);
+
+     // HBASE 4070: Improve region server metrics to report loaded coprocessors
+    // to master: verify that each regionserver is reporting the correct set of
+    // loaded coprocessors.
+    // At this point, after running the tests before this, each regionserver
+    // will have the set : {regionCoprocessor1, regionCoprocessor2,
+    // regionServerCoprocessor} loaded. Verify that this is the case.
+    // load all tables.
+    assertAllRegionServers();
+
+    // verify that getCoprocessors() is empty.
+    assertAllRegionServers();
+
+    // set configs : CoprocessorHost.USER_REGION_COPROCESSOR_CONF_KEY
+    // versus CoprocessorHost.REGION_COPROCESSOR_CONF_KEY
+    // turn off CoprocessorHost.USER_REGION_COPROCESSOR_CONF_KEY
+    assertAllRegionServers();
+
+    // turn off CoprocessorHost.REGION_COPROCESSOR_CONF_KEY
+    assertAllRegionServers();
+
+    // TODO: test display of regionserver-level coprocessors
+    // (e.g. SampleRegionWALObserver) versus region-level coprocessors
+    // (e.g. GenericEndpoint), and
+    // test CoprocessorHost.REGION_COPROCESSOR_CONF_KEY versus
+    // CoprocessorHost.USER_REGION_COPROCESSOR_CONF_KEY.
+    // Test enabling and disabling user tables to see if coprocessor display
+    // changes as coprocessors are consequently loaded and unloaded.
+    //
+
+
+
+  }
+
+  // TODO: figure out how to pass arbitrary functions where (I think
+  // pass an object that has a static method which takes an interator).
+  void assertAllRegionServers() {
+    String[] expectedCoprocessors = assertedCoprocessors();
+     for(Map.Entry<ServerName,HServerLoad> server :
+        TEST_UTIL.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers().entrySet()) {
+      assertTrue(Arrays.equals(server.getValue().getCoprocessors(), expectedCoprocessors));
+    }
+  }
+
+
+  String[] assertedCoprocessors() {
+    MiniHBaseCluster cluster = TEST_UTIL.getMiniHBaseCluster();
+
+    String[] returnVal = new String[]{"ColumnAggregationEndpoint","GenericEndpoint","SampleRegionWALObserver"};
+    return returnVal;
   }
 
   @Test
