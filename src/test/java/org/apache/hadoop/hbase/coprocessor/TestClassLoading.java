@@ -33,6 +33,7 @@ import org.apache.hadoop.hbase.Coprocessor;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.ServerName;
+import org.apache.hadoop.hbase.TableNotEnabledException;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -71,7 +72,6 @@ public class TestClassLoading {
   private static Class regionCoprocessor2 = GenericEndpoint.class;
   private static Class regionServerCoprocessor = SampleRegionWALObserver.class;
   private static Class masterCoprocessor = BaseMasterObserver.class;
-
 
   String[] regionServerSystemCoprocessors() {
     String[] returnVal = new String[]{
@@ -298,11 +298,6 @@ public class TestClassLoading {
         found = (region.getCoprocessorHost().findCoprocessor(cpName3) != null);
       }
     }
-
-    // Disable table at end of this test to cause associated coprocessors to be
-    // unloaded, so that it won't affect subsequent tests.
-    admin.disableTable(cpName3);
-
     assertTrue("Class " + cpName3 + " was missing on a region", found);
   }
 
@@ -385,10 +380,6 @@ public class TestClassLoading {
       }
     }
 
-    // Disable table at end of this test to cause associated coprocessors to be
-    // unloaded, so that it won't affect subsequent tests.
-    admin.disableTable(tableName);
-
     assertTrue("Class " + cpName1 + " was missing on a region", found_1);
     assertTrue("Class " + cpName2 + " was missing on a region", found_2);
     assertTrue("Class SimpleRegionObserver was missing on a region", found_3);
@@ -403,89 +394,118 @@ public class TestClassLoading {
 
   @Test
   public void testRegionServerCoprocessorsReported() throws Exception {
+    // HBASE 4070: Improve region server metrics to report loaded coprocessors
+    // to master: verify that each regionserver is reporting the correct set of
+    // loaded coprocessors.
+
     // We rely on the fact that getCoprocessors() will return a sorted
-    // display of the coprocessors' names, so coprocessor1's name
-    // "ColumnAggregationEndpoint" will appear before coprocessor2's name
+    // display of the coprocessors' names, so for example, regionCoprocessor1's name
+    // "ColumnAggregationEndpoint" will appear before regionCoprocessor2's name
     // "GenericEndpoint" because "C" is before "G" lexicographically.
-    // Note the space [ ] after the comma in both constant strings:
-    // must be present for success of this test.
 
     HBaseAdmin admin = new HBaseAdmin(this.conf);
 
-    // remove test table from above tests and start over.
-    assertAllRegionServers(regionServerSystemCoprocessors());
-
-    for(int i = 0; admin.tableExists(tableName) && i < 30; i++) {
-      Thread.sleep(1000);
+    // disable all user tables, if any are loaded.
+    for (HTableDescriptor htd: admin.listTables()) {
+      if (!htd.isMetaTable()) {
+        String tableName = htd.getNameAsString();
+        if (admin.isTableEnabled(tableName)) {
+          try {
+            admin.disableTable(htd.getNameAsString());
+          } catch (TableNotEnabledException e) {
+            // ignoring this exception for now : not sure why it's happening.
+          }
+        }
+      }
     }
 
-    assertFalse(admin.tableExists(tableName));
+    // should only be system coprocessors loaded at this point.
+    assertAllRegionServers(regionServerSystemCoprocessors(),null);
 
-    // if disable table worked we should be able to do:
-    assertAllRegionServers(regionServerSystemCoprocessors());
-
-     // HBASE 4070: Improve region server metrics to report loaded coprocessors
-    // to master: verify that each regionserver is reporting the correct set of
-    // loaded coprocessors.
-    // At this point, after running the tests before this, each regionserver
-    // will have the set : {regionCoprocessor1, regionCoprocessor2,
-    // regionServerCoprocessor} loaded. Verify that this is the case.
-    // load all tables.
-    conf.set(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY, cpName1);
-
-    // create a new table that loads cpName1.
-    String regionServerTestTable = "rsLoadedCPTable";
-    HTableDescriptor htd2 = new HTableDescriptor(regionServerTestTable);
-
-    String rsLoadedCP = "rsLoadedCP";
-    File jarFile1 = buildCoprocessorJar(rsLoadedCP);
-
-    // copy the jar into dfs.
-    FileSystem fs = cluster.getFileSystem();
-    fs.copyFromLocalFile(new Path(jarFile1.getPath()),
-        new Path(fs.getUri().toString() + Path.SEPARATOR));
-    String jarFileOnHDFS1 = fs.getUri().toString() + Path.SEPARATOR +
-        jarFile1.getName();
-    assertTrue("Copy jar file to HDFS failed.",
-        fs.exists(new Path(jarFileOnHDFS1)));
-    LOG.info("Copied jar file to HDFS: " + jarFileOnHDFS1);
-
-    htd2.addFamily(new HColumnDescriptor("myfamily"));
-    htd2.setValue("COPROCESSOR$1", jarFileOnHDFS1 + "|" + rsLoadedCP +
-      "|" + Coprocessor.PRIORITY_USER);
-
-
-    // Test enabling and disabling user tables to see if coprocessor display
-    // changes as coprocessors are consequently loaded and unloaded.
+    // The next two tests enable and disable user tables to see if coprocessor
+    // load reporting changes as coprocessors are consequently loaded and unloaded.
     //
+
+    // Create a table.
+    // should cause regionCoprocessor2 to be loaded, since we've specified it
+    // for loading on any user table with USER_REGION_COPROCESSOR_CONF_KEY
+    // in setUpBeforeClass().
+    String userTable1 = "userTable1";
+    HTableDescriptor userTD1 = new HTableDescriptor(userTable1);
+    admin.createTable(userTD1);
+    // table should be enabled now.
+    assertTrue(admin.isTableEnabled(userTable1));
+    assertAllRegionServers(regionServerSystemAndUserCoprocessors(), userTable1);
+
+    // unload and make sure we're back to only system coprocessors again.
+    admin.disableTable(userTable1);
+    assertAllRegionServers(regionServerSystemCoprocessors(),null);
+
+    // create another table, with its own specified coprocessor.
+    String userTable2 = "userTable2";
+    HTableDescriptor htd2 = new HTableDescriptor(userTable2);
+
+    String userTableCP = "userTableCP";
+    File jarFile1 = buildCoprocessorJar(userTableCP);
+    htd2.addFamily(new HColumnDescriptor("myfamily"));
+    htd2.setValue("COPROCESSOR$1", jarFile1.toString() + "|" + userTableCP +
+      "|" + Coprocessor.PRIORITY_USER);
     admin.createTable(htd2);
     // table should be enabled now.
-    assertTrue(admin.isTableEnabled(regionServerTestTable));
+    assertTrue(admin.isTableEnabled(userTable2));
 
     ArrayList<String> existingCPsPlusNew =
         new ArrayList<String>(Arrays.asList(regionServerSystemAndUserCoprocessors()));
-    existingCPsPlusNew.add(rsLoadedCP);
+    existingCPsPlusNew.add(userTableCP);
     String[] existingCPsPlusNewArray = new String[existingCPsPlusNew.size()];
-    assertAllRegionServers(existingCPsPlusNew.toArray(existingCPsPlusNewArray));
+    assertAllRegionServers(existingCPsPlusNew.toArray(existingCPsPlusNewArray), userTable2);
 
-    admin.disableTable(regionServerTestTable);
-    assertTrue(admin.isTableDisabled(regionServerTestTable));
+    admin.disableTable(userTable2);
+    assertTrue(admin.isTableDisabled(userTable2));
 
-    // now that regionServerTestTable is disabled,
-    // test that the coprocessor 'rsLoadedCP' is no longer reported as loaded.
-    assertAllRegionServers(regionServerSystemCoprocessors());
+    // we should be back to only system coprocessors again.
+    assertAllRegionServers(regionServerSystemCoprocessors(), null);
 
   }
 
-  // TODO: figure out how to pass arbitrary functions where (I think
-  // pass an object that has a static method which takes an iterator).
-  void assertAllRegionServers(String[] expectedCoprocessors) {
+  /**
+   * return the subset of all regionservers
+   * (actually returns set of HServerLoads)
+   * which host some region in a given table.
+   * used by assertAllRegionServers() below to
+   * test reporting of loaded coprocessors.
+   * @param tableName : given table.
+   * @return subset of all servers.
+   */
+  Map<ServerName, HServerLoad> serversForTable(String tableName) {
+    Map<ServerName, HServerLoad> serverLoadHashMap = new HashMap<ServerName, HServerLoad>();
+    for(Map.Entry<ServerName,HServerLoad> server :
+        TEST_UTIL.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers().entrySet()) {
+      for(Map.Entry<byte[], HServerLoad.RegionLoad>  region: server.getValue().getRegionsLoad().entrySet()) {
+        if (region.getValue().getNameAsString().equals(tableName)) {
+          // this server server hosts a region of tableName: add this server..
+          serverLoadHashMap.put(server.getKey(),server.getValue());
+          // .. and skip the rest of the regions that it hosts.
+          break;
+        }
+      }
+    }
+    return serverLoadHashMap;
+  }
 
-     for(Map.Entry<ServerName,HServerLoad> server :
-         TEST_UTIL.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers().entrySet()) {
-       String[] actualRegionServerCoprocessors = server.getValue().getCoprocessors();
-       assertTrue(Arrays.equals(actualRegionServerCoprocessors, expectedCoprocessors));
-     }
+  void assertAllRegionServers(String[] expectedCoprocessors, String tableName) {
+    Map<ServerName, HServerLoad> servers;
+    if (tableName == null) {
+      //if no tableName specified, use all servers.
+      servers = TEST_UTIL.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers();
+    } else {
+      servers = serversForTable(tableName);
+    }
+
+    for(Map.Entry<ServerName,HServerLoad> server : servers.entrySet()) {
+      String[] actualRegionServerCoprocessors = server.getValue().getCoprocessors();
+      assertTrue(Arrays.equals(actualRegionServerCoprocessors,expectedCoprocessors));
+    }
   }
 
   @Test
