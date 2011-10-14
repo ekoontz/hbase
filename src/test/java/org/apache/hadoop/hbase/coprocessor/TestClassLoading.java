@@ -157,9 +157,14 @@ public class TestClassLoading {
     String currentDir = new File(".").getAbsolutePath();
     String classpath =
         currentDir + Path.SEPARATOR + "target"+ Path.SEPARATOR + "classes" +
-        System.getProperty("path.separator") +
-        System.getProperty("surefire.test.class.path");
+            System.getProperty("path.separator") +
+            "/Users/ekoontz/.m2/repository/com/google/guava/guava/r09/guava-r09.jar:" +
+            System.getProperty("path.separator" +
+                System.getProperty("surefire.test.class.path"));
     options.add(classpath);
+
+    String surefire = System.getProperty("surefire.test.class.path");
+    LOG.debug("SUREFILE TEST CLASS PATH = " + surefire);
     LOG.debug("Setting classpath to: "+classpath);
 
     JavaCompiler.CompilationTask task = compiler.getTask(null, fm, null,
@@ -378,26 +383,18 @@ public class TestClassLoading {
     // "GenericEndpoint" because "C" is before "G" lexicographically.
     // Note the space [ ] after the comma in both constant strings:
     // must be present for success of this test.
-    final String loadedCoprocessorsExpected =
-      "[" + regionCoprocessor1.getSimpleName() + ", " +
-          regionCoprocessor2.getSimpleName() +  ", " +
-          regionServerCoprocessor.getSimpleName() + "]";
-    final String[] loadedCoprocessorsExpectedNew = assertedCoprocessors();
 
     HBaseAdmin admin = new HBaseAdmin(this.conf);
-    if (admin.tableExists(tableName)) {
-      admin.disableTable(tableName);
-      admin.deleteTable(tableName);
+
+    // remove test table from above tests and start over.
+    // TODO : figure out to determine if there are any user tables:
+    // (there should not be any)
+    if (admin.isTableEnabled(tableName)) {
+      // can't run this: ClassNotFound :(
+      //admin.disableTable(tableName);
     }
 
-    HTableDescriptor htd = new HTableDescriptor(tableName);
-    htd.addFamily(new HColumnDescriptor("test"));
-
-    admin.createTable(htd);
-
-    assertAllRegionServers();
-
-    admin.disableTable(tableName);
+    assertAllRegionServers(assertedCoprocessors());
 
      // HBASE 4070: Improve region server metrics to report loaded coprocessors
     // to master: verify that each regionserver is reporting the correct set of
@@ -406,18 +403,31 @@ public class TestClassLoading {
     // will have the set : {regionCoprocessor1, regionCoprocessor2,
     // regionServerCoprocessor} loaded. Verify that this is the case.
     // load all tables.
-    assertAllRegionServers();
+    conf.set(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY, cpName1);
 
-    // verify that getCoprocessors() is empty.
-    assertAllRegionServers();
+    // create a new table that loads cpName1.
+    String regionServerTestTable = "foo42";
+    HTableDescriptor htd2 = new HTableDescriptor(regionServerTestTable);
 
-    // set configs : CoprocessorHost.USER_REGION_COPROCESSOR_CONF_KEY
-    // versus CoprocessorHost.REGION_COPROCESSOR_CONF_KEY
-    // turn off CoprocessorHost.USER_REGION_COPROCESSOR_CONF_KEY
-    assertAllRegionServers();
+    assertAllRegionServers(assertedCoprocessors());
 
-    // turn off CoprocessorHost.REGION_COPROCESSOR_CONF_KEY
-    assertAllRegionServers();
+    String foocpName1 = "foo42coproc";
+    File jarFile1 = buildCoprocessorJar(foocpName1);
+
+    // copy the jars into dfs.
+    FileSystem fs = cluster.getFileSystem();
+    fs.copyFromLocalFile(new Path(jarFile1.getPath()),
+        new Path(fs.getUri().toString() + Path.SEPARATOR));
+    String jarFileOnHDFS1 = fs.getUri().toString() + Path.SEPARATOR +
+        jarFile1.getName();
+    assertTrue("Copy jar file to HDFS failed.",
+        fs.exists(new Path(jarFileOnHDFS1)));
+    LOG.info("Copied jar file to HDFS: " + jarFileOnHDFS1);
+
+    htd2.addFamily(new HColumnDescriptor("myfamily"));
+    htd2.setValue("COPROCESSOR$1", jarFileOnHDFS1 + "|" + foocpName1 +
+      "|" + Coprocessor.PRIORITY_USER);
+
 
     // TODO: test display of regionserver-level coprocessors
     // (e.g. SampleRegionWALObserver) versus region-level coprocessors
@@ -427,25 +437,30 @@ public class TestClassLoading {
     // Test enabling and disabling user tables to see if coprocessor display
     // changes as coprocessors are consequently loaded and unloaded.
     //
+    conf.set(CoprocessorHost.USER_REGION_COPROCESSOR_CONF_KEY, cpName1);
+    admin.createTable(htd2);
+    // table should be enabled now.
+    assertTrue(admin.isTableEnabled(regionServerTestTable));
 
-
-
+    ArrayList<String> existingCPsPlusNew = new ArrayList<String>(Arrays.asList(assertedCoprocessors()));
+    existingCPsPlusNew.add(foocpName1);
+    String[] existingCPsPlusNewArray = new String[existingCPsPlusNew.size()];
+    assertAllRegionServers(existingCPsPlusNew.toArray(existingCPsPlusNewArray));
   }
 
   // TODO: figure out how to pass arbitrary functions where (I think
-  // pass an object that has a static method which takes an interator).
-  void assertAllRegionServers() {
-    String[] expectedCoprocessors = assertedCoprocessors();
+  // pass an object that has a static method which takes an iterator).
+  void assertAllRegionServers(String[] expectedCoprocessors) {
      for(Map.Entry<ServerName,HServerLoad> server :
         TEST_UTIL.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers().entrySet()) {
-      assertTrue(Arrays.equals(server.getValue().getCoprocessors(), expectedCoprocessors));
+       String[] actualRegionServerCoprocessors = server.getValue().getCoprocessors();
+      assertTrue(Arrays.equals(actualRegionServerCoprocessors, expectedCoprocessors));
     }
   }
 
 
   String[] assertedCoprocessors() {
     MiniHBaseCluster cluster = TEST_UTIL.getMiniHBaseCluster();
-
     String[] returnVal = new String[]{"ColumnAggregationEndpoint","GenericEndpoint","SampleRegionWALObserver"};
     return returnVal;
   }
