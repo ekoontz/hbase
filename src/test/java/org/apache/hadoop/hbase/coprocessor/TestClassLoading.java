@@ -488,7 +488,7 @@ public class TestClassLoading {
     return serverLoadHashMap;
   }
 
-  void assertAllRegionServers(String[] expectedCoprocessors, String tableName) {
+  void assertAllRegionServers(String[] expectedCoprocessors, String tableName) throws InterruptedException {
     Map<ServerName, HServerLoad> servers;
     if (tableName == null) {
       //if no tableName specified, use all servers.
@@ -499,8 +499,13 @@ public class TestClassLoading {
 
     for(Map.Entry<ServerName,HServerLoad> server : servers.entrySet()) {
       String[] actualCoprocessors = server.getValue().getCoprocessors();
-      if (!Arrays.equals(actualCoprocessors,expectedCoprocessors)) {
-	  LOG.debug("TEST FAILED: actual: " + actualCoprocessors + " ; expected: " + expectedCoprocessors);
+      for(int i = 0; i < 2; i++) {
+	  if (!Arrays.equals(actualCoprocessors,expectedCoprocessors)) {
+	      LOG.debug("retrying after failed comparison: actual: " + Arrays.toString(actualCoprocessors) + " ; expected: " + Arrays.toString(expectedCoprocessors) + "(" + i + ")");
+	      Thread.sleep(1000);
+	  } else {
+	      break;
+	  }
       }		
       assertTrue(Arrays.equals(actualCoprocessors,expectedCoprocessors));
     }
