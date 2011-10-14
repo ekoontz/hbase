@@ -489,7 +489,7 @@ public class TestClassLoading {
     Map<ServerName, HServerLoad> servers;
     String[] actualCoprocessors = null;
     boolean success = false;
-    for(int i = 0; i < 5; i++) {	  
+    for(int i = 0; i < 5; i++) {
       if (tableName == null) {
         //if no tableName specified, use all servers.
         servers =
@@ -514,7 +514,7 @@ public class TestClassLoading {
       }
       LOG.debug("retrying after failed comparison: " + i);
       Thread.sleep(1000);
-    }	
+    }
     assertTrue(success);
   }
 
