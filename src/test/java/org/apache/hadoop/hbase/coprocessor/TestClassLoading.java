@@ -183,14 +183,9 @@ public class TestClassLoading {
     String currentDir = new File(".").getAbsolutePath();
     String classpath =
         currentDir + Path.SEPARATOR + "target"+ Path.SEPARATOR + "classes" +
-            System.getProperty("path.separator") +
-            "/Users/ekoontz/.m2/repository/com/google/guava/guava/r09/guava-r09.jar:" +
-            System.getProperty("path.separator" +
-                System.getProperty("surefire.test.class.path"));
+        System.getProperty("path.separator") +
+        System.getProperty("surefire.test.class.path");
     options.add(classpath);
-
-    String surefire = System.getProperty("surefire.test.class.path");
-    LOG.debug("SUREFILE TEST CLASS PATH = " + surefire);
     LOG.debug("Setting classpath to: "+classpath);
 
     JavaCompiler.CompilationTask task = compiler.getTask(null, fm, null,
@@ -503,8 +498,11 @@ public class TestClassLoading {
     }
 
     for(Map.Entry<ServerName,HServerLoad> server : servers.entrySet()) {
-      String[] actualRegionServerCoprocessors = server.getValue().getCoprocessors();
-      assertTrue(Arrays.equals(actualRegionServerCoprocessors,expectedCoprocessors));
+      String[] actualCoprocessors = server.getValue().getCoprocessors();
+      if (!Arrays.equals(actualCoprocessors,expectedCoprocessors)) {
+	  LOG.debug("TEST FAILED: actual: " + actualCoprocessors + " ; expected: " + expectedCoprocessors);
+      }		
+      assertTrue(Arrays.equals(actualCoprocessors,expectedCoprocessors));
     }
   }
 
