@@ -72,11 +72,37 @@ public class TestClassLoading {
   private static Class regionServerCoprocessor = SampleRegionWALObserver.class;
   private static Class masterCoprocessor = BaseMasterObserver.class;
 
+
+  String[] regionServerSystemCoprocessors() {
+    String[] returnVal = new String[]{
+        regionCoprocessor1.getSimpleName(),
+        regionServerCoprocessor.getSimpleName()};
+    return returnVal;
+  }
+
+  String[] regionServerSystemAndUserCoprocessors() {
+    String[] returnVal = new String[]{
+        regionCoprocessor1.getSimpleName(),
+        regionCoprocessor2.getSimpleName(),
+        regionServerCoprocessor.getSimpleName()};
+    return returnVal;
+  }
+
   @BeforeClass
   public static void setUpBeforeClass() throws Exception {
     conf = TEST_UTIL.getConfiguration();
+
+    // regionCoprocessor1 will be loaded on all regionservers, since it is
+    // loaded for any tables (user or meta).
     conf.setStrings(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY,
-        regionCoprocessor1.getName(), regionCoprocessor2.getName());
+        regionCoprocessor1.getName());
+
+    // regionCoprocessor2 will be loaded only on regionservers that serve a
+    // user table region. Therefore, if there are no user tables loaded,
+    // this coprocessor will not be loaded on any regionserver.
+    conf.setStrings(CoprocessorHost.USER_REGION_COPROCESSOR_CONF_KEY,
+        regionCoprocessor2.getName());
+
     conf.setStrings(CoprocessorHost.WAL_COPROCESSOR_CONF_KEY,
         regionServerCoprocessor.getName());
     conf.setStrings(CoprocessorHost.MASTER_COPROCESSOR_CONF_KEY,
@@ -387,14 +413,16 @@ public class TestClassLoading {
     HBaseAdmin admin = new HBaseAdmin(this.conf);
 
     // remove test table from above tests and start over.
-    // TODO : figure out to determine if there are any user tables:
-    // (there should not be any)
-    if (admin.isTableEnabled(tableName)) {
-      // can't run this: ClassNotFound :(
-      //admin.disableTable(tableName);
+    assertAllRegionServers(regionServerSystemCoprocessors());
+
+    for(int i = 0; admin.tableExists(tableName) && i < 30; i++) {
+      Thread.sleep(1000);
     }
 
-    assertAllRegionServers(assertedCoprocessors());
+    assertFalse(admin.tableExists(tableName));
+
+    // if disable table worked we should be able to do:
+    assertAllRegionServers(regionServerSystemCoprocessors());
 
      // HBASE 4070: Improve region server metrics to report loaded coprocessors
     // to master: verify that each regionserver is reporting the correct set of
@@ -406,15 +434,13 @@ public class TestClassLoading {
     conf.set(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY, cpName1);
 
     // create a new table that loads cpName1.
-    String regionServerTestTable = "foo42";
+    String regionServerTestTable = "rsLoadedCPTable";
     HTableDescriptor htd2 = new HTableDescriptor(regionServerTestTable);
 
-    assertAllRegionServers(assertedCoprocessors());
+    String rsLoadedCP = "rsLoadedCP";
+    File jarFile1 = buildCoprocessorJar(rsLoadedCP);
 
-    String foocpName1 = "foo42coproc";
-    File jarFile1 = buildCoprocessorJar(foocpName1);
-
-    // copy the jars into dfs.
+    // copy the jar into dfs.
     FileSystem fs = cluster.getFileSystem();
     fs.copyFromLocalFile(new Path(jarFile1.getPath()),
         new Path(fs.getUri().toString() + Path.SEPARATOR));
@@ -425,44 +451,41 @@ public class TestClassLoading {
     LOG.info("Copied jar file to HDFS: " + jarFileOnHDFS1);
 
     htd2.addFamily(new HColumnDescriptor("myfamily"));
-    htd2.setValue("COPROCESSOR$1", jarFileOnHDFS1 + "|" + foocpName1 +
+    htd2.setValue("COPROCESSOR$1", jarFileOnHDFS1 + "|" + rsLoadedCP +
       "|" + Coprocessor.PRIORITY_USER);
 
 
-    // TODO: test display of regionserver-level coprocessors
-    // (e.g. SampleRegionWALObserver) versus region-level coprocessors
-    // (e.g. GenericEndpoint), and
-    // test CoprocessorHost.REGION_COPROCESSOR_CONF_KEY versus
-    // CoprocessorHost.USER_REGION_COPROCESSOR_CONF_KEY.
     // Test enabling and disabling user tables to see if coprocessor display
     // changes as coprocessors are consequently loaded and unloaded.
     //
-    conf.set(CoprocessorHost.USER_REGION_COPROCESSOR_CONF_KEY, cpName1);
     admin.createTable(htd2);
     // table should be enabled now.
     assertTrue(admin.isTableEnabled(regionServerTestTable));
 
-    ArrayList<String> existingCPsPlusNew = new ArrayList<String>(Arrays.asList(assertedCoprocessors()));
-    existingCPsPlusNew.add(foocpName1);
+    ArrayList<String> existingCPsPlusNew =
+        new ArrayList<String>(Arrays.asList(regionServerSystemAndUserCoprocessors()));
+    existingCPsPlusNew.add(rsLoadedCP);
     String[] existingCPsPlusNewArray = new String[existingCPsPlusNew.size()];
     assertAllRegionServers(existingCPsPlusNew.toArray(existingCPsPlusNewArray));
+
+    admin.disableTable(regionServerTestTable);
+    assertTrue(admin.isTableDisabled(regionServerTestTable));
+
+    // now that regionServerTestTable is disabled,
+    // test that the coprocessor 'rsLoadedCP' is no longer reported as loaded.
+    assertAllRegionServers(regionServerSystemCoprocessors());
+
   }
 
   // TODO: figure out how to pass arbitrary functions where (I think
   // pass an object that has a static method which takes an iterator).
   void assertAllRegionServers(String[] expectedCoprocessors) {
+
      for(Map.Entry<ServerName,HServerLoad> server :
-        TEST_UTIL.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers().entrySet()) {
+         TEST_UTIL.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers().entrySet()) {
        String[] actualRegionServerCoprocessors = server.getValue().getCoprocessors();
-      assertTrue(Arrays.equals(actualRegionServerCoprocessors, expectedCoprocessors));
-    }
-  }
-
-
-  String[] assertedCoprocessors() {
-    MiniHBaseCluster cluster = TEST_UTIL.getMiniHBaseCluster();
-    String[] returnVal = new String[]{"ColumnAggregationEndpoint","GenericEndpoint","SampleRegionWALObserver"};
-    return returnVal;
+       assertTrue(Arrays.equals(actualRegionServerCoprocessors, expectedCoprocessors));
+     }
   }
 
   @Test
