@@ -73,20 +73,16 @@ public class TestClassLoading {
   private static Class regionServerCoprocessor = SampleRegionWALObserver.class;
   private static Class masterCoprocessor = BaseMasterObserver.class;
 
-  String[] regionServerSystemCoprocessors() {
-    String[] returnVal = new String[]{
-        regionCoprocessor1.getSimpleName(),
-        regionServerCoprocessor.getSimpleName()};
-    return returnVal;
-  }
+  private static final String[] regionServerSystemCoprocessors = new String[]{
+      regionCoprocessor1.getSimpleName(),
+      regionServerCoprocessor.getSimpleName()
+  };
 
-  String[] regionServerSystemAndUserCoprocessors() {
-    String[] returnVal = new String[]{
-        regionCoprocessor1.getSimpleName(),
-        regionCoprocessor2.getSimpleName(),
-        regionServerCoprocessor.getSimpleName()};
-    return returnVal;
-  }
+  private static final String[] regionServerSystemAndUserCoprocessors = new String[] {
+      regionCoprocessor1.getSimpleName(),
+      regionCoprocessor2.getSimpleName(),
+      regionServerCoprocessor.getSimpleName()
+  };
 
   @BeforeClass
   public static void setUpBeforeClass() throws Exception {
@@ -415,7 +411,7 @@ public class TestClassLoading {
     }
 
     // should only be system coprocessors loaded at this point.
-    assertAllRegionServers(regionServerSystemCoprocessors(),null);
+    assertAllRegionServers(regionServerSystemCoprocessors,null);
 
     // The next two tests enable and disable user tables to see if coprocessor
     // load reporting changes as coprocessors are consequently loaded and unloaded.
@@ -430,11 +426,11 @@ public class TestClassLoading {
     admin.createTable(userTD1);
     // table should be enabled now.
     assertTrue(admin.isTableEnabled(userTable1));
-    assertAllRegionServers(regionServerSystemAndUserCoprocessors(), userTable1);
+    assertAllRegionServers(regionServerSystemAndUserCoprocessors, userTable1);
 
     // unload and make sure we're back to only system coprocessors again.
     admin.disableTable(userTable1);
-    assertAllRegionServers(regionServerSystemCoprocessors(),null);
+    assertAllRegionServers(regionServerSystemCoprocessors,null);
 
     // create another table, with its own specified coprocessor.
     String userTable2 = "userTable2";
@@ -450,7 +446,7 @@ public class TestClassLoading {
     assertTrue(admin.isTableEnabled(userTable2));
 
     ArrayList<String> existingCPsPlusNew =
-        new ArrayList<String>(Arrays.asList(regionServerSystemAndUserCoprocessors()));
+        new ArrayList<String>(Arrays.asList(regionServerSystemAndUserCoprocessors));
     existingCPsPlusNew.add(userTableCP);
     String[] existingCPsPlusNewArray = new String[existingCPsPlusNew.size()];
     assertAllRegionServers(existingCPsPlusNew.toArray(existingCPsPlusNewArray), userTable2);
@@ -459,7 +455,7 @@ public class TestClassLoading {
     assertTrue(admin.isTableDisabled(userTable2));
 
     // we should be back to only system coprocessors again.
-    assertAllRegionServers(regionServerSystemCoprocessors(), null);
+    assertAllRegionServers(regionServerSystemCoprocessors, null);
 
   }
 
