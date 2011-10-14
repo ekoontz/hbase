@@ -490,25 +490,34 @@ public class TestClassLoading {
 
   void assertAllRegionServers(String[] expectedCoprocessors, String tableName) throws InterruptedException {
     Map<ServerName, HServerLoad> servers;
-    if (tableName == null) {
-      //if no tableName specified, use all servers.
-      servers = TEST_UTIL.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers();
-    } else {
-      servers = serversForTable(tableName);
-    }
-
-    for(Map.Entry<ServerName,HServerLoad> server : servers.entrySet()) {
-      String[] actualCoprocessors = server.getValue().getCoprocessors();
-      for(int i = 0; i < 2; i++) {
-	  if (!Arrays.equals(actualCoprocessors,expectedCoprocessors)) {
-	      LOG.debug("retrying after failed comparison: actual: " + Arrays.toString(actualCoprocessors) + " ; expected: " + Arrays.toString(expectedCoprocessors) + "(" + i + ")");
-	      Thread.sleep(1000);
-	  } else {
-	      break;
-	  }
-      }		
-      assertTrue(Arrays.equals(actualCoprocessors,expectedCoprocessors));
-    }
+    String[] actualCoprocessors = null;
+    boolean success = false;
+    for(int i = 0; i < 5; i++) {	  
+	if (tableName == null) {
+	    //if no tableName specified, use all servers.
+	    servers = TEST_UTIL.getMiniHBaseCluster().getMaster().getServerManager().getOnlineServers();
+	} else {
+	    servers = serversForTable(tableName);
+	}
+	boolean any_failed = false;
+	for(Map.Entry<ServerName,HServerLoad> server : servers.entrySet()) {
+	    actualCoprocessors = server.getValue().getCoprocessors();
+	    if (!Arrays.equals(actualCoprocessors,expectedCoprocessors)) {
+		LOG.debug("failed comparison: actual: " + 
+			  Arrays.toString(actualCoprocessors) + 
+			  " ; expected: " + Arrays.toString(expectedCoprocessors));
+		any_failed = true;
+		break;
+	    }
+	}
+	if (any_failed == false) {
+	    success = true;
+	    break;
+	}
+	LOG.debug("retrying after failed comparison: " + i);
+	Thread.sleep(1000);
+    }	
+    assertTrue(success);
   }
 
   @Test
