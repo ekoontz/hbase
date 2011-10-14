@@ -44,6 +44,7 @@ import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.RemoteExceptionHandler;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.HeapSize;
+import org.apache.hadoop.hbase.io.hfile.CacheConfig;
 import org.apache.hadoop.hbase.io.hfile.Compression;
 import org.apache.hadoop.hbase.io.hfile.HFile;
 import org.apache.hadoop.hbase.io.hfile.HFileScanner;
@@ -52,13 +53,12 @@ import org.apache.hadoop.hbase.regionserver.compactions.CompactionProgress;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.ClassSize;
-import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.hbase.util.CollectionBackedScanner;
+import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.util.StringUtils;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 /**
@@ -93,6 +93,7 @@ public class Store implements HeapSize {
   private final HColumnDescriptor family;
   final FileSystem fs;
   final Configuration conf;
+  final CacheConfig cacheConf;
   // ttl in milliseconds.
   protected long ttl;
   protected int minVersions;
@@ -115,7 +116,6 @@ public class Store implements HeapSize {
   private final Object flushLock = new Object();
   final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
   private final String storeNameStr;
-  private final boolean inMemory;
   private CompactionProgress progress;
   private final int compactionKVMax;
 
@@ -132,7 +132,6 @@ public class Store implements HeapSize {
     new CopyOnWriteArraySet<ChangedReadersObserver>();
 
   private final int blocksize;
-  private final boolean blockcache;
   /** Compression algorithm for flush files and minor compaction */
   private final Compression.Algorithm compression;
   /** Compression algorithm for major compaction */
@@ -165,7 +164,6 @@ public class Store implements HeapSize {
     this.region = region;
     this.family = family;
     this.conf = conf;
-    this.blockcache = family.isBlockCacheEnabled();
     this.blocksize = family.getBlocksize();
     this.compression = family.getCompression();
     // avoid overriding compression setting for major compactions if the user
@@ -195,8 +193,8 @@ public class Store implements HeapSize {
       conf.getInt("hbase.hstore.compaction.min",
         /*old name*/ conf.getInt("hbase.hstore.compactionThreshold", 3)));
 
-    // Check if this is in-memory store
-    this.inMemory = family.isInMemory();
+    // Setting up cache configuration for this family
+    this.cacheConf = new CacheConfig(conf, family);
     this.blockingStoreFileCount =
       conf.getInt("hbase.hstore.blockingStoreFiles", 7);
 
@@ -270,8 +268,8 @@ public class Store implements HeapSize {
       }
       StoreFile curfile = null;
       try {
-        curfile = new StoreFile(fs, p, blockcache, this.conf,
-            this.family.getBloomFilterType(), this.inMemory);
+        curfile = new StoreFile(fs, p, this.conf, this.cacheConf,
+            this.family.getBloomFilterType());
         curfile.createReader();
       } catch (IOException ioe) {
         LOG.warn("Failed open of " + p + "; presumption is that file was " +
@@ -335,7 +333,7 @@ public class Store implements HeapSize {
       LOG.info("Validating hfile at " + srcPath + " for inclusion in "
           + "store " + this + " region " + this.region);
       reader = HFile.createReader(srcPath.getFileSystem(conf),
-          srcPath, null, false, false);
+          srcPath, cacheConf);
       reader.loadFileInfo();
 
       byte[] firstKey = reader.getFirstRowKey();
@@ -375,8 +373,8 @@ public class Store implements HeapSize {
     LOG.info("Renaming bulk load file " + srcPath + " to " + dstPath);
     StoreFile.rename(fs, srcPath, dstPath);
 
-    StoreFile sf = new StoreFile(fs, dstPath, blockcache,
-        this.conf, this.family.getBloomFilterType(), this.inMemory);
+    StoreFile sf = new StoreFile(fs, dstPath, this.conf, this.cacheConf,
+        this.family.getBloomFilterType());
     sf.createReader();
 
     LOG.info("Moved hfile " + srcPath + " into store directory " +
@@ -471,7 +469,8 @@ public class Store implements HeapSize {
       TimeRangeTracker snapshotTimeRangeTracker,
       MonitoredTask status)
       throws IOException {
-    StoreFile.Writer writer = null;
+    StoreFile.Writer writer;
+    String fileName;
     long flushed = 0;
     // Don't flush if there are no entries.
     if (set.size() == 0) {
@@ -494,6 +493,7 @@ public class Store implements HeapSize {
         // A. Write the map out to the disk
         writer = createWriterInTmp(set.size());
         writer.setTimeRangeTracker(snapshotTimeRangeTracker);
+        fileName = writer.getPath().getName();
         try {
           List<KeyValue> kvs = new ArrayList<KeyValue>();
           boolean hasMore;
@@ -521,7 +521,8 @@ public class Store implements HeapSize {
     }
 
     // Write-out finished successfully, move into the right spot
-    Path dstPath = StoreFile.getUniqueFile(fs, homedir);
+    Path dstPath = new Path(homedir, fileName);
+    validateStoreFile(writer.getPath());
     String msg = "Renaming flushed file at " + writer.getPath() + " to " + dstPath;
     LOG.info(msg);
     status.setStatus("Flushing " + this + ": " + msg);
@@ -530,8 +531,8 @@ public class Store implements HeapSize {
     }
 
     status.setStatus("Flushing " + this + ": reopening flushed file");
-    StoreFile sf = new StoreFile(this.fs, dstPath, blockcache,
-      this.conf, this.family.getBloomFilterType(), this.inMemory);
+    StoreFile sf = new StoreFile(this.fs, dstPath, this.conf, this.cacheConf,
+        this.family.getBloomFilterType());
     StoreFile.Reader r = sf.createReader();
     this.storeSize += r.length();
     this.totalUncompressedBytes += r.getTotalUncompressedBytes();
@@ -562,7 +563,7 @@ public class Store implements HeapSize {
     Compression.Algorithm compression)
   throws IOException {
     return StoreFile.createWriter(this.fs, region.getTmpDir(), this.blocksize,
-        compression, this.comparator, this.conf,
+        compression, this.comparator, this.conf, this.cacheConf,
         this.family.getBloomFilterType(), maxKeyCount);
   }
 
@@ -1093,7 +1094,7 @@ public class Store implements HeapSize {
    * nothing made it through the compaction.
    * @throws IOException
    */
-  private StoreFile.Writer compactStore(final Collection<StoreFile> filesToCompact,
+  StoreFile.Writer compactStore(final Collection<StoreFile> filesToCompact,
                                final boolean majorCompaction, final long maxId)
       throws IOException {
     // calculate maximum key count after compaction (for blooms)
@@ -1148,7 +1149,9 @@ public class Store implements HeapSize {
         // we have to use a do/while loop.
         ArrayList<KeyValue> kvs = new ArrayList<KeyValue>();
         // Limit to "hbase.hstore.compaction.kv.max" (default 10) to avoid OOME
-        while (scanner.next(kvs,this.compactionKVMax)) {
+        boolean hasMore;
+        do {
+          hasMore = scanner.next(kvs, this.compactionKVMax);
           if (writer == null && !kvs.isEmpty()) {
             writer = createWriterInTmp(maxKeyCount,
               this.compactionCompression);
@@ -1178,7 +1181,7 @@ public class Store implements HeapSize {
             }
           }
           kvs.clear();
-        }
+        } while (hasMore);
       } finally {
         if (scanner != null) {
           scanner.close();
@@ -1191,6 +1194,30 @@ public class Store implements HeapSize {
       }
     }
     return writer;
+  }
+
+  /**
+   * Validates a store file by opening and closing it. In HFileV2 this should
+   * not be an expensive operation.
+   *
+   * @param path the path to the store file
+   */
+  private void validateStoreFile(Path path)
+      throws IOException {
+    StoreFile storeFile = null;
+    try {
+      storeFile = new StoreFile(this.fs, path, this.conf,
+          this.cacheConf, this.family.getBloomFilterType());
+      storeFile.createReader();
+    } catch (IOException e) {
+      LOG.error("Failed to open store file : " + path
+          + ", keeping it in tmp location", e);
+      throw e;
+    } finally {
+      if (storeFile != null) {
+        storeFile.closeReader();
+      }
+    }
   }
 
   /*
@@ -1212,23 +1239,26 @@ public class Store implements HeapSize {
    * @return StoreFile created. May be null.
    * @throws IOException
    */
-  private StoreFile completeCompaction(final Collection<StoreFile> compactedFiles,
+  StoreFile completeCompaction(final Collection<StoreFile> compactedFiles,
                                        final StoreFile.Writer compactedFile)
       throws IOException {
     // 1. Moving the new files into place -- if there is a new file (may not
     // be if all cells were expired or deleted).
     StoreFile result = null;
     if (compactedFile != null) {
-      Path p = null;
-      try {
-        p = StoreFile.rename(this.fs, compactedFile.getPath(),
-          StoreFile.getRandomFilename(fs, this.homedir));
-      } catch (IOException e) {
-        LOG.error("Failed move of compacted file " + compactedFile.getPath(), e);
-        return null;
+      validateStoreFile(compactedFile.getPath());
+      // Move the file into the right spot
+      Path origPath = compactedFile.getPath();
+      Path destPath = new Path(homedir, origPath.getName());
+      LOG.info("Renaming compacted file at " + origPath + " to " + destPath);
+      if (!fs.rename(origPath, destPath)) {
+        LOG.error("Failed move of compacted file " + origPath + " to " +
+            destPath);
+        throw new IOException("Failed move of compacted file " + origPath +
+            " to " + destPath);
       }
-      result = new StoreFile(this.fs, p, blockcache, this.conf,
-          this.family.getBloomFilterType(), this.inMemory);
+      result = new StoreFile(this.fs, destPath, this.conf, this.cacheConf,
+          this.family.getBloomFilterType());
       result.createReader();
     }
     this.lock.writeLock().lock();
@@ -1347,7 +1377,7 @@ public class Store implements HeapSize {
       this.memstore.getRowKeyAtOrBefore(state);
       // Check if match, if we got a candidate on the asked for 'kv' row.
       // Process each store file. Run through from newest to oldest.
-      for (StoreFile sf : Iterables.reverse(storefiles)) {
+      for (StoreFile sf : Lists.reverse(storefiles)) {
         // Update the candidate keys from the current map file
         rowAtOrBeforeFromStoreFile(sf, state);
       }
@@ -1386,7 +1416,7 @@ public class Store implements HeapSize {
       firstOnRow = new KeyValue(lastKV.getRow(), HConstants.LATEST_TIMESTAMP);
     }
     // Get a scanner that caches blocks and that uses pread.
-    HFileScanner scanner = r.getScanner(true, true);
+    HFileScanner scanner = r.getHFileReader().getScanner(true, true);
     // Seek scanner.  If can't seek it, return.
     if (!seekToScanner(scanner, firstOnRow, firstKV)) return;
     // If we found candidate on firstOnRow, just return. THIS WILL NEVER HAPPEN!
@@ -1472,7 +1502,7 @@ public class Store implements HeapSize {
           return false;
         }
       }
-      
+
       return true;
     } finally {
       this.lock.readLock().unlock();
@@ -1507,7 +1537,7 @@ public class Store implements HeapSize {
           LOG.warn("Storefile " + sf + " Reader is null");
           continue;
         }
-        
+
         long size = r.length();
         if (size > maxSize) {
           // This is the largest one so far
@@ -1561,7 +1591,7 @@ public class Store implements HeapSize {
     return storeSize;
   }
 
-  void triggerMajorCompaction() {
+  public void triggerMajorCompaction() {
     this.forceMajor = true;
   }
 
@@ -1789,10 +1819,17 @@ public class Store implements HeapSize {
     return (storefiles.size() - filesCompacting.size()) > minFilesToCompact;
   }
 
+  /**
+   * Used for tests. Get the cache configuration for this Store.
+   */
+  public CacheConfig getCacheConfig() {
+    return this.cacheConf;
+  }
+
   public static final long FIXED_OVERHEAD = ClassSize.align(
-      ClassSize.OBJECT + (16 * ClassSize.REFERENCE) +
+      ClassSize.OBJECT + (17 * ClassSize.REFERENCE) +
       (7 * Bytes.SIZEOF_LONG) + (1 * Bytes.SIZEOF_DOUBLE) +
-      (6 * Bytes.SIZEOF_INT) + (3 * Bytes.SIZEOF_BOOLEAN));
+      (7 * Bytes.SIZEOF_INT) + (1 * Bytes.SIZEOF_BOOLEAN));
 
   public static final long DEEP_OVERHEAD = ClassSize.align(FIXED_OVERHEAD +
       ClassSize.OBJECT + ClassSize.REENTRANT_LOCK +

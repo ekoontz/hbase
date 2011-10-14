@@ -267,11 +267,12 @@ public class AssignmentManager extends ZooKeeperListener {
    * @param tableName
    * @return Pair indicating the status of the alter command
    * @throws IOException
+   * @throws InterruptedException 
    */
   public Pair<Integer, Integer> getReopenStatus(byte[] tableName)
-      throws IOException {
-    List <HRegionInfo> hris = MetaReader.getTableRegions(
-                              this.master.getCatalogTracker(), tableName);
+  throws IOException, InterruptedException {
+    List <HRegionInfo> hris =
+      MetaReader.getTableRegions(this.master.getCatalogTracker(), tableName);
     Integer pending = 0;
     for(HRegionInfo hri : hris) {
       if(regionsToReopen.get(hri.getEncodedName()) != null) {
@@ -426,7 +427,9 @@ public class AssignmentManager extends ZooKeeperListener {
       final HRegionInfo regionInfo,
       final Map<ServerName,List<Pair<HRegionInfo,Result>>> deadServers)
   throws KeeperException, IOException {
-    RegionTransitionData data = ZKAssign.getData(watcher, encodedRegionName);
+    Stat stat = new Stat();
+    RegionTransitionData data = ZKAssign.getDataAndWatch(watcher,
+        encodedRegionName, stat);
     if (data == null) return false;
     HRegionInfo hri = regionInfo;
     if (hri == null) {
@@ -435,13 +438,14 @@ public class AssignmentManager extends ZooKeeperListener {
       if (p == null) return false;
       hri = p.getFirst();
     }
-    processRegionsInTransition(data, hri, deadServers);
+    processRegionsInTransition(data, hri, deadServers, stat.getVersion());
     return true;
   }
 
   void processRegionsInTransition(final RegionTransitionData data,
       final HRegionInfo regionInfo,
-      final Map<ServerName,List<Pair<HRegionInfo,Result>>> deadServers)
+      final Map<ServerName, List<Pair<HRegionInfo, Result>>> deadServers,
+      int expectedVersion)
   throws KeeperException {
     String encodedRegionName = regionInfo.getEncodedName();
     LOG.info("Processing region " + regionInfo.getRegionNameAsString() +
@@ -516,7 +520,8 @@ public class AssignmentManager extends ZooKeeperListener {
                 || regionInfo.isMetaRegion() || regionInfo.isRootRegion())) {
           forceOffline(regionInfo, data);
         } else {
-          new OpenedRegionHandler(master, this, regionInfo, sn).process();
+          new OpenedRegionHandler(master, this, regionInfo, sn, expectedVersion)
+              .process();
         }
         break;
       }
@@ -593,8 +598,9 @@ public class AssignmentManager extends ZooKeeperListener {
    * This deals with skipped transitions (we got a CLOSED but didn't see CLOSING
    * yet).
    * @param data
+   * @param expectedVersion
    */
-  private void handleRegion(final RegionTransitionData data) {
+  private void handleRegion(final RegionTransitionData data, int expectedVersion) {
     synchronized(regionsInTransition) {
       if (data == null || data.getOrigin() == null) {
         LOG.warn("Unexpected NULL input " + data);
@@ -620,7 +626,7 @@ public class AssignmentManager extends ZooKeeperListener {
           (System.currentTimeMillis() - 15000);
       LOG.debug("Handling transition=" + data.getEventType() +
         ", server=" + data.getOrigin() + ", region=" +
-          prettyPrintedRegionName +
+          (prettyPrintedRegionName == null? "null": prettyPrintedRegionName)  +
           (lateEvent? ", which is more than 15 seconds late" : ""));
       RegionState regionState = regionsInTransition.get(encodedName);
       switch (data.getEventType()) {
@@ -725,7 +731,7 @@ public class AssignmentManager extends ZooKeeperListener {
         case RS_ZK_REGION_OPENING:
           // Should see OPENING after we have asked it to OPEN or additional
           // times after already being in state of OPENING
-          if(regionState == null ||
+          if (regionState == null ||
               (!regionState.isPendingOpen() && !regionState.isOpening())) {
             LOG.warn("Received OPENING for region " +
                 prettyPrintedRegionName +
@@ -755,7 +761,7 @@ public class AssignmentManager extends ZooKeeperListener {
               data.getStamp(), data.getOrigin());
           this.executorService.submit(
             new OpenedRegionHandler(master, this, regionState.getRegion(),
-              data.getOrigin()));
+              data.getOrigin(), expectedVersion));
           break;
       }
     }
@@ -907,11 +913,12 @@ public class AssignmentManager extends ZooKeeperListener {
   public void nodeCreated(String path) {
     if(path.startsWith(watcher.assignmentZNode)) {
       try {
-        RegionTransitionData data = ZKAssign.getData(watcher, path);
+        Stat stat = new Stat();
+        RegionTransitionData data = ZKAssign.getDataAndWatch(watcher, path, stat);
         if (data == null) {
           return;
         }
-        handleRegion(data);
+        handleRegion(data, stat.getVersion());
       } catch (KeeperException e) {
         master.abort("Unexpected ZK exception reading unassigned node data", e);
       }
@@ -934,11 +941,12 @@ public class AssignmentManager extends ZooKeeperListener {
   public void nodeDataChanged(String path) {
     if(path.startsWith(watcher.assignmentZNode)) {
       try {
-        RegionTransitionData data = ZKAssign.getData(watcher, path);
+        Stat stat = new Stat();
+        RegionTransitionData data = ZKAssign.getDataAndWatch(watcher, path, stat);
         if (data == null) {
           return;
         }
-        handleRegion(data);
+        handleRegion(data, stat.getVersion());
       } catch (KeeperException e) {
         master.abort("Unexpected ZK exception reading unassigned node data", e);
       }
@@ -1757,7 +1765,6 @@ public class AssignmentManager extends ZooKeeperListener {
       // Presume that master has stale data.  Presume remote side just split.
       // Presume that the split message when it comes in will fix up the master's
       // in memory cluster state.
-      return;
     } catch (Throwable t) {
       if (t instanceof RemoteException) {
         t = ((RemoteException)t).unwrapRemoteException();
@@ -2075,13 +2082,13 @@ public class AssignmentManager extends ZooKeeperListener {
   Map<ServerName, List<Pair<HRegionInfo, Result>>> rebuildUserRegions()
   throws IOException, KeeperException {
     // Region assignment from META
-    List<Result> results = MetaReader.fullScanOfResults(this.catalogTracker);
+    List<Result> results = MetaReader.fullScan(this.catalogTracker);
     // Map of offline servers and their regions to be returned
     Map<ServerName, List<Pair<HRegionInfo,Result>>> offlineServers =
       new TreeMap<ServerName, List<Pair<HRegionInfo, Result>>>();
     // Iterate regions in META
     for (Result result : results) {
-      Pair<HRegionInfo, ServerName> region = MetaReader.metaRowToRegionPair(result);
+      Pair<HRegionInfo, ServerName> region = MetaReader.parseCatalogResult(result);
       if (region == null) continue;
       HRegionInfo regionInfo = region.getFirst();
       ServerName regionLocation = region.getSecond();

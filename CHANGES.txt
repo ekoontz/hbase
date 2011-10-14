@@ -11,6 +11,11 @@ Release 0.93.0 - Unreleased
    HBASE-4477  Ability for an application to store metadata into the        
                transaction log (dhruba via jgray)
    HBASE-4145  Provide metrics for hbase client (Ming Ma)
+   HBASE-4465  Lazy-seek optimization for StoreFile scanners (mikhail/liyin)
+   HBASE-4422  Move block cache parameters and references into single
+               CacheConf class (jgray)
+   HBASE-4102  atomicAppend: A put that appends to the latest version of a cell (Lars H)
+   HBASE-4469  Avoid top row seek by looking up bloomfilter (liyin via jgray)
 
   BUG FIXES
    HBASE-4488  Store could miss rows during flush (Lars H via jgray)
@@ -18,6 +23,7 @@ Release 0.93.0 - Unreleased
   TESTS
    HBASE-4534  A new unit test for lazy seek and StoreScanner in general
                (mikhail via jgray)
+   HBASE-4545  TestHLog doesn't clean up after itself
 
 
 Release 0.92.0 - Unreleased
@@ -338,6 +344,25 @@ Release 0.92.0 - Unreleased
    HBASE-4494  AvroServer:: get fails with NPE on a non-existent row
                (Kay Kay)
    HBASE-4481  TestMergeTool failed in 0.92 build 20
+   HBASE-4386  Fix a potential NPE in TaskMonitor (todd)
+   HBASE-4402  Retaining locality after restart broken
+   HBASE-4482  Race Condition Concerning Eviction in SlabCache (Li Pi)
+   HBASE-4547  TestAdmin failing in 0.92 because .tableinfo not found
+   HBASE-4540  OpenedRegionHandler is not enforcing atomicity of the operation
+               it is performing(Ram)
+   HBASE-4335  Splits can create temporary holes in .META. that confuse clients
+               and regionservers (Lars H)
+   HBASE-4555  TestShell seems passed, but actually errors seen in test output
+               file (Mingjie Lai)
+   HBASE-4582  Store.java cleanup (failing TestHeapSize and has warnings)
+   HBASE-4556  Fix all incorrect uses of InternalScanner.next(...) (Lars H)
+   HBASE-4078  Validate store files after flush/compaction
+   HBASE-3417  CacheOnWrite is using the temporary output path for block
+               names, need to use a more consistent block naming scheme (jgray)
+   HBASE-4551  Fix pom and some test cases to compile and run against
+               Hadoop 0.23 (todd)
+   HBASE-3446  ProcessServerShutdown fails if META moves, orphaning lots of
+               regions
 
   TESTS
    HBASE-4450  test for number of blocks read: to serve as baseline for expected
@@ -591,6 +616,9 @@ Release 0.92.0 - Unreleased
                required (Roman Shaposhnik)
    HBASE-4520  Better handling of Bloom filter type discrepancy between HFile
                and CF config (Mikhail Bautin)
+   HBASE-4558  Refactor TestOpenedRegionHandler and TestOpenRegionHandler.(Ram)
+   HBASE-4558  Addendum for TestMasterFailover (Ram) - Breaks the build
+   HBASE-4568  Make zk dump jsp response faster
        
 
   TASKS

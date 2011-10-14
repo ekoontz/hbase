@@ -1366,6 +1366,13 @@ public class HBaseTestingUtility {
     return dfsCluster;
   }
 
+  public void setDFSCluster(MiniDFSCluster cluster) throws IOException {
+    if (dfsCluster != null && dfsCluster.isClusterUp()) {
+      throw new IOException("DFSCluster is already running! Shut it down first.");
+    }
+    this.dfsCluster = cluster;
+  }
+
   public FileSystem getTestFileSystem() throws IOException {
     return FileSystem.get(conf);
   }
@@ -1452,35 +1459,6 @@ public class HBaseTestingUtility {
     User user = User.createUserForTesting(c, username,
         new String[]{"supergroup"});
     return user;
-  }
-
-  /**
-   * Set soft and hard limits in namenode.
-   * You'll get a NPE if you call before you've started a minidfscluster.
-   * @param soft Soft limit
-   * @param hard Hard limit
-   * @throws NoSuchFieldException
-   * @throws SecurityException
-   * @throws IllegalAccessException
-   * @throws IllegalArgumentException
-   */
-  public void setNameNodeNameSystemLeasePeriod(final int soft, final int hard)
-  throws SecurityException, NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
-    // TODO: If 0.20 hadoop do one thing, if 0.21 hadoop do another.
-    // Not available in 0.20 hdfs.  Use reflection to make it happen.
-
-    // private NameNode nameNode;
-    Field field = this.dfsCluster.getClass().getDeclaredField("nameNode");
-    field.setAccessible(true);
-    NameNode nn = (NameNode)field.get(this.dfsCluster);
-    field = nn.getClass().getDeclaredField("namesystem");
-    field.setAccessible(true);
-    FSNamesystem namesystem = (FSNamesystem)field.get(nn);
-
-    field = namesystem.getClass().getDeclaredField("leaseManager");
-    field.setAccessible(true);
-    LeaseManager lm = (LeaseManager)field.get(namesystem);
-    lm.setLeasePeriod(100, 50000);
   }
 
   /**
@@ -1603,7 +1581,7 @@ public class HBaseTestingUtility {
    */
   public static ZooKeeperWatcher createAndForceNodeToOpenedState(
       HBaseTestingUtility TEST_UTIL, HRegion region,
-      HRegionServer regionServer) throws ZooKeeperConnectionException,
+      ServerName serverName) throws ZooKeeperConnectionException,
       IOException, KeeperException, NodeExistsException {
     ZooKeeperWatcher zkw = new ZooKeeperWatcher(TEST_UTIL.getConfiguration(),
         "unittest", new Abortable() {
@@ -1619,12 +1597,11 @@ public class HBaseTestingUtility {
           }
         });
 
-    ZKAssign.createNodeOffline(zkw, region.getRegionInfo(), regionServer
-        .getServerName());
+    ZKAssign.createNodeOffline(zkw, region.getRegionInfo(), serverName);
     int version = ZKAssign.transitionNodeOpening(zkw, region
-        .getRegionInfo(), regionServer.getServerName());
-    ZKAssign.transitionNodeOpened(zkw, region.getRegionInfo(), regionServer
-        .getServerName(), version);
+        .getRegionInfo(), serverName);
+    ZKAssign.transitionNodeOpened(zkw, region.getRegionInfo(), serverName,
+        version);
     return zkw;
   }
   

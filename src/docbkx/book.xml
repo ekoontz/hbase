@@ -49,19 +49,9 @@
     <revhistory>
       <revision>
         <date />
-        <revdescription>Adding first cuts at Configuration, Getting Started, Data Model</revdescription>
+        <revdescription>HBase version</revdescription>
         <revnumber>
           <?eval ${project.version}?>
-        </revnumber>
-      </revision>
-      <revision>
-        <date>
-        5 October 2010
-        </date>
-        <authorinitials>stack</authorinitials>
-        <revdescription>Initial layout</revdescription>
-        <revnumber>
-          0.89.20100924
         </revnumber>
       </revision>
     </revhistory>
@@ -312,7 +302,7 @@ public static class MyReducer extends TableReducer&lt;Text, IntWritable, Immutab
       <para>A good general introduction on the strength and weaknesses modelling on
           the various non-rdbms datastores is Ian Varleys' Master thesis,
           <link xlink:href="http://ianvarley.com/UT/MR/Varley_MastersReport_Full_2009-08-07.pdf">No Relation: The Mixed Blessings of Non-Relational Databases</link>.
-          Recommended.
+          Recommended.  Also, read <xref linkend="keyvalue"/> for how HBase stores data internally.
       </para>
   <section xml:id="schema.creation">
   <title>
@@ -400,7 +390,7 @@ admin.enableTable(table);
        </para>
        <para>Most of the time small inefficiencies don't matter all that much.  Unfortunately,
          this is a case where they do.  Whatever patterns are selected for ColumnFamilies, attributes, and rowkeys they could be repeated
-       several billion times in your data</para>
+       several billion times in your data.  See <xref linkend="keyvalue"/> for more information on HBase stores data internally.</para>
        <section xml:id="keysize.cf"><title>Column Families</title>
          <para>Try to keep the ColumnFamily names as small as possible, preferably one character (e.g. "d" for data/default).
          </para> 
@@ -593,79 +583,31 @@ admin.enableTable(table);
       </para>
     </section>
   </section>
-
-  </chapter>
-
-  <chapter xml:id="hbase_metrics">
-  <title>Metrics</title>
-  <section xml:id="metric_setup">
-  <title>Metric Setup</title>
-  <para>See <link xlink:href="http://hbase.apache.org/metrics.html">Metrics</link> for
-  an introduction and how to enable Metrics emission.
-  </para>
+  <section xml:id="schema.smackdown"><title>Schema Design Smackdown</title>
+    <para>This section will describe common schema design questions that appear on the dist-list.  These are 
+    general guidelines and not laws - each application must consider it's own needs.  
+    </para>
+    <section xml:id="schema.smackdown.rowsversions"><title>Rows vs. Versions</title>
+      <para>A common question is whether one should prefer rows or HBase's built-in-versioning.  The context is typically where there are
+      "a lot" of versions of a row to be retained (e.g., where it is significantly above the HBase default of 3 max versions).  The 
+      rows-approach would require storing a timstamp in some portion of the rowkey so that they would not overwite with each successive update.
+      </para>
+      <para>Preference:  Rows (generally speaking).
+      </para>
+    </section>
+    <section xml:id="schema.smackdown.rowscols"><title>Rows vs. Columns</title>
+      <para>Another common question is whether one should prefer rows or columns.  The context is typically in extreme cases of wide
+      tables, such as having 1 row with 1 million attributes, or 1 million rows with 1 columns apiece.  
+      </para>
+      <para>Preference:  Rows (generally speaking).  To be clear, this guideline is in the context is in extremely wide cases, not in the 
+      standard use-case where one needs to store a few dozen or hundred columns.
+      </para>
+    </section>
   </section>
-   <section xml:id="rs_metrics">
-   <title>RegionServer Metrics</title>
-          <section xml:id="hbase.regionserver.blockCacheCount"><title><varname>hbase.regionserver.blockCacheCount</varname></title>
-          <para>Block cache item count in memory.  This is the number of blocks of storefiles (HFiles) in the cache.</para>
-		  </section>
-         <section xml:id="hbase.regionserver.blockCacheFree"><title><varname>hbase.regionserver.blockCacheFree</varname></title>
-          <para>Block cache memory available (bytes).</para>
-		  </section>
-         <section xml:id="hbase.regionserver.blockCacheHitRatio"><title><varname>hbase.regionserver.blockCacheHitRatio</varname></title>
-          <para>Block cache hit ratio (0 to 100).  TODO:  describe impact to ratio where read requests that have cacheBlocks=false</para>
-		  </section>
-          <section xml:id="hbase.regionserver.blockCacheSize"><title><varname>hbase.regionserver.blockCacheSize</varname></title>
-          <para>Block cache size in memory (bytes).  i.e., memory in use by the BlockCache</para>
-		  </section>
-          <section xml:id="hbase.regionserver.compactionQueueSize"><title><varname>hbase.regionserver.compactionQueueSize</varname></title>
-          <para>Size of the compaction queue.  This is the number of stores in the region that have been targeted for compaction.</para>
-		  </section>
-          <section xml:id="hbase.regionserver.fsReadLatency_avg_time"><title><varname>hbase.regionserver.fsReadLatency_avg_time</varname></title>
-          <para>Filesystem read latency (ms).  This is the average time to read from HDFS.</para>
-		  </section>
-          <section xml:id="hbase.regionserver.fsReadLatency_num_ops"><title><varname>hbase.regionserver.fsReadLatency_num_ops</varname></title>
-          <para>TODO</para>
-		  </section>
-          <section xml:id="hbase.regionserver.fsSyncLatency_avg_time"><title><varname>hbase.regionserver.fsSyncLatency_avg_time</varname></title>
-          <para>Filesystem sync latency (ms)</para>
-		  </section>
-          <section xml:id="hbase.regionserver.fsSyncLatency_num_ops"><title><varname>hbase.regionserver.fsSyncLatency_num_ops</varname></title>
-          <para>TODO</para>
-		  </section>
-          <section xml:id="hbase.regionserver.fsWriteLatency_avg_time"><title><varname>hbase.regionserver.fsWriteLatency_avg_time</varname></title>
-          <para>Filesystem write latency (ms)</para>
-		  </section>
-          <section xml:id="hbase.regionserver.fsWriteLatency_num_ops"><title><varname>hbase.regionserver.fsWriteLatency_num_ops</varname></title>
-          <para>TODO</para>
-		  </section>
-          <section xml:id="hbase.regionserver.memstoreSizeMB"><title><varname>hbase.regionserver.memstoreSizeMB</varname></title>
-          <para>Sum of all the memstore sizes in this RegionServer (MB)</para>
-		  </section>
-          <section xml:id="hbase.regionserver.regions"><title><varname>hbase.regionserver.regions</varname></title>
-          <para>Number of regions served by the RegionServer</para>
-		  </section>
-          <section xml:id="hbase.regionserver.requests"><title><varname>hbase.regionserver.requests</varname></title>
-          <para>Total number of read and write requests.  Requests correspond to RegionServer RPC calls, thus a single Get will result in 1 request, but a Scan with caching set to 1000 will result in 1 request for each 'next' call (i.e., not each row).  A bulk-load request will constitute 1 request per HFile.</para>
-		  </section>
-          <section xml:id="hbase.regionserver.storeFileIndexSizeMB"><title><varname>hbase.regionserver.storeFileIndexSizeMB</varname></title>
-          <para>Sum of all the storefile index sizes in this RegionServer (MB)</para>
-		  </section>
-          <section xml:id="hbase.regionserver.stores"><title><varname>hbase.regionserver.stores</varname></title>
-          <para>Number of stores open on the RegionServer.  A store corresponds to a column family.  For example, if a table (which contains the column family) has 3 regions on a RegionServer, there will be 3 stores open for that column family. </para>
-		  </section>
-          <section xml:id="hbase.regionserver.storeFiles"><title><varname>hbase.regionserver.storeFiles</varname></title>
-          <para>Number of store filles open on the RegionServer.  A store may have more than one storefile (HFile).</para>
-		  </section>
-   </section>
+
   </chapter>
 
-  <chapter xml:id="cluster_replication">
-  <title>Cluster Replication</title>
-  <para>See <link xlink:href="http://hbase.apache.org/replication.html">Cluster Replication</link>.
-  </para>
-  </chapter>
-
+  
   <chapter xml:id="datamodel">
     <title>Data Model</title>
     <para>In short, applications store data into an HBase table.
@@ -1022,6 +964,8 @@ long explicitTimeInMs = 555;  // just an example
 put.add(Bytes.toBytes("cf"), Bytes.toBytes("attr1"), explicitTimeInMs, Bytes.toBytes(data));
 htable.put(put);
 </programlisting>
+          Caution:  the version timestamp is internally by HBase for things like time-to-live calculations.  
+          It's usually best to avoid setting the timestamp yourself.
           </para>
           </section>
           
@@ -1121,7 +1065,8 @@ htable.put(put);
 
 	<section xml:id="arch.catalog">
 	 <title>Catalog Tables</title>
-	  <para>
+	  <para>The catalog tables -ROOT- and .META. exist as HBase tables.  They are are filtered out 
+	  of the HBase shell's <code>list</code> command, but they are in fact tables just like any other.
      </para>
 	  <section xml:id="arch.catalog.root">
 	   <title>ROOT</title>
@@ -1612,6 +1557,8 @@ scan.setFilter(filter);
               Schubert Zhang's blog post on <link xlink:ref="http://cloudepr.blogspot.com/2009/09/hfile-block-indexed-file-format-to.html">HFile: A Block-Indexed File Format to Store Sorted Key-Value Pairs</link> makes for a thorough introduction to HBase's hfile.  Matteo Bertozzi has also put up a
               helpful description, <link xlink:href="http://th30z.blogspot.com/2011/02/hbase-io-hfile.html?spref=tw">HBase I/O: HFile</link>.
           </para>
+          <para>For more information, see the <link xlink:href="http://hbase.apache.org/xref/org/apache/hadoop/hbase/io/hfile/HFile.html">HFile source code</link>.
+          </para>
       </section>
 
       <section xml:id="hfile_tool">
@@ -1627,6 +1574,72 @@ scan.setFilter(filter);
         usage for other things to do with the <classname>HFile</classname>
         tool.</para>
       </section>
+      </section>
+      <section xml:id="hfile.blocks">
+        <title>Blocks</title>
+        <para>StoreFiles are composed of blocks.  The blocksize is configured on a per-ColumnFamily basis.
+        </para>
+        <para>For more information, see the <link xlink:href="http://hbase.apache.org/xref/org/apache/hadoop/hbase/io/hfile/HFileBlock.html">HFileBlock source code</link>.
+        </para>
+      </section>
+      <section xml:id="keyvalue">
+        <title>KeyValue</title>
+        <para>The KeyValue class is the heart of data storage in HBase.  KeyValue wraps a byte array and takes offsets and lengths into passed array
+         at where to start interpreting the content as KeyValue.
+        </para>
+        <para>The KeyValue format inside a byte array is:
+           <itemizedlist>
+             <listitem>keylength</listitem>
+             <listitem>valuelength</listitem>
+             <listitem>key</listitem>
+             <listitem>value</listitem>
+           </itemizedlist>
+        </para>
+        <para>The Key is further decomposed as:
+           <itemizedlist>
+             <listitem>rowlength</listitem>
+             <listitem>row (i.e., the rowkey)</listitem>
+             <listitem>columnfamilylength</listitem>
+             <listitem>columnfamily</listitem>
+             <listitem>columnqualifier</listitem>
+             <listitem>timestamp</listitem>
+             <listitem>keytype (e.g., Put, Delete)</listitem>
+           </itemizedlist>
+        </para>
+        <para>For more information, see the <link xlink:href="http://hbase.apache.org/xref/org/apache/hadoop/hbase/KeyValue.html">KeyValue source code</link>.
+        </para>
+        <section xml:id="keyvalue.example"><title>Example</title>
+          <para>To emphasize the points above, examine what happens with two Puts for two different columns for the same row:</para>
+           <itemizedlist>
+             <listitem>Put #1:  <code>rowkey=row1, cf:attr1=value1</code></listitem>
+             <listitem>Put #2:  <code>rowkey=row1, cf:attr2=value2</code></listitem>
+             </itemizedlist>
+          <para>Even though these are for the same row, a KeyValue is created for each column:</para>
+          <para>Key portion for Put #1:
+           <itemizedlist>
+             <listitem>rowlength (4)</listitem>
+             <listitem>row (row1)</listitem>
+             <listitem>columnfamilylength (2)</listitem>
+             <listitem>columnfamily (cf)</listitem>
+             <listitem>columnqualifier (attr1)</listitem>
+             <listitem>timestamp (server time of Put)</listitem>
+             <listitem>keytype (Put)</listitem>
+           </itemizedlist>
+          </para>
+          <para>Key portion for Put #2:
+           <itemizedlist>
+             <listitem>rowlength (4)</listitem>
+             <listitem>row (row1)</listitem>
+             <listitem>columnfamilylength (2)</listitem>
+             <listitem>columnfamily (cf)</listitem>
+             <listitem>columnqualifier (attr2)</listitem>
+             <listitem>timestamp (server time of Put)</listitem>
+             <listitem>keytype (Put)</listitem>
+           </itemizedlist>
+          </para>
+        </section>
+       <para>It is critical to understand that the rowkey, ColumnFamily, and column (aka columnqualifier) are embedded within
+       the KeyValue instance.  The longer these identifiers are, the bigger the KeyValue is.</para>
       </section>
       <section xml:id="compaction">
         <title>Compaction</title>
@@ -1706,7 +1719,6 @@ scan.setFilter(filter);
   
   <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="performance.xml" />
   <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="troubleshooting.xml" />
-  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="build.xml" />
   <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="developer.xml" />
   <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="external_apis.xml" />
   <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="ops_mgt.xml" />
@@ -2446,6 +2458,22 @@ Comparator class used for Bloom filter keys, a UTF>8 encoded string stored   usi
    </informaltable>
    <para/></section></section></appendix>
 
+  <appendix xml:id="asf" ><title>HBase and the Apache Software Foundation</title>
+    <para>HBase is a project in the Apache Software Foundation and as such there are responsibilities to the ASF to ensure
+    a healthy project.
+       <section xml:id="asf.devprocess"><title>ASF Development Process</title>
+        <para>See the <link xlink:href="http://www.apache.org/dev/#committers">Apache Development Process page</link> 
+        for all sorts of information on how the ASF is structured (e.g., PMC, committers, contributors), to tips on contributing
+        and getting involved, and how open-source works at ASF.     
+        </para>
+       </section>
+       <section xml:id="asf.reporting"><title>ASF Board Reporting</title>
+         <para>Once a quarter, each project in the ASF portfolio submits a report to the ASF board.  This is done by the HBase project
+         lead and the committers.  See <link xlink:href="http://www.apache.org/foundation/board/reporting">ASF board reporting</link> for more information.
+         </para>
+       </section>
+    </para>
+  </appendix>
 
   <index xml:id="book_index">
   <title>Index</title>

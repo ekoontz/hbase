@@ -19,16 +19,16 @@
  */
 package org.apache.hadoop.hbase.io.hfile.slab;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.io.hfile.CacheTestUtils;
-import org.apache.hadoop.hbase.io.hfile.slab.SlabCache;
 import org.apache.hadoop.hbase.io.hfile.slab.SlabCache.SlabStats;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.Ignore;
-
-import static org.junit.Assert.*;
 
 /**
  * Basic test of SlabCache. Puts and gets.
@@ -61,10 +61,10 @@ public class TestSlabCache {
 
   @Ignore @Test
   public void testElementPlacement() {
-    assertEquals(cache.getHigherBlock((int) BLOCK_SIZE).getKey().intValue(),
-        (int) (BLOCK_SIZE * 11 / 10));
-    assertEquals(cache.getHigherBlock((int) (BLOCK_SIZE * 2)).getKey()
-        .intValue(), (int) (BLOCK_SIZE * 21 / 10));
+    assertEquals(cache.getHigherBlock(BLOCK_SIZE).getKey().intValue(),
+        (BLOCK_SIZE * 11 / 10));
+    assertEquals(cache.getHigherBlock((BLOCK_SIZE * 2)).getKey()
+        .intValue(), (BLOCK_SIZE * 21 / 10));
   }
 
   @Ignore @Test

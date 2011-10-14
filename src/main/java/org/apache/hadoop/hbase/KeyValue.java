@@ -406,6 +406,82 @@ public class KeyValue implements Writable, HeapSize {
   }
 
   /**
+   * Constructs an empty KeyValue structure, with specified sizes.
+   * This can be used to partially fill up KeyValues.
+   * <p>
+   * Column is split into two fields, family and qualifier.
+   * @param rlength row length
+   * @param flength family length
+   * @param qlength qualifier length
+   * @param timestamp version timestamp
+   * @param type key type
+   * @param vlength value length
+   * @throws IllegalArgumentException
+   */
+  public KeyValue(final int rlength,
+      final int flength,
+      final int qlength,
+      final long timestamp, final Type type,
+      final int vlength) {
+    this.bytes = createEmptyByteArray(rlength,
+        flength, qlength,
+        timestamp, type, vlength);
+    this.length = bytes.length;
+    this.offset = 0;
+  }
+
+  /**
+   * Create an empty byte[] representing a KeyValue
+   * All lengths are preset and can be filled in later.
+   * @param rlength
+   * @param flength
+   * @param qlength
+   * @param timestamp
+   * @param type
+   * @param vlength
+   * @return The newly created byte array.
+   */
+  static byte[] createEmptyByteArray(final int rlength, int flength,
+      int qlength, final long timestamp, final Type type, int vlength) {
+    if (rlength > Short.MAX_VALUE) {
+      throw new IllegalArgumentException("Row > " + Short.MAX_VALUE);
+    }
+    if (flength > Byte.MAX_VALUE) {
+      throw new IllegalArgumentException("Family > " + Byte.MAX_VALUE);
+    }
+    // Qualifier length
+    if (qlength > Integer.MAX_VALUE - rlength - flength) {
+      throw new IllegalArgumentException("Qualifier > " + Integer.MAX_VALUE);
+    }
+    // Key length
+    long longkeylength = KEY_INFRASTRUCTURE_SIZE + rlength + flength + qlength;
+    if (longkeylength > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("keylength " + longkeylength + " > " +
+        Integer.MAX_VALUE);
+    }
+    int keylength = (int)longkeylength;
+    // Value length
+    if (vlength > HConstants.MAXIMUM_VALUE_LENGTH) { // FindBugs INT_VACUOUS_COMPARISON
+      throw new IllegalArgumentException("Valuer > " +
+          HConstants.MAXIMUM_VALUE_LENGTH);
+    }
+
+    // Allocate right-sized byte array.
+    byte [] bytes = new byte[KEYVALUE_INFRASTRUCTURE_SIZE + keylength + vlength];
+    // Write the correct size markers
+    int pos = 0;
+    pos = Bytes.putInt(bytes, pos, keylength);
+    pos = Bytes.putInt(bytes, pos, vlength);
+    pos = Bytes.putShort(bytes, pos, (short)(rlength & 0x0000ffff));
+    pos += rlength;
+    pos = Bytes.putByte(bytes, pos, (byte)(flength & 0x0000ff));
+    pos += flength + qlength;
+    pos = Bytes.putLong(bytes, pos, timestamp);
+    pos = Bytes.putByte(bytes, pos, type.getCode());
+    return bytes;
+  }
+
+  /**
    * Write KeyValue format into a byte array.
    *
    * @param row row key
@@ -967,6 +1043,7 @@ public class KeyValue implements Writable, HeapSize {
    * @return True if this KV is a {@link KeyValue.Type#Delete} type.
    */
   public boolean isDeleteType() {
+    // TODO: Fix this method name vis-a-vis isDelete!
     return getType() == Type.Delete.getCode();
   }
 
@@ -1754,6 +1831,21 @@ public class KeyValue implements Writable, HeapSize {
         bytes, getFamilyOffset(), getFamilyLength(),
         bytes, getQualifierOffset(), getQualifierLength(),
         HConstants.OLDEST_TIMESTAMP, Type.Minimum, null, 0, 0);
+  }
+
+  /**
+   * Creates the first KV with the row/family/qualifier of this KV and the
+   * given timestamp. Uses the "maximum" KV type that guarantees that the new
+   * KV is the lowest possible for this combination of row, family, qualifier,
+   * and timestamp. This KV's own timestamp is ignored. While this function
+   * copies the value from this KV, it is normally used on key-only KVs.
+   */
+  public KeyValue createFirstOnRowColTS(long ts) {
+    return new KeyValue(
+        bytes, getRowOffset(), getRowLength(),
+        bytes, getFamilyOffset(), getFamilyLength(),
+        bytes, getQualifierOffset(), getQualifierLength(),
+        ts, Type.Maximum, bytes, getValueOffset(), getValueLength());
   }
 
   /**

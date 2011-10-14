@@ -42,6 +42,7 @@ import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.io.hfile.CacheConfig;
 import org.apache.hadoop.hbase.io.hfile.HFile;
 import org.apache.hadoop.hbase.monitoring.MonitoredTask;
 import org.apache.hadoop.hbase.regionserver.FlushRequester;
@@ -78,7 +79,6 @@ public class TestWALReplay {
     // The below config supported by 0.20-append and CDH3b2
     conf.setInt("dfs.client.block.recovery.retries", 2);
     TEST_UTIL.startMiniDFSCluster(3);
-    TEST_UTIL.setNameNodeNameSystemLeasePeriod(100, 10000);
     Path hbaseRootDir =
       TEST_UTIL.getDFSCluster().getFileSystem().makeQualified(new Path("/hbase"));
     LOG.info("hbase.rootdir=" + hbaseRootDir);
@@ -199,7 +199,8 @@ public class TestWALReplay {
     HLog wal = createWAL(this.conf);
     HRegion region = HRegion.openHRegion(hri, htd, wal, this.conf);
     Path f =  new Path(basedir, "hfile");
-    HFile.Writer writer = HFile.getWriterFactory(conf).createWriter(this.fs, f);
+    HFile.Writer writer =
+      HFile.getWriterFactory(conf).createWriter(this.fs, f);
     byte [] family = htd.getFamilies().iterator().next().getName();
     byte [] row = Bytes.toBytes(tableNameStr);
     writer.append(new KeyValue(row, family, family, row));
