@@ -1552,10 +1552,8 @@ public class HRegionServer implements HRegionInterface, HBaseRPCErrorHandler,
   public void stop(final String msg) {
     this.stopped = true;
     LOG.info("STOPPED: " + msg);
-    synchronized (this) {
-      // Wakes run() if it is sleeping
-      notifyAll(); // FindBugs NN_NAKED_NOTIFY
-    }
+    // Wakes run() if it is sleeping
+    sleeper.skipSleepCycle();
   }
 
   @Override
