@@ -79,6 +79,7 @@ public class TestRegionServerCoprocessorExceptionWithAbort {
     }
   }
   private static HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
+  static final int timeout = 30000;
 
   @BeforeClass
   public static void setupBeforeClass() throws Exception {
@@ -95,7 +96,7 @@ public class TestRegionServerCoprocessorExceptionWithAbort {
     TEST_UTIL.shutdownMiniCluster();
   }
 
-  @Test(timeout=30000)
+  @Test(timeout=timeout)
   public void testExceptionFromCoprocessorDuringPut()
       throws IOException {
     // When we try to write to TEST_TABLE, the buggy coprocessor will
@@ -138,7 +139,7 @@ public class TestRegionServerCoprocessorExceptionWithAbort {
     }
     if (caughtInterruption == false) {
       try {
-        Thread.sleep(30000);
+        Thread.sleep(timeout);
         fail("RegionServer did not abort within 30 seconds.");
       } catch (InterruptedException e) {
         // .. or it might be caught here.
@@ -150,7 +151,7 @@ public class TestRegionServerCoprocessorExceptionWithAbort {
         rsTracker.regionZKNodeWasDeleted);
   }
 
-    public static class BuggyRegionObserver extends SimpleRegionObserver {
+  public static class BuggyRegionObserver extends SimpleRegionObserver {
     @Override
     public void prePut(final ObserverContext<RegionCoprocessorEnvironment> c,
                        final Put put, final WALEdit edit,
