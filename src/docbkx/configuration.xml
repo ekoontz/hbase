@@ -722,6 +722,38 @@ ${HBASE_HOME}/bin/hbase-daemons.sh {start,stop} zookeeper
           for more information on ZooKeeper sizing.
             </para>
             </section>
+
+
+            <section>
+              <title>SASL Authentication with ZooKeeper</title>
+              <para>Newer releases of HBase (though not 0.92) will
+              support connecting to a ZooKeeper Quorum that supports SASL
+              authentication. </para>
+
+              <section><title>HBase-managed Zookeeper</title>
+                <para>Modify your hbase-env.sh to include the following:</para>
+
+                <programlisting>
+                </programlisting>
+
+              </section>
+
+              <section><title>External Zookeeper</title>
+                <para>Modify your hbase-env.sh to include the following:</para>
+
+                <programlisting>
+                </programlisting>
+
+              </section>
+
+
+
+
+            </section> <!-- SASL Authentication with ZooKeeper -->
+
+
+
+
      </section>     <!--  zookeeper -->        
     
     
