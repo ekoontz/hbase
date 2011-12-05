@@ -809,7 +809,7 @@ ${HBASE_HOME}/bin/hbase-daemons.sh {start,stop} zookeeper
                 <filename>$CLIENT_CONF</filename> below.</para>
 
               <section>
-                <title>HBase-managed Zookeeper</title>
+                <title>HBase-managed Zookeeper Configuration</title>
 
                 <para>On each node that will run a zookeeper, a
                 master, or a regionserver, create a <link
@@ -915,7 +915,7 @@ ${HBASE_HOME}/bin/hbase-daemons.sh {start,stop} zookeeper
 
               </section>
 
-              <section><title>External Zookeeper</title>
+              <section><title>External Zookeeper Configuration</title>
                 <para>Add a JAAS configuration file that looks like:
 
                 <programlisting>
@@ -1010,11 +1010,18 @@ ${HBASE_HOME}/bin/hbase-daemons.sh {start,stop} zookeeper
               </section>
 
               <section>
-                <title>Zookeeper Authentication Log Output</title>
-                <para>If the configuration above was done correctly,
+                <title>Zookeeper Server Authentication Log Output</title>
+                <para>If the configuration above is successful,
                 you should see something similar to the following in
                 your Zookeeper server logs:
                 <programlisting>
+11/12/05 22:43:39 INFO zookeeper.Login: successfully logged in.
+11/12/05 22:43:39 INFO server.NIOServerCnxnFactory: binding to port 0.0.0.0/0.0.0.0:2181
+11/12/05 22:43:39 INFO zookeeper.Login: TGT refresh thread started.
+11/12/05 22:43:39 INFO zookeeper.Login: TGT valid starting at:        Mon Dec 05 22:43:39 UTC 2011
+11/12/05 22:43:39 INFO zookeeper.Login: TGT expires:                  Tue Dec 06 22:43:39 UTC 2011
+11/12/05 22:43:39 INFO zookeeper.Login: TGT refresh sleeping until: Tue Dec 06 18:36:42 UTC 2011
+..
 11/12/05 22:43:59 INFO auth.SaslServerCallbackHandler: 
   Successfully authenticated client: authenticationID=hbase/ip-10-166-175-249.us-west-1.compute.internal@HADOOP.LOCALDOMAIN; 
   authorizationID=hbase/ip-10-166-175-249.us-west-1.compute.internal@HADOOP.LOCALDOMAIN.
@@ -1024,6 +1031,27 @@ ${HBASE_HOME}/bin/hbase-daemons.sh {start,stop} zookeeper
                   
                 </para>
 
+              </section>
+
+              <section>
+                <title>Zookeeper Client Authentication Log Output</title>
+                <para>On the Zookeeper client side (HBase master or regionserver),
+                you should see something similar to the following:
+
+                <programlisting>
+11/12/05 22:43:59 INFO zookeeper.ZooKeeper: Initiating client connection, connectString=ip-10-166-175-249.us-west-1.compute.internal:2181 sessionTimeout=180000 watcher=master:60000
+11/12/05 22:43:59 INFO zookeeper.ClientCnxn: Opening socket connection to server /10.166.175.249:2181
+11/12/05 22:43:59 INFO zookeeper.RecoverableZooKeeper: The identifier of this process is 14851@ip-10-166-175-249
+11/12/05 22:43:59 INFO zookeeper.Login: successfully logged in.
+11/12/05 22:43:59 INFO client.ZooKeeperSaslClient: Client will use GSSAPI as SASL mechanism.
+11/12/05 22:43:59 INFO zookeeper.Login: TGT refresh thread started.
+11/12/05 22:43:59 INFO zookeeper.ClientCnxn: Socket connection established to ip-10-166-175-249.us-west-1.compute.internal/10.166.175.249:2181, initiating session
+11/12/05 22:43:59 INFO zookeeper.Login: TGT valid starting at:        Mon Dec 05 22:43:59 UTC 2011
+11/12/05 22:43:59 INFO zookeeper.Login: TGT expires:                  Tue Dec 06 22:43:59 UTC 2011
+11/12/05 22:43:59 INFO zookeeper.Login: TGT refresh sleeping until: Tue Dec 06 18:30:37 UTC 2011
+11/12/05 22:43:59 INFO zookeeper.ClientCnxn: Session establishment complete on server ip-10-166-175-249.us-west-1.compute.internal/10.166.175.249:2181, sessionid = 0x134106594320000, negotiated timeout = 180000
+                </programlisting>
+                </para>
               </section>
 
 
