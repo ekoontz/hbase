@@ -83,7 +83,7 @@
     <section xml:id="conceptual.view"><title>Conceptual View</title>
 	<para>
         The following example is a slightly modified form of the one on page
-        2 of the <link xlink:href="http://labs.google.com/papers/bigtable.html">BigTable</link> paper.
+        2 of the <link xlink:href="http://research.google.com/archive/bigtable.html">BigTable</link> paper.
     There is a table called <varname>webtable</varname> that contains two column families named
     <varname>contents</varname> and <varname>anchor</varname>.
     In this example, <varname>anchor</varname> contains two
@@ -1135,7 +1135,7 @@ if (!b) {
        can connect to an RDBMS (the connection information can be passed via custom parameters in the context) and the
        cleanup method can close the connection.
        </para> 
-       <para>It is critical to understand that number of reducers for the job affects the summarization implementation, you
+       <para>It is critical to understand that number of reducers for the job affects the summarization implementation, and
        you'll have to design this into your reducer.  Specifically, whether it is designed to run as a singleton (one reducer)
        or multiple reducers.  Neither is right or wrong, it depends on your use-case.  
        </para>
@@ -1200,6 +1200,63 @@ if (!b) {
  
   <chapter xml:id="architecture">
     <title>Architecture</title>
+	<section xml:id="arch.overview">
+	<title>Overview</title>
+	  <section xml:id="arch.overview.nosql">
+	  <title>NoSQL?</title>
+	  <para>HBase is a type of "NoSQL" database.  "NoSQL" is a general term meaning that the database isn't an RDBMS which
+	  supports SQL as it's primary access language, but there are many types of NoSQL databases:  BerkeleyDB is an 
+	  example of a local NoSQL database, whereas HBase is very much a distributed database.  Technically speaking,
+	  HBase is really more a "Data Store" than "Data Base" because it lacks many of the features you find in an RDBMS,
+	  such as typed columns, secondary indexes, triggers, and advanced query languages, etc.
+	  </para>
+	  <para>However, HBase has many features which supports both linear and modular scaling.  HBase clusters expand
+	  by adding RegionServers that are hosted on commodity class servers. If a cluster expands from 10 to 20 
+	  RegionServers, for example, it doubles both in terms of storage and as well as processing capacity.
+	  RDBMS can scale well, but only up to a point - specifically, the size of a single database server - and for the best
+	  performance requires specialized hardware and storage devices.  HBase features of note are:
+	        <itemizedlist>
+              <listitem>Strongly consistent reads/writes:  HBase is not an "eventually consistent" DataStore.  This 
+              makes it very suitable for tasks such as high-speed counter aggregation.  </listitem>
+              <listitem>Automatic sharding:  HBase tables are distributed on the cluster via regions, and regions are
+              automatically split and re-distributed as your data grows.</listitem>
+              <listitem>Automatic RegionServer failover</listitem>
+              <listitem>Hadoop/HDFS Integration:  HBase supports HDFS out of the box as it's distributed file system.</listitem>
+              <listitem>MapReduce:  HBase supports massively parallelized processing via MapReduce for using HBase as both 
+              source and sink.</listitem>
+              <listitem>Java Client API:  HBase supports an easy to use Java API for programmatic access.</listitem>
+              <listitem>Thrift/REST API:  HBase also supports Thrift and REST for non-Java front-ends.</listitem>
+              <listitem>Block Cache and Bloom Filters:  HBase supports a Block Cache and Bloom Filters for high volume query optimization.</listitem>
+              <listitem>Operational Management:  HBase provides build-in web-pages for operational insight as well as JMX metrics.</listitem>
+            </itemizedlist>
+	  </para>
+      </section>      
+	
+	  <section xml:id="arch.overview.when">
+	    <title>When Should I Use HBase?</title>
+	          <para>First, make sure you have enough data.  HBase isn't suitable for every problem.  If you have 
+                hundreds of millions or billions of rows, then HBase is a good candidate.  If you only have a few 
+                thousand/million rows, then using a traditional RDBMS might be a better choice due to the 
+                fact that all of your data might wind up on a single node (or two) and the rest of the cluster may
+                be sitting idle.
+	          </para>
+	          <para>Second, make sure you have enough hardware.  Even HDFS doesn't do well with anything less than
+                5 DataNodes (due to things such as HDFS block replication which has a default of 3), plus a NameNode.
+                </para>
+                <para>HBase can run quite well stand-alone on a laptop - but this should be considered a development
+                configuration only.
+                </para>
+      </section>
+      <section xml:id="arch.overview.hbasehdfs">
+        <title>What Is The Difference Between HBase and Hadoop/HDFS?</title>
+          <para><link xlink:href="http://hadoop.apache.org/hdfs/">HDFS</link> is a distributed file system that is well suited for the storage of large files. 
+          It's documentation states that it is not, however, a general purpose file system, and does not provide fast individual record lookups in files. 
+          HBase, on the other hand, is built on top of HDFS and provides fast record lookups (and updates) for large tables. 
+          This can sometimes be a point of conceptual confusion.  HBase internally puts your data in indexed "StoreFiles" that exist
+          on HDFS for high-speed lookups.  See the <xref linkend="datamodel" /> and the rest of this chapter for more information on how HBase achieves its goals.
+         </para>
+      </section>
+	</section>
 
 	<section xml:id="arch.catalog">
 	 <title>Catalog Tables</title>
@@ -1681,7 +1738,7 @@ scan.setFilter(filter);
       <title>StoreFile (HFile)</title>
       <section><title>HFile Format</title>
           <para>The <emphasis>hfile</emphasis> file format is based on
-              the SSTable file described in the <link xlink:href="http://labs.google.com/papers/bigtable.html">BigTable [2006]</link> paper and on
+              the SSTable file described in the <link xlink:href="http://research.google.com/archive/bigtable.html">BigTable [2006]</link> paper and on
               Hadoop's <link xlink:href="http://hadoop.apache.org/common/docs/current/api/org/apache/hadoop/io/file/tfile/TFile.html">tfile</link>
               (The unit test suite and the compression harness were taken directly from tfile). 
               Schubert Zhang's blog post on <link xlink:ref="http://cloudepr.blogspot.com/2009/09/hfile-block-indexed-file-format-to.html">HFile: A Block-Indexed File Format to Store Sorted Key-Value Pairs</link> makes for a thorough introduction to HBase's hfile.  Matteo Bertozzi has also put up a
@@ -1881,6 +1938,192 @@ scan.setFilter(filter);
   <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="ops_mgt.xml" />
   <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="developer.xml" />
 
+<appendix xml:id="faq">
+    <title >FAQ</title>
+    <qandaset defaultlabel='faq'>
+        <qandadiv><title>General</title>
+        <qandaentry>
+                <question><para>When should I use HBase?</para></question>
+            <answer>
+                <para>See the <xref linkend="arch.overview" /> in the Architecture chapter.
+                </para>
+            </answer>
+        </qandaentry>
+        <qandaentry>
+                <question><para>Are there other HBase FAQs?</para></question>
+            <answer>
+                <para>
+              See the FAQ that is up on the wiki, <link xlink:href="http://wiki.apache.org/hadoop/Hbase/FAQ">HBase Wiki FAQ</link>.
+                </para>
+            </answer>
+        </qandaentry>
+        <qandaentry xml:id="faq.sql">
+            <question><para>Does HBase support SQL?</para></question>
+            <answer>
+                <para>
+                    Not really.  SQL-ish support for HBase via <link xlink:href="http://hive.apache.org/">Hive</link> is in development, however Hive is based on MapReduce which is not generally suitable for low-latency requests.
+                    See the <xref linkend="datamodel" /> section for examples on the HBase client.
+                </para>
+            </answer>
+        </qandaentry>
+    </qandadiv>
+    <qandadiv xml:id="faq.config"><title>Configuration</title>
+        <qandaentry xml:id="faq.config.started">
+            <question><para>How can I get started with my first cluster?</para></question>
+            <answer>
+                <para>
+                    See <xref linkend="quickstart" />.
+                </para>
+            </answer>
+            </qandaentry>
+        <qandaentry xml:id="faq.config.started">
+            <question><para>Where can I learn about the rest of the configuration options?</para></question>
+            <answer>
+                <para>
+                    See <xref linkend="configuration" />.
+                </para>
+            </answer>
+            </qandaentry>
+    </qandadiv>
+    <qandadiv xml:id="faq.design"><title>Schema Design / Data Access</title>
+        <qandaentry xml:id="faq.design.schema">
+            <question><para>How should I design my schema in HBase?</para></question>
+            <answer>
+                <para>
+                    See <xref linkend="datamodel" /> and <xref linkend="schema" />
+                </para>
+            </answer>
+        </qandaentry>
+        <qandaentry>
+            <question><para>
+                    How can I store (fill in the blank) in HBase?
+            </para></question>
+            <answer>
+                <para>
+                See <xref linkend="supported.datatypes" />.
+                </para>
+            </answer>
+        </qandaentry>
+        <qandaentry xml:id="secondary.indices">
+            <question><para>
+                    How can I handle secondary indexes in HBase?
+            </para></question>
+            <answer>
+                <para>
+                See <xref linkend="secondary.indexes" />
+                </para>
+            </answer>
+        </qandaentry>
+        <qandaentry xml:id="faq.changing.rowkeys">
+            <question><para>Can I change a table's rowkeys?</para></question>
+            <answer>
+                <para>
+                    This is a very common quesiton.  You can't.  See <xref linkend="changing.rowkeys" />.
+                </para>
+            </answer>
+        </qandaentry>
+        <qandaentry>
+            <question><para>
+                    How can I get a column 'slice': i.e. I have a million columns in my row but I only want to look at columns bbbb-bbbd?
+            </para></question>
+            <answer>
+                <para>
+                  See <classname>org.apache.hadoop.hbase.filter.ColumnRangeFilter</classname>    
+                </para>
+            </answer>
+        </qandaentry>
+    </qandadiv>
+    <qandadiv xml:id="faq.mapreduce"><title>MapReduce</title>
+        <qandaentry xml:id="faq.mapreduce.use">
+            <question><para>How can I use MapReduce with HBase?</para></question>
+            <answer>
+                <para>
+                    See <xref linkend="mapreduce" />
+                </para>
+            </answer>
+        </qandaentry>
+    </qandadiv>
+    <qandadiv><title>Performance and Troubleshooting</title>
+        <qandaentry>
+            <question><para>
+                   How can I improve HBase cluster performance?
+            </para></question>
+            <answer>
+                <para>
+                See <xref linkend="performance" />.
+                </para>
+            </answer>
+        </qandaentry>
+        <qandaentry>
+            <question><para>
+                    How can I troubleshoot my HBase cluster?
+            </para></question>
+            <answer>
+                <para>
+                See <xref linkend="trouble" />.
+                </para>
+            </answer>
+        </qandaentry>
+        <qandaentry xml:id="brand.new.compressor">
+            <question><para>Why are logs flooded with '2011-01-10 12:40:48,407 INFO org.apache.hadoop.io.compress.CodecPool: Got
+            brand-new compressor' messages?</para></question>
+            <answer>
+                <para>
+                    Because we are not using the native versions of compression
+                    libraries.  See <link xlink:href="https://issues.apache.org/jira/browse/HBASE-1900">HBASE-1900 Put back native support when hadoop 0.21 is released</link>.
+                    Copy the native libs from hadoop under hbase lib dir or
+                    symlink them into place and the message should go away.
+                </para>
+            </answer>
+        </qandaentry>
+    </qandadiv>
+    <qandadiv xml:id="ec2"><title>Amazon EC2</title>
+        <qandaentry>
+            <question><para>
+            I am running HBase on Amazon EC2 and...
+            </para></question>
+            <answer>
+                <para>
+ 	            EC2 issues are a special case.  See Troubleshooting <xref linkend="trouble.ec2" /> and Performance <xref linkend="perf.ec2" /> sections.                
+               </para>
+            </answer>
+        </qandaentry>
+    </qandadiv>
+    <qandadiv><title xml:id="faq.operations">Operations</title>
+        <qandaentry>
+            <question><para>
+                    How do I manage my HBase cluster?
+            </para></question>
+            <answer>
+                <para>
+                    See <xref linkend="ops_mgt" />
+                </para>
+            </answer>
+        </qandaentry>
+        <qandaentry>
+            <question><para>
+                    How do I back up my HBase cluster?
+            </para></question>
+            <answer>
+                <para>
+                    See <xref linkend="ops.backup" />
+                </para>
+            </answer>
+        </qandaentry>
+    </qandadiv>
+        <qandadiv><title>HBase in Action</title>
+        <qandaentry>
+            <question><para>Where can I find interesting videos and presentations on HBase?</para></question>
+            <answer>
+                <para>
+                    See <xref linkend="other.info" />
+                </para>
+            </answer>
+        </qandaentry>
+        </qandadiv>
+    </qandaset>
+  </appendix>
+
   <appendix xml:id="compression">
 
     <title >Compression In HBase<indexterm><primary>Compression</primary></indexterm></title>
@@ -1993,167 +2236,6 @@ hbase> describe 't1'</programlisting>
 
   </appendix>
 
-  <appendix xml:id="faq">
-    <title >FAQ</title>
-    <qandaset defaultlabel='faq'>
-        <qandadiv><title>General</title>
-        <qandaentry>
-                <question><para>When should I use HBase?</para></question>
-            <answer>
-                <para>
-              Anybody can download and give HBase a spin, even on a laptop.  The scope of this answer is when 
-              would it be best to use HBase in a <emphasis>real</emphasis> deployment.
-                </para>
-                <para>First, make sure you have enough hardware.  Even HDFS doesn't do well with anything less than
-                5 DataNodes (due to things such as HDFS block replication which has a default of 3), plus a NameNode.
-                Second, make sure you have enough data.  HBase isn't suitable for every problem.  If you have 
-                hundreds of millions or billions of rows, then HBase is a good candidate.  If you only have a few 
-                thousand/million rows, then using a traditional RDBMS might be a better choice due to the 
-                fact that all of your data might wind up on a single node (or two) and the rest of the cluster may
-                be sitting idle.
-                </para>
-            </answer>
-        </qandaentry>
-        <qandaentry>
-                <question><para>Are there other HBase FAQs?</para></question>
-            <answer>
-                <para>
-              See the FAQ that is up on the wiki, <link xlink:href="http://wiki.apache.org/hadoop/Hbase/FAQ">HBase Wiki FAQ</link>.
-                </para>
-            </answer>
-        </qandaentry>
-        <qandaentry xml:id="faq.sql">
-            <question><para>Does HBase support SQL?</para></question>
-            <answer>
-                <para>
-                    Not really.  SQL-ish support for HBase via <link xlink:href="http://hive.apache.org/">Hive</link> is in development, however Hive is based on MapReduce which is not generally suitable for low-latency requests.
-                    See the <xref linkend="datamodel" /> section for examples on the HBase client.
-                </para>
-            </answer>
-        </qandaentry>
-        <qandaentry xml:id="faq.hdfs.hbase">
-            <question><para>How does HBase work on top of HDFS?</para></question>
-            <answer>
-                <para>
-                    <link xlink:href="http://hadoop.apache.org/hdfs/">HDFS</link> is a distributed file system that is well suited for the storage of large files.  It's documentation 
-                    states that it is not, however, a general purpose file system, and does not provide fast individual record lookups in files. 
-                    HBase, on the other hand, is built on top of HDFS and provides fast record lookups (and updates) for large tables.  This can sometimes be a point of conceptual confusion.
-                    See the <xref linkend="datamodel" /> and <xref linkend="architecture" /> sections for more information on how HBase achieves its goals.
-                </para>
-            </answer>
-        </qandaentry>
-        <qandaentry xml:id="faq.changing.rowkeys">
-            <question><para>Can I change a table's rowkeys?</para></question>
-            <answer>
-                <para>
-                    No.  See <xref linkend="changing.rowkeys" />.
-                </para>
-            </answer>
-        </qandaentry>
-    </qandadiv>
-    <qandadiv xml:id="ec2"><title>Amazon EC2</title>
-        <qandaentry>
-            <question><para>
-            I am running HBase on Amazon EC2 and...
-            </para></question>
-            <answer>
-                <para>
- 	            See Troubleshooting <xref linkend="trouble.ec2" /> and Performance <xref linkend="perf.ec2" /> sections.                
-               </para>
-            </answer>
-        </qandaentry>
-    </qandadiv>
-        <qandadiv><title>Building HBase</title>
-        <qandaentry>
-            <question><para>
-When I build, why do I always get <code>Unable to find resource 'VM_global_library.vm'</code>?
-            </para></question>
-            <answer>
-                <para>
-                    Ignore it.  Its not an error.  It is <link xlink:href="http://jira.codehaus.org/browse/MSITE-286">officially ugly</link> though.
-                </para>
-            </answer>
-        </qandaentry>
-    </qandadiv>
-    <qandadiv><title>Runtime</title>
-        <qandaentry>
-            <question><para>
-                    I'm having problems with my HBase cluster, how can I troubleshoot it?
-            </para></question>
-            <answer>
-                <para>
-                See <xref linkend="trouble" />.
-                </para>
-            </answer>
-        </qandaentry>
-        <qandaentry>
-            <question><para>
-                   How can I improve HBase cluster performance?
-            </para></question>
-            <answer>
-                <para>
-                See <xref linkend="performance" />.
-                </para>
-            </answer>
-        </qandaentry>
-        <qandaentry xml:id="brand.new.compressor">
-            <question><para>Why are logs flooded with '2011-01-10 12:40:48,407 INFO org.apache.hadoop.io.compress.CodecPool: Got
-            brand-new compressor' messages?</para></question>
-            <answer>
-                <para>
-                    Because we are not using the native versions of compression
-                    libraries.  See <link xlink:href="https://issues.apache.org/jira/browse/HBASE-1900">HBASE-1900 Put back native support when hadoop 0.21 is released</link>.
-                    Copy the native libs from hadoop under hbase lib dir or
-                    symlink them into place and the message should go away.
-                </para>
-            </answer>
-        </qandaentry>
-    </qandadiv>
-    <qandadiv><title xml:id="howdoi">How do I...?</title>
-        <qandaentry xml:id="secondary.indices">
-            <question><para>
-                    Secondary Indexes in HBase?
-            </para></question>
-            <answer>
-                <para>
-                See <xref linkend="secondary.indexes" />
-                </para>
-            </answer>
-        </qandaentry>
-        <qandaentry>
-            <question><para>
-                    Store (fill in the blank) in HBase?
-            </para></question>
-            <answer>
-                <para>
-                See <xref linkend="supported.datatypes" />.
-                </para>
-            </answer>
-        </qandaentry>
-        <qandaentry>
-            <question><para>
-                    Back up my HBase Cluster?
-            </para></question>
-            <answer>
-                <para>
-                    See <xref linkend="ops.backup" />
-                </para>
-            </answer>
-        </qandaentry>
-        <qandaentry>
-            <question><para>
-                    Get a column 'slice': i.e. I have a million columns in my row but I only want to look at columns bbbb-bbbd?
-            </para></question>
-            <answer>
-                <para>
-                  See <classname>org.apache.hadoop.hbase.filter.ColumnRangeFilter</classname>    
-                </para>
-            </answer>
-        </qandaentry>
-    </qandadiv>
-    </qandaset>
-  </appendix>
-
   <appendix>
       <title xml:id="ycsb"><link xlink:href="https://github.com/brianfrankcooper/YCSB/">YCSB: The Yahoo! Cloud Serving Benchmark</link> and HBase</title>
       <para>TODO: Describe how YCSB is poor for putting up a decent cluster load.</para>
@@ -2161,7 +2243,6 @@ When I build, why do I always get <code>Unable to find resource 'VM_global_libra
       <para>Ted Dunning redid YCSB so its mavenized and added facility for verifying workloads.  See <link xlink:href="https://github.com/tdunning/YCSB">Ted Dunning's YCSB</link>.</para>
 
   </appendix>
-
 
 <appendix xml:id="hfilev2">
    <title>HFile format version 2</title>
@@ -2626,9 +2707,56 @@ Comparator class used for Bloom filter keys, a UTF>8 encoded string stored   usi
    </informaltable>
    <para/></section></section></appendix>
 
+  <appendix xml:id="other.info">
+      <title>Other Information about HBase</title>
+       <section xml:id="other.info.videos"><title>HBase Videos</title>
+         <para>Introduction to HBase
+            <itemizedlist>
+			  <listitem><link xlink:href="http://www.cloudera.com/videos/chicago_data_summit_apache_hbase_an_introduction_todd_lipcon">Introduction to HBase</link> by Todd Lipcon (Chicago Data Summit 2011).
+			  </listitem>
+			  <listitem><link xlink:href="http://www.cloudera.com/videos/intorduction-hbase-todd-lipcon">Introduction to HBase</link> by Todd Lipcon (2010).
+			  </listitem>
+			</itemizedlist>
+         </para>
+         <para><link xlink:href="http://www.cloudera.com/videos/hadoop-world-2011-presentation-video-building-realtime-big-data-services-at-facebook-with-hadoop-and-hbase">Building Real Time Services at Facebook with HBase</link> by Jonathan Gray (Hadoop World 2011).
+         </para>
+         <para><link xlink:href="http://www.cloudera.com/videos/hw10_video_how_stumbleupon_built_and_advertising_platform_using_hbase_and_hadoop">HBase and Hadoop, Mixing Real-Time and Batch Processing at StumbleUpon</link> by JD Cryans (Hadoop World 2010).
+         </para>
+       </section>
+       <section xml:id="other.info.pres"><title>HBase Presentations (Slides)</title>
+         <para><link xlink:href="http://www.cloudera.com/resource/hadoop-world-2011-presentation-slides-advanced-hbase-schema-design">Advanced HBase Schema Design</link> by Lars George (Hadoop World 2011).
+         </para>
+         <para><link xlink:href="http://www.slideshare.net/cloudera/chicago-data-summit-apache-hbase-an-introduction">Introduction to HBase</link> by Todd Lipcon (Chicago Data Summit 2011).
+         </para>
+         <para><link xlink:href="http://www.slideshare.net/cloudera/hw09-practical-h-base-getting-the-most-from-your-h-base-install">Getting The Most From Your HBase Install</link> by Ryan Rawson, Jonathan Gray (Hadoop World 2009).
+         </para>
+       </section>
+       <section xml:id="other.info.papers"><title>Papers</title>
+         <para><link xlink:href="http://research.google.com/archive/bigtable.html">BigTable</link> by Google (2006).
+         </para>
+         <para><link xlink:href="http://ianvarley.com/UT/MR/Varley_MastersReport_Full_2009-08-07.pdf">No Relation: The Mixed Blessings of Non-Relational Databases</link> by Ian Varley (2009).
+         </para>
+       </section>
+       <section xml:id="other.info.sites"><title>Sites</title>
+         <para><link xlink:href="http://www.cloudera.com/blog/category/hbase/">Cloudera's HBase Blog</link> has a lot of links to useful HBase information.
+		<itemizedlist>
+			<listitem><link xlink:href="http://www.cloudera.com/blog/2010/04/cap-confusion-problems-with-partition-tolerance/">CAP Confusion</link> is a relevant entry for background information on
+			distributed storage systems.
+			</listitem>
+		</itemizedlist>
+         </para>
+         <para><link xlink:href="http://wiki.apache.org/hadoop/HBase/HBasePresentations">HBase Wiki</link> has a page with a number of presentations.
+         </para>
+       </section>
+       <section xml:id="other.info.books"><title>Books</title>
+         <para><link xlink:href="http://shop.oreilly.com/product/0636920014348.do">HBase:  The Definitive Guide</link> by Lars George.
+         </para>
+       </section>
+  </appendix>
+
   <appendix xml:id="asf" ><title>HBase and the Apache Software Foundation</title>
     <para>HBase is a project in the Apache Software Foundation and as such there are responsibilities to the ASF to ensure
-    a healthy project.
+    a healthy project.</para>
        <section xml:id="asf.devprocess"><title>ASF Development Process</title>
         <para>See the <link xlink:href="http://www.apache.org/dev/#committers">Apache Development Process page</link> 
         for all sorts of information on how the ASF is structured (e.g., PMC, committers, contributors), to tips on contributing
@@ -2640,7 +2768,6 @@ Comparator class used for Bloom filter keys, a UTF>8 encoded string stored   usi
          lead and the committers.  See <link xlink:href="http://www.apache.org/foundation/board/reporting">ASF board reporting</link> for more information.
          </para>
        </section>
-    </para>
   </appendix>
 
   <index xml:id="book_index">
