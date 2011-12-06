@@ -752,15 +752,15 @@ ${HBASE_HOME}/bin/hbase-daemons.sh {start,stop} zookeeper
                   You need to have a working Kerberos KDC setup. For
                   each <code>$HOST</code> that will run a ZooKeeper
                   server, you should have a principle
-                  <code>zookeeper/$HOST</code>.  For each host, add a
-                  service key (using the <code>kadmin</code> or
+                  <code>zookeeper/$HOST</code>.  For each such host,
+                  add a service key (using the <code>kadmin</code> or
                   <code>kadmin.local</code> tool's <code>ktadd</code>
                   command) for <code>zookeeper/$HOST</code> and copy
                   this file to <code>$HOST</code>, and make it
                   readable only to the user that will run zookeeper on
                   <code>$HOST</code>. Note the location of this file,
                   which we will use below as
-                  <filename>$PATH_TO_HBASE_KEYTAB</filename>.
+                  <filename>$PATH_TO_ZOOKEEPER_KEYTAB</filename>.
               </para>
 
               <para>
@@ -786,8 +786,8 @@ ${HBASE_HOME}/bin/hbase-daemons.sh {start,stop} zookeeper
                 <code>maxrenewlife</code> should be set so that it can
                 be renewed enough so that the user can complete their
                 HBase client processes. For example, if a user runs a
-                long-running HBase client process that takes 2 days,
-                we might create this user's principal within
+                long-running HBase client process that takes at most 3
+                days, we might create this user's principal within
                 <code>kadmin</code> with: <code>addprinc -maxrenewlife
                 3days</code>.
               </para>
@@ -928,8 +928,8 @@ ${HBASE_HOME}/bin/hbase-daemons.sh {start,stop} zookeeper
                   };
                 </programlisting>
 
-                where the <filename>$PATH_TO_HBASE_KEYTAB</filename> and are
-                what you created above, and <code>$HOST</code> is the
+                where the <filename>$PATH_TO_HBASE_KEYTAB</filename> is the keytab 
+                created above for HBase services to run on this host, and <code>$HOST</code> is the
                 hostname for that node. Put this in the HBase home's
                 configuration directory. We'll refer to this file's
                 full pathname as <filename>$HBASE_SERVER_CONF</filename> below.</para>
@@ -960,6 +960,10 @@ ${HBASE_HOME}/bin/hbase-daemons.sh {start,stop} zookeeper
                   </configuration>
                   ]]>
                 </programlisting>
+
+                <para>where <code>$ZK_NODES</code> is the
+                comma-separated list of hostnames of the Zookeeper
+                Quorum hosts.</para>
 
                 <para>
                   Add a <filename>zoo.cfg</filename> for each Zookeeper Quorum host containing:
