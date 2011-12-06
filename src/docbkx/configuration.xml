@@ -789,7 +789,10 @@ ${HBASE_HOME}/bin/hbase-daemons.sh {start,stop} zookeeper
                 long-running HBase client process that takes at most 3
                 days, we might create this user's principal within
                 <code>kadmin</code> with: <code>addprinc -maxrenewlife
-                3days</code>.
+                3days</code>. The Zookeeper client and server
+                libraries manage their own ticket refreshment by
+                running threads that wake up periodically to do the
+                refreshment.
               </para>
 
                 <para>On each host that will run an HBase client
@@ -1058,8 +1061,69 @@ ${HBASE_HOME}/bin/hbase-daemons.sh {start,stop} zookeeper
                 </para>
               </section>
 
+              <section>
+                <title>Configuration from Scratch</title>
+
+                This has been tested on the current standard Amazon
+                Linux AMI.  First setup KDC and principals as
+                described above. Next checkout code and run a sanity
+                check.
+                
+                <programlisting>
+                git clone git://git.apache.org/hbase.git
+                cd hbase
+                mvn -Psecurity,localTests clean test -Dtest=TestZooKeeperACL
+                </programlisting>
+
+                Then configure HBase as described above.
+                Manually edit target/cached_classpath.txt (see below)..
+
+                <programlisting>
+                bin/hbase zookeeper &amp;
+                bin/hbase master &amp;
+                bin/hbase regionserver &amp;
+                </programlisting>
+              </section>
+
+
+              <section>
+                <title>Future improvements</title>
+
+                <section><title>Fix target/cached_classpath.txt</title>
+                <para>
+                You must override the standard hadoop-core jar file from the
+                <code>target/cached_classpath.txt</code>
+                file with the version containing the HADOOP-7070 fix. You can use the following script to do this:
+
+                <programlisting>
+                  echo `find ~/.m2 -name "*hadoop-core*7070*SNAPSHOT.jar"` ':' `cat target/cached_classpath.txt` | sed 's/ //g' > target/tmp.txt 
+                  mv target/tmp.txt target/cached_classpath.txt
+                </programlisting>
+
+                </para>
+
+                </section>
+
+                <section>
+                  <title>Set JAAS configuration
+                  programmatically</title> 
+
+
+                  This would avoid the need for a separate Hadoop jar
+                  that fixes <link xlink:href="https://issues.apache.org/jira/browse/HADOOP-7070">HADOOP-7070</link>.
+                </section>
+                
+                <section>
+                  <title>Elimination of 
+                  <code>kerberos.removeHostFromPrincipal</code> and 
+                  <code>kerberos.removeRealmFromPrincipal</code></title>
+                </section>
+                
+              </section>
+
 
             </section> <!-- SASL Authentication with ZooKeeper -->
+
 
 
 
