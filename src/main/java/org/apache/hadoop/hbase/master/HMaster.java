@@ -384,7 +384,7 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
 
     // Is this fresh start with no regions assigned or are we a master joining
     // an already-running cluster?  If regionsCount == 0, then for sure a
-    // fresh start.  TOOD: Be fancier.  If regionsCount == 2, perhaps the
+    // fresh start.  TODO: Be fancier.  If regionsCount == 2, perhaps the
     // 2 are .META. and -ROOT- and we should fall into the fresh startup
     // branch below.  For now, do processFailover.
     if (regionCount == 0) {
@@ -393,6 +393,7 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
       this.assignmentManager.assignAllUserRegions();
     } else {
       LOG.info("Master startup proceeding: master failover");
+      verifyMetaTablesAreUp();
       this.assignmentManager.processFailover();
     }
 
@@ -404,6 +405,46 @@ implements HMasterInterface, HMasterRegionInterface, MasterServices, Server {
 
     LOG.info("Master has completed initialization");
     initialized = true;
+  }
+
+  void verifyMetaTablesAreUp() throws InterruptedException, KeeperException {
+    // HBASE-5202: make sure -ROOT- and .META. server have come up according
+    // to what the CatalogTracker believes their locations to be.
+    boolean metaServerIsOnline = false;
+    boolean rootServerIsOnline = false;
+    while (!metaServerIsOnline || !rootServerIsOnline) {
+      for (HServerAddress sn: this.regionServerTracker.getOnlineServers()) {
+        if (!rootServerIsOnline &&
+            (catalogTracker.getRootLocation().equals(sn)) &&
+            (this.serverManager.isServerOnline(sn))) {
+          rootServerIsOnline = true;
+          LOG.debug("-ROOT- server at: " + catalogTracker.getRootLocation() +
+              " has come up.");
+        }
+        if (!metaServerIsOnline &&
+            (catalogTracker.getMetaLocation().equals(sn)) &&
+            (this.serverManager.isServerOnline(sn))) {
+          metaServerIsOnline = true;
+          LOG.debug(".META. server at: " + catalogTracker.getMetaLocation() +
+              " has come up.");
+        }
+      }
+      if (!rootServerIsOnline || !metaServerIsOnline) {
+        if (!rootServerIsOnline) {
+          LOG.debug("Still waiting for -ROOT- server at: " +
+              catalogTracker.getRootLocation() + " to come online..");
+        }
+        if (!metaServerIsOnline) {
+          LOG.debug("Still waiting for .META. server at: " +
+              catalogTracker.getMetaLocation() + " to come online..");
+        }
+        Thread.sleep(1000);
+      }
+      if (metaServerIsOnline && rootServerIsOnline) {
+        LOG.info("-ROOT- and first region of .META. are both online now. " +
+            "Continuing with master failover processing.");
+      }
+    }
   }
 
   /**

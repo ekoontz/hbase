@@ -698,6 +698,20 @@ public class ServerManager {
     return onlineServers.containsKey(serverName);
   }
 
+  public boolean isServerOnline(final HServerAddress serverAddress) {
+    // avoid using this method when possible because it's slow:
+    // we have to sequentially search the whole map, rather than using the
+    // key as the above method does.
+    // Used currently only by HMaster.verifyMetaTablesAreUp.
+    for(HServerInfo serverInfo: onlineServers.values()) {
+      HServerAddress eachServerAddress = serverInfo.getServerAddress();
+      if (eachServerAddress.equals(serverAddress)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
   public void shutdownCluster() {
     this.clusterShutdown = true;
     this.master.stop("Cluster shutdown requested");

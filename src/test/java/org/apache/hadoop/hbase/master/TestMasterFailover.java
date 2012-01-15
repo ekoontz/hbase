@@ -21,6 +21,8 @@ package org.apache.hadoop.hbase.master;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -33,6 +35,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Abortable;
+import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
@@ -53,6 +56,7 @@ import org.apache.hadoop.hbase.util.JVMClusterUtil.MasterThread;
 import org.apache.hadoop.hbase.util.JVMClusterUtil.RegionServerThread;
 import org.apache.hadoop.hbase.zookeeper.ZKAssign;
 import org.apache.hadoop.hbase.zookeeper.ZKTable;
+import org.apache.hadoop.hbase.zookeeper.ZKUtil;
 import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
@@ -955,10 +959,208 @@ public class TestMasterFailover {
     TEST_UTIL.shutdownMiniCluster();
   }
 
+  @Test (timeout=100000)
+  public void testMasterFailoverWithSlowRS() throws Exception {
+    // bring up a cluster with 2 regionservers and 2 master threads,
+    // one of which we will stop so that it will be failed-over to.
+    final int NUM_MASTERS = 2;
+    final int NUM_RS = 2;
+
+    // Create config to use for this cluster
+    Configuration conf = HBaseConfiguration.create();
+    // These settings are intended to  cause the master to miss a
+    // high-latency regionserver's registration during the master's 
+    // serverManager.waitForRegionServers(). 
+    conf.setInt("hbase.master.wait.on.regionservers.mintostart", 1);
+    conf.setInt("hbase.master.wait.on.regionservers.timeout", 1000);
+    conf.setInt("hbase.master.wait.on.regionservers.interval",500);
+
+    // need to set dfs.support.append to false to prevent this test from
+    // timing out in HLogSplitter:recoverFileLease().
+    conf.setBoolean("dfs.support.append", false);
+
+    // the SlowRegionServer class is defined below.
+    conf.set(HConstants.REGION_SERVER_IMPL,
+        "org.apache.hadoop.hbase.master.TestMasterFailover$SlowRegionServer");
+
+    // Create and start the cluster
+    HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility(conf);
+    TEST_UTIL.startMiniCluster(NUM_MASTERS, NUM_RS);
+    MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
+
+    log("Cluster started");
+
+    // get all the master threads
+    List<MasterThread> masterThreads = cluster.getMasterThreads();
+
+    // wait for each to come online
+    for (MasterThread mt : masterThreads) {
+      assertTrue(mt.isAlive());
+    }
+
+    ZooKeeperWatcher zkw = new ZooKeeperWatcher(conf,
+        "unittest", null);
+
+    // Wait for no regions to be in transition.
+    log("Waiting for all region assignments to finish.");
+    ZKAssign.blockUntilNoRIT(zkw);
+    log("Assignment completed.");
+
+    // At this point we only expect 2 regions to be assigned out (catalog
+    // regions only).
+    assertEquals(2, cluster.countServedRegions());
+
+    // We want .META. and -ROOT- to be on separate servers.
+    // First, determine where -ROOT- and .META. are.
+    List<RegionServerThread> regionServerThreads =
+        cluster.getLiveRegionServerThreads();
+    assertEquals(regionServerThreads.size(), 2);
+
+    HRegionServer rootServer = null;
+    SlowRegionServer metaServer = null;
+    
+    // If .META. and -ROOT- are on the same RS, newmetaServer is the server
+    // to which we'll move .META.
+    SlowRegionServer newmetaServer = null;
+
+    for (RegionServerThread regionServerThread : regionServerThreads) {
+      HRegionServer testServer = regionServerThread.getRegionServer();
+      HRegion metaRegion = testServer
+          .getOnlineRegion(HRegionInfo.FIRST_META_REGIONINFO.getRegionName());
+      if (null != metaRegion) { // found the server hosting .META.
+        metaServer =
+            (SlowRegionServer)testServer;
+      } else {
+        newmetaServer =
+            (SlowRegionServer)testServer;
+      }
+    }
+    assertNotNull(metaServer);
+
+    for (RegionServerThread regionServerThread : regionServerThreads) {
+      HRegionServer testServer = regionServerThread.getRegionServer();
+      HRegion rootRegion = testServer
+          .getOnlineRegion(HRegionInfo.ROOT_REGIONINFO.getRegionName());
+      if (null != rootRegion) { // found the server hosting -ROOT-.
+        rootServer = testServer;
+        break;
+      }
+    }
+    assertNotNull(rootServer);
+
+    if (rootServer.equals(metaServer)) {
+      assertNotNull(newmetaServer);
+      assertNotSame(metaServer, newmetaServer);
+      // move one of these two to the other regionserver to
+      // so that the two are distributed between the two RS.
+      // We'll move .META. for now, but root should work hopefully.
+      byte[] encodedMeta = HRegionInfo.FIRST_META_REGIONINFO.getEncodedNameAsBytes();
+      log("Moving .META. from " + metaServer.getServerName() + " to " + newmetaServer.getServerName());
+      cluster.getMaster().move(encodedMeta, Bytes.toBytes(newmetaServer.getServerName()));
+
+      // wait for move to complete.
+      ZooKeeperWatcher zkw2 = new ZooKeeperWatcher(TEST_UTIL.getConfiguration(),
+          "unittest", new Abortable() {
+        @Override
+        public void abort(String why, Throwable e) {
+          LOG.error("Fatal ZK Error: " + why, e);
+          org.junit.Assert.assertFalse("Fatal ZK error", true);
+        }
+      });
+
+      log("Waiting for .META. to move to " + newmetaServer.getServerName() + ".");
+      ZKAssign.blockUntilNoRIT(zkw2);
+      log(".META. moved from " + metaServer.getServerName() + " to " +
+          newmetaServer.getServerName() + "; continuing.");
+    }
+
+    // assert that regions are on different servers now.
+    rootServer = null;
+    metaServer = null;
+    for (RegionServerThread regionServerThread : regionServerThreads) {
+      SlowRegionServer testServer =
+          (SlowRegionServer)regionServerThread.getRegionServer();
+      HRegion metaRegion = testServer
+          .getOnlineRegion(HRegionInfo.FIRST_META_REGIONINFO.getRegionName());
+      if (null != metaRegion) { // found the server hosting .META.
+        metaServer = testServer;
+      }
+
+      HRegion rootRegion = testServer
+          .getOnlineRegion(HRegionInfo.ROOT_REGIONINFO.getRegionName());
+      if (null != rootRegion) {
+        rootServer = testServer;
+      }
+    }
+    assertNotSame(rootServer,metaServer);
+
+    ZooKeeperWatcher masterWatcher = new ZooKeeperWatcher(conf, "Master", null);
+    ZKUtil.watchAndCheckExists(masterWatcher, "/hbase/master");
+
+    // stop one master thread so that failover to other will occur.
+    log("Stopping active master thread: should failover to other master thread.");
+    int activeIndex = -1;
+    LOG.debug("\n\nStopping active master.\n");
+    HMaster backupMaster = null;
+    for (int i = 0; i < masterThreads.size(); i++) {
+      if (masterThreads.get(i).getMaster().isActiveMaster()) {
+        activeIndex = i;
+        log("Slowing down server: " + newmetaServer.getServerName());
+        cluster.stopMaster(activeIndex, false);
+        newmetaServer.setResponseDelay(1500);
+      } else {
+        backupMaster = masterThreads.get(i).getMaster();
+      }
+    }
+    cluster.waitOnMaster(activeIndex);
+    log("Stopped active master; waiting for failover.");
+
+    // Test that master's surviving thread has come up OK through failover.
+    // If the master died, then we'll never complete this call, and the
+    // test will timeout (and fail).
+    cluster.waitForActiveAndReadyMaster();
+
+    log("Test finished; stopping cluster.");
+
+    // Speed up the slow regionserver to make cluster shutdown faster so that
+    // the test finishes earlier.
+    newmetaServer.setResponseDelay(0);
+    TEST_UTIL.shutdownMiniCluster();
+  }
+  
+  
   // TODO: Next test to add is with testing permutations of the RIT or the RS
   //       killed are hosting ROOT and META regions.
 
   private void log(String string) {
     LOG.info("\n\n" + string + " \n\n");
+  }
+
+  /**
+   * Regionserver class with sleeps to simulate a high-latency connection.
+   */
+  public static class SlowRegionServer
+      extends MiniHBaseCluster.MiniHBaseClusterRegionServer {
+    private long delay = 0;
+    public SlowRegionServer(Configuration conf)
+        throws IOException, InterruptedException {
+      super(conf);
+    }
+
+    @Override
+    protected HRegionInfo[] getMostLoadedRegions() {
+      if (delay > 0) {
+        try {
+          Thread.sleep(delay);
+        } catch (InterruptedException e) {
+          //..
+        }
+      }
+      return super.getMostLoadedRegions();
+    }
+
+    public void setResponseDelay(long useDelay) {
+      delay = useDelay;
+    }
   }
 }
