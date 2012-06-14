@@ -57,10 +57,10 @@ Arrays.sort(serverNames);
         <li class=""><a href="#compactStas" data-toggle="tab">Compactions</a></li>
     </ul>
     <div class="tab-content" style="padding-bottom: 9px; border-bottom: 1px solid #ddd;">
-        <div class="tab-pane active" id="regionLoad">
+        <div class="tab-pane active region-load" id="regionLoad">
 	    <h1>STUFF GOES HERE.</h1>
         </div>
-        <div class="tab-pane active" id="baseStats">
+        <div class="tab-pane" id="baseStats">
             <& baseStats; serverNames = serverNames; &>
         </div>
         <div class="tab-pane" id="memoryStats">
