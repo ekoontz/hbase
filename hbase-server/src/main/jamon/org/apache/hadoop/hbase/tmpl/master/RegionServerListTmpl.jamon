@@ -49,13 +49,17 @@ Arrays.sort(serverNames);
 
 <div class="tabbable">
     <ul class="nav nav-tabs">
-        <li class="active"><a href="#baseStats" data-toggle="tab">Base Stats</a></li>
+        <li class="active"><a href="#regionLoad" data-toggle="tab">Region Load</a></li>
+        <li class=""><a href="#baseStats" data-toggle="tab">Base Stats</a></li>
         <li class=""><a href="#memoryStats" data-toggle="tab">Memory</a></li>
         <li class=""><a href="#requestStats" data-toggle="tab">Requests</a></li>
         <li class=""><a href="#storeStats" data-toggle="tab">Storefiles</a></li>
         <li class=""><a href="#compactStas" data-toggle="tab">Compactions</a></li>
     </ul>
     <div class="tab-content" style="padding-bottom: 9px; border-bottom: 1px solid #ddd;">
+        <div class="tab-pane active" id="regionLoad">
+	    <h1>STUFF GOES HERE.</h1>
+        </div>
         <div class="tab-pane active" id="baseStats">
             <& baseStats; serverNames = serverNames; &>
         </div>
