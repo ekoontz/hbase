@@ -31,6 +31,7 @@
 #   HBASE_NICENESS The scheduling priority for daemons. Defaults to 0.
 #
 # Modelled after $HADOOP_HOME/bin/hadoop-daemon.sh
+set -x
 
 usage="Usage: hbase-daemon.sh [--config <conf-dir>]\
  (start|stop|restart|autorestart) <hbase-command> \
