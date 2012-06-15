@@ -236,7 +236,7 @@ org.apache.hadoop.hbase.HBaseConfiguration;
     <script src="/static/js/jquery.min.js" type="text/javascript"></script>
     <script src="/static/js/bootstrap.min.js" type="text/javascript"></script>
     <script src="/static/js/d3.v2.min.js" type="text/javascript"></script>
-    <script src='/static/js/population.js' type='text/javascript'></script>
+    <script src='/static/js/regionload.js' type='text/javascript'></script>
   </body>
 </html>
 

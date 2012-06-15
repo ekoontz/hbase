@@ -58,8 +58,8 @@ Arrays.sort(serverNames);
     </ul>
     <div class="tab-content" style="padding-bottom: 9px; border-bottom: 1px solid #ddd;">
         <div class="tab-pane active region-load" id="regionLoad">
-  	  <div id="chart"> </div>
-	  <script src='/static/js/population.js' type='text/javascript'> </script>
+  	  <div id="rsload"> </div>
+
         </div>
         <div class="tab-pane" id="baseStats">
             <& baseStats; serverNames = serverNames; &>
