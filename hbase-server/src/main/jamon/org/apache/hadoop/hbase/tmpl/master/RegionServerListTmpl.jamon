@@ -128,8 +128,8 @@ Arrays.sort(serverNames);
 
 <%def memoryStats>
 <%args>
-        ServerName [] serverNames;
-        </%args>
+    ServerName [] serverNames;
+</%args>
 <table class="table table-striped">
 <tr>
     <th>ServerName</th>
@@ -154,14 +154,7 @@ for (ServerName serverName: serverNames) {
 <%java>
         }  else {
 </%java>
-<tr>
-    <td><& serverNameLink; serverName=serverName; &></td>
-    <td></td>
-    <td></td>
-    <td></td>
-    <td></td>
-    <td></td>
-</tr>
+<& emptyStat; serverName=serverName; &>
 <%java>
         }
 }
@@ -196,12 +189,7 @@ if (sl != null) {
 <%java>
         }  else {
         </%java>
-<tr>
-<td><& serverNameLink; serverName=serverName; &></td>
-<td></td>
-<td></td>
-<td></td>
-</tr>
+<& emptyStat; serverName=serverName; &>
 <%java>
         }
 }
@@ -242,15 +230,7 @@ if (sl != null) {
 <%java>
         }  else {
         </%java>
-<tr>
-<td><& serverNameLink; serverName=serverName; &></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-</tr>
+<& emptyStat; serverName=serverName; &>
 <%java>
     }
 }
@@ -289,12 +269,7 @@ if  (sl.getTotalCompactingKVs() > 0) {
 <%java>
         }  else {
         </%java>
-<tr>
-<td><& serverNameLink; serverName=serverName; &></td>
-<td></td>
-<td></td>
-<td></td>
-</tr>
+<& emptyStat; serverName=serverName; &>
 <%java>
     }
 }
@@ -314,6 +289,21 @@ if  (sl.getTotalCompactingKVs() > 0) {
         String url = "http://" + serverName.getHostname() + ":" + infoPort + "/";
         </%java>
         <a href="<% url %>"><% serverName.getHostname() %></a>
+</%def>
+
+<%def emptyStat>
+        <%args>
+        ServerName serverName;
+        </%args>
+    <tr>
+    <td><& serverNameLink; serverName=serverName; &></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    </tr>
 </%def>
 
 

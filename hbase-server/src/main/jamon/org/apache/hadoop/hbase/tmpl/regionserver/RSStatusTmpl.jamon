@@ -102,9 +102,11 @@ org.apache.hadoop.hbase.protobuf.generated.HBaseProtos.RegionLoad;
         </div>
     </div>
 
+    <h2>Server Metrics</h2>
+    <& ServerMetricsTmpl; metrics = metrics; &>
+
     <h2>Regions</h2>
     <& RegionListTmpl; regionServer = regionServer; onlineRegions = onlineRegions; &>
-
 
     <& ../common/TaskMonitorTmpl; filter = filter &>
 
@@ -124,11 +126,6 @@ org.apache.hadoop.hbase.protobuf.generated.HBaseProtos.RegionLoad;
             <td>HBase Compiled</td>
             <td><% org.apache.hadoop.hbase.util.VersionInfo.getDate() %>, <% org.apache.hadoop.hbase.util.VersionInfo.getUser() %></td>
             <td>When HBase version was compiled and by whom</td>
-        </tr>
-        <tr>
-            <td>Metrics</td>
-            <td><% metrics.toString() %></td>
-            <td>RegionServer Metrics; file and heap sizes are in megabytes</td>
         </tr>
         <tr>
             <td>Zookeeper Quorum</td>

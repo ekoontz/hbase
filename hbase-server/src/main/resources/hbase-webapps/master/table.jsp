@@ -225,7 +225,9 @@
 <tr>
   <td><%= meta.getRegionNameAsString() %></td>
     <td><a href="<%= url %>"><%= metaLocation.getHostname().toString() + ":" + infoPort %></a></td>
-    <td>-</td><td><%= Bytes.toString(meta.getStartKey()) %></td><td><%= Bytes.toString(meta.getEndKey()) %></td>
+    <td>-</td>
+    <td><%= Bytes.toString(meta.getStartKey()) %></td>
+    <td><%= Bytes.toString(meta.getEndKey()) %></td>
 </tr>
 <%  } %>
 </table>

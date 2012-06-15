@@ -4529,8 +4529,8 @@ public class HRegion implements HeapSize { // , Writable{
     boolean flush = false;
     WALEdit walEdits = null;
     List<KeyValue> allKVs = new ArrayList<KeyValue>(append.size());
-    List<KeyValue> kvs = new ArrayList<KeyValue>(append.size());
-    long now = EnvironmentEdgeManager.currentTimeMillis();
+    Map<Store, List<KeyValue>> tempMemstore = new HashMap<Store, List<KeyValue>>();
+    long before = EnvironmentEdgeManager.currentTimeMillis();
     long size = 0;
     long txid = 0;
 
@@ -4541,11 +4541,13 @@ public class HRegion implements HeapSize { // , Writable{
       Integer lid = getLock(lockid, row, true);
       this.updatesLock.readLock().lock();
       try {
+        long now = EnvironmentEdgeManager.currentTimeMillis();
         // Process each family
         for (Map.Entry<byte[], List<KeyValue>> family : append.getFamilyMap()
             .entrySet()) {
 
           Store store = stores.get(family.getKey());
+          List<KeyValue> kvs = new ArrayList<KeyValue>(family.getValue().size());
 
           // Get previous values for all columns in this family
           Get get = new Get(row);
@@ -4611,10 +4613,8 @@ public class HRegion implements HeapSize { // , Writable{
             }
           }
 
-          // Write the KVs for this family into the store
-          size += store.upsert(kvs);
-          allKVs.addAll(kvs);
-          kvs.clear();
+          //store the kvs to the temporary memstore before writing HLog
+          tempMemstore.put(store, kvs);
         }
 
         // Actually write to WAL now
@@ -4624,9 +4624,16 @@ public class HRegion implements HeapSize { // , Writable{
           // as a Put.
           txid = this.log.appendNoSync(regionInfo,
               this.htableDescriptor.getName(), walEdits,
-              HConstants.DEFAULT_CLUSTER_ID, now, this.htableDescriptor);
+              HConstants.DEFAULT_CLUSTER_ID, EnvironmentEdgeManager.currentTimeMillis(),
+              this.htableDescriptor);
         }
 
+        //Actually write to Memstore now
+        for (Map.Entry<Store, List<KeyValue>> entry : tempMemstore.entrySet()) {
+          Store store = entry.getKey();
+          size += store.upsert(entry.getValue());
+          allKVs.addAll(entry.getValue());
+        }
         size = this.addAndGetGlobalMemstoreSize(size);
         flush = isFlushSize(size);
       } finally {
@@ -4641,7 +4648,7 @@ public class HRegion implements HeapSize { // , Writable{
     }
     
     long after = EnvironmentEdgeManager.currentTimeMillis();
-    this.opMetrics.updateAppendMetrics(append.getFamilyMap().keySet(), after - now);   
+    this.opMetrics.updateAppendMetrics(append.getFamilyMap().keySet(), after - before);   
     
     
     if (flush) {
@@ -4675,8 +4682,8 @@ public class HRegion implements HeapSize { // , Writable{
     boolean flush = false;
     WALEdit walEdits = null;
     List<KeyValue> allKVs = new ArrayList<KeyValue>(increment.numColumns());
-    List<KeyValue> kvs = new ArrayList<KeyValue>(increment.numColumns());
-    long now = EnvironmentEdgeManager.currentTimeMillis();
+    Map<Store, List<KeyValue>> tempMemstore = new HashMap<Store, List<KeyValue>>();
+    long before = EnvironmentEdgeManager.currentTimeMillis();
     long size = 0;
     long txid = 0;
 
@@ -4687,11 +4694,13 @@ public class HRegion implements HeapSize { // , Writable{
       Integer lid = getLock(lockid, row, true);
       this.updatesLock.readLock().lock();
       try {
+        long now = EnvironmentEdgeManager.currentTimeMillis();
         // Process each family
         for (Map.Entry<byte [], NavigableMap<byte [], Long>> family :
           increment.getFamilyMap().entrySet()) {
 
           Store store = stores.get(family.getKey());
+          List<KeyValue> kvs = new ArrayList<KeyValue>(family.getValue().size());
 
           // Get previous values for all columns in this family
           Get get = new Get(row);
@@ -4727,10 +4736,8 @@ public class HRegion implements HeapSize { // , Writable{
             }
           }
 
-          // Write the KVs for this family into the store
-          size += store.upsert(kvs);
-          allKVs.addAll(kvs);
-          kvs.clear();
+          //store the kvs to the temporary memstore before writing HLog
+          tempMemstore.put(store, kvs);
         }
 
         // Actually write to WAL now
@@ -4739,10 +4746,16 @@ public class HRegion implements HeapSize { // , Writable{
           // cluster. A slave cluster receives the final value (not the delta)
           // as a Put.
           txid = this.log.appendNoSync(regionInfo, this.htableDescriptor.getName(),
-              walEdits, HConstants.DEFAULT_CLUSTER_ID, now,
+              walEdits, HConstants.DEFAULT_CLUSTER_ID, EnvironmentEdgeManager.currentTimeMillis(),
               this.htableDescriptor);
         }
 
+        //Actually write to Memstore now
+        for (Map.Entry<Store, List<KeyValue>> entry : tempMemstore.entrySet()) {
+          Store store = entry.getKey();
+          size += store.upsert(entry.getValue());
+          allKVs.addAll(entry.getValue());
+        }
         size = this.addAndGetGlobalMemstoreSize(size);
         flush = isFlushSize(size);
       } finally {
@@ -4757,7 +4770,7 @@ public class HRegion implements HeapSize { // , Writable{
     }
     
     long after = EnvironmentEdgeManager.currentTimeMillis();
-    this.opMetrics.updateIncrementMetrics(increment.getFamilyMap().keySet(), after - now);   
+    this.opMetrics.updateIncrementMetrics(increment.getFamilyMap().keySet(), after - before);   
     
     if (flush) {
       // Request a cache flush.  Do it outside update lock.
