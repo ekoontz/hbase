@@ -36,8 +36,9 @@ chart.selectAll("text")
     .attr("y", function(regionserver) { return  max_height - 10;})
     .attr("dx", 30)
     .attr("dy", ".35em") // vertical-align: middle
-    .attr("text-anchor", "middle")
-    .text(function(regionserver){ return regionserver.hostname;});
+    .attr("text-anchor", "right")
+    .text(function(regionserver){ return regionserver.hostname + ":" + regionserver.regions;});
+ 
 
 // 3. ticks
 // ..
@@ -48,4 +49,5 @@ chart.append("line")
     .attr("x2", bar_width * region_load_report.length)
     .attr("y1", max_height)
     .attr("y2", max_height)
+
     .style("stroke", "black");
