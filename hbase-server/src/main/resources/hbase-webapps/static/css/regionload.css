@@ -3,5 +3,6 @@ div.region-load {
     padding-bottom:0.5em;
     padding-left:0.5em;
     padding-right:0.5em;
-    border:1px dashed grey;
+    border:1px solid grey;
+    background: lightgrey;
 }
